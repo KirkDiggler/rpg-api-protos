@@ -1,21 +1,24 @@
 {
   "name": "@kirkdiggler/rpg-api-protos",
   "version": "0.1.0",
-  "description": "Protocol Buffer definitions for the RPG API",
-  "main": "gen/ts/index.js",
-  "types": "gen/ts/index.d.ts",
+  "description": "Protocol Buffer definitions for the RPG API - Generated TypeScript client",
+  "main": "dnd5e/api/v1alpha1/character_pb.js",
+  "types": "dnd5e/api/v1alpha1/character_pb.d.ts",
   "scripts": {
     "generate": "buf generate",
     "lint": "buf lint",
     "format": "buf format -w",
-    "build": "npm run generate"
+    "build": "npm run generate && tsc",
+    "test": "npm run build"
   },
   "keywords": [
     "protobuf",
     "grpc",
     "rpg",
     "dnd",
-    "api"
+    "api",
+    "typescript",
+    "connect"
   ],
   "author": "Kirk Diggler",
   "license": "MIT",
@@ -28,11 +31,15 @@
     "typescript": "^5.0.0"
   },
   "files": [
-    "gen/ts/**/*",
-    "*.proto"
+    "dnd5e/**/*.js",
+    "dnd5e/**/*.d.ts",
+    "dnd5e/**/*.ts"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/KirkDiggler/rpg-api-protos.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

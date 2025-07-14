@@ -1,13 +1,14 @@
 # RPG API Protocol Buffers
 
-This repository contains the Protocol Buffer definitions for the RPG API, published to the [Buf Schema Registry (BSR)](https://buf.build/kirkdiggler/rpg-api) for consumption in Go and TypeScript projects.
+This repository contains the Protocol Buffer definitions for the RPG API with automated CI/CD generation and publishing of Go and TypeScript packages.
 
 ## Overview
 
 The rpg-api-protos repository provides:
-- ✅ Protocol Buffer definitions for D&D 5e API
+- ✅ Protocol Buffer definitions for D&D 5e API  
 - ✅ Automated code generation for Go and TypeScript
-- ✅ Publishing to Buf Schema Registry
+- ✅ Mock generation for testing
+- ✅ Package publishing to Go modules and NPM
 - ✅ Breaking change detection
 - ✅ Comprehensive linting and formatting
 
@@ -16,16 +17,21 @@ The rpg-api-protos repository provides:
 ### Go Projects
 
 ```bash
-go get github.com/KirkDiggler/rpg-api-protos
+# Get the generated Go code with gRPC and mocks
+go get github.com/KirkDiggler/rpg-api-protos/gen/go
 ```
 
 ```go
 import (
     dnd5ev1alpha1 "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1"
+    "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks"
 )
 
-// Use the generated types
+// Use the generated client
 client := dnd5ev1alpha1.NewCharacterServiceClient(conn)
+
+// Use mocks in tests
+mockClient := mocks.NewMockCharacterServiceClient(ctrl)
 ```
 
 ### TypeScript Projects
@@ -35,19 +41,10 @@ npm install @kirkdiggler/rpg-api-protos
 ```
 
 ```typescript
-import { CharacterServiceClient } from '@kirkdiggler/rpg-api-protos/gen/ts/dnd5e/api/v1alpha1/character_connect';
-import { Character } from '@kirkdiggler/rpg-api-protos/gen/ts/dnd5e/api/v1alpha1/character_pb';
+import { CharacterServiceClient } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_connect';
+import { Character } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_pb';
 
 const client = new CharacterServiceClient(transport);
-```
-
-### Using BSR Remote Generation
-
-For TypeScript projects, you can also use BSR's remote generation:
-
-```bash
-npm install @bufbuild/protoc-gen-es @connectrpc/protoc-gen-connect-es
-npx buf generate buf.build/kirkdiggler/rpg-api
 ```
 
 ## Repository Structure

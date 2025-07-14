@@ -24,20 +24,27 @@ generate: ## Generate Go and TypeScript code
 clean: ## Clean generated files
 	rm -rf gen/
 
-test: ## Run tests (lint + format check + generate)
+test: ## Run tests (lint + format check + generate + mocks)
 	buf lint
 	buf format --diff --exit-code
 	buf generate
+	make mocks
 
-push: ## Push to Buf Schema Registry
-	buf push
+mocks: ## Generate mocks for gRPC services
+	mkdir -p gen/go/dnd5e/api/v1alpha1/mocks
+	mockgen -source=gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
 
 breaking: ## Check for breaking changes against main branch
 	buf breaking --against '.git#branch=main'
 
+compile-go: ## Test Go compilation
+	cd gen/go && go mod init github.com/KirkDiggler/rpg-api-protos/gen/go && go mod tidy && go build ./...
+
+compile-ts: ## Test TypeScript compilation  
+	npx tsc --noEmit --project tsconfig.json
+
 deps: ## Update dependencies
 	buf mod update
-	go mod tidy
 	npm update
 
 pre-commit: test ## Run pre-commit checks

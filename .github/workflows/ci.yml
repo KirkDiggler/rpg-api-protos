@@ -53,7 +53,8 @@ jobs:
       - name: Generate mocks
         run: |
           # Generate mocks for gRPC services
-          mockgen -source=gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
+          mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks
+          mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
       
       - name: Test Go compilation
         run: |
@@ -103,8 +104,8 @@ jobs:
       - name: Generate all code
         run: |
           buf generate
-          mkdir -p gen/go/dnd5e/api/v1alpha1/mocks
-          mockgen -source=gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
+          mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks
+          mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
       
       - name: Setup Go module
         run: |

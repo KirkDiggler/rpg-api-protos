@@ -8,10 +8,10 @@ option go_package = "github.com/KirkDiggler/rpg-api/api/proto/dnd5e/v1alpha1;dnd
 message ValidationError {
   // Field that failed validation
   string field = 1;
-  
+
   // Human-readable error message
   string message = 2;
-  
+
   // Error code for programmatic handling
   string code = 3;
 }
@@ -20,13 +20,13 @@ message ValidationError {
 message DiceRoll {
   // Number of dice
   int32 count = 1;
-  
+
   // Die size (4, 6, 8, 10, 12, 20, 100)
   int32 size = 2;
-  
+
   // Modifier to add/subtract
   int32 modifier = 3;
-  
+
   // String representation (e.g., "1d20+5")
   string notation = 4;
 }
@@ -35,13 +35,13 @@ message DiceRoll {
 message Modifier {
   // The ability or skill being modified
   string target = 1;
-  
+
   // The modifier value (can be negative)
   int32 value = 2;
-  
+
   // Source of the modifier (e.g., "racial", "class feature")
   string source = 3;
-  
+
   // Type of modifier (e.g., "enhancement", "circumstance")
   string type = 4;
 }
@@ -50,13 +50,13 @@ message Modifier {
 message Resource {
   // Resource name
   string name = 1;
-  
+
   // Current value
   int32 current = 2;
-  
+
   // Maximum value
   int32 maximum = 3;
-  
+
   // When the resource refreshes ("short rest", "long rest", "daily")
   string refresh_on = 4;
 }
@@ -65,26 +65,25 @@ message Resource {
 message Condition {
   // Condition name (e.g., "poisoned", "frightened")
   string name = 1;
-  
+
   // Source of the condition
   string source = 2;
-  
+
   // Duration in rounds (-1 for indefinite)
   int32 duration = 3;
-  
+
   // Any additional notes
   string notes = 4;
 }
-
 
 // Validation warning (non-blocking)
 message ValidationWarning {
   // Field with warning
   string field = 1;
-  
+
   // Warning message
   string message = 2;
-  
+
   // Warning severity/type
   string type = 3;
 }

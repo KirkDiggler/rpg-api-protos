@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
-option go_package = "github.com/KirkDiggler/rpg-api/api/proto/dnd5e/v1alpha1;dnd5ev1alpha1";
-
-import "dnd5e/api/v1alpha1/enums.proto";
 import "dnd5e/api/v1alpha1/common.proto";
+import "dnd5e/api/v1alpha1/enums.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api/api/proto/dnd5e/v1alpha1;dnd5ev1alpha1";
 
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
@@ -15,7 +15,7 @@ service CharacterService {
   rpc GetDraft(GetDraftRequest) returns (GetDraftResponse);
   rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse);
   rpc DeleteDraft(DeleteDraftRequest) returns (DeleteDraftResponse);
-  
+
   // Section-based updates (supports skip-around editing)
   rpc UpdateName(UpdateNameRequest) returns (UpdateNameResponse);
   rpc UpdateRace(UpdateRaceRequest) returns (UpdateRaceResponse);
@@ -23,95 +23,93 @@ service CharacterService {
   rpc UpdateBackground(UpdateBackgroundRequest) returns (UpdateBackgroundResponse);
   rpc UpdateAbilityScores(UpdateAbilityScoresRequest) returns (UpdateAbilityScoresResponse);
   rpc UpdateSkills(UpdateSkillsRequest) returns (UpdateSkillsResponse);
-  
+
   // Validation
   rpc ValidateDraft(ValidateDraftRequest) returns (ValidateDraftResponse);
-  
+
   // Character finalization
   rpc FinalizeDraft(FinalizeDraftRequest) returns (FinalizeDraftResponse);
-  
+
   // Completed character operations
   rpc GetCharacter(GetCharacterRequest) returns (GetCharacterResponse);
   rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
   rpc DeleteCharacter(DeleteCharacterRequest) returns (DeleteCharacterResponse);
 }
 
-
 // Ability scores for a character
 message AbilityScores {
   // Strength score (3-18 before racial modifiers)
   int32 strength = 1;
-  
+
   // Dexterity score (3-18 before racial modifiers)
   int32 dexterity = 2;
-  
+
   // Constitution score (3-18 before racial modifiers)
   int32 constitution = 3;
-  
+
   // Intelligence score (3-18 before racial modifiers)
   int32 intelligence = 4;
-  
+
   // Wisdom score (3-18 before racial modifiers)
   int32 wisdom = 5;
-  
+
   // Charisma score (3-18 before racial modifiers)
   int32 charisma = 6;
 }
-
 
 // A complete D&D 5e character
 message Character {
   // Unique identifier
   string id = 1;
-  
+
   // Character name
   string name = 2;
-  
+
   // Character level (starts at 1)
   int32 level = 3;
-  
+
   // Experience points
   int32 experience_points = 4;
-  
+
   // Character race
   Race race = 5;
-  
+
   // Character subrace if applicable
   Subrace subrace = 6;
-  
+
   // Character class
   Class class = 7;
-  
+
   // Character background
   Background background = 8;
-  
+
   // Character alignment
   Alignment alignment = 9;
-  
+
   // Final ability scores (with racial modifiers applied)
   AbilityScores ability_scores = 10;
-  
+
   // Ability modifiers (calculated from scores)
   AbilityModifiers ability_modifiers = 11;
-  
+
   // Calculated combat values
   CombatStats combat_stats = 12;
-  
+
   // Proficiencies
   Proficiencies proficiencies = 13;
-  
+
   // Known languages
   repeated Language languages = 14;
-  
+
   // Current hit points
   int32 current_hit_points = 15;
-  
+
   // Temporary hit points
   int32 temporary_hit_points = 16;
-  
+
   // Session association if any
   string session_id = 17;
-  
+
   // Metadata
   CharacterMetadata metadata = 18;
 }
@@ -130,19 +128,19 @@ message AbilityModifiers {
 message CombatStats {
   // Maximum hit points
   int32 hit_point_maximum = 1;
-  
+
   // Armor class
   int32 armor_class = 2;
-  
+
   // Initiative modifier
   int32 initiative = 3;
-  
+
   // Base movement speed in feet
   int32 speed = 4;
-  
+
   // Proficiency bonus
   int32 proficiency_bonus = 5;
-  
+
   // Hit dice (e.g., 1d10 for fighter)
   string hit_dice = 6;
 }
@@ -151,16 +149,16 @@ message CombatStats {
 message Proficiencies {
   // Skill proficiencies
   repeated Skill skills = 1;
-  
+
   // Saving throw proficiencies
   repeated Ability saving_throws = 2;
-  
+
   // Armor proficiencies (as strings for now)
   repeated string armor = 3;
-  
+
   // Weapon proficiencies (as strings for now)
   repeated string weapons = 4;
-  
+
   // Tool proficiencies (as strings for now)
   repeated string tools = 5;
 }
@@ -169,10 +167,10 @@ message Proficiencies {
 message CharacterMetadata {
   // When the character was created
   int64 created_at = 1;
-  
+
   // When the character was last updated
   int64 updated_at = 2;
-  
+
   // Player/user who owns this character
   string player_id = 3;
 }
@@ -193,13 +191,13 @@ message GetCharacterResponse {
 message ListCharactersRequest {
   // Maximum number of characters to return (1-100, default 20)
   int32 page_size = 1;
-  
+
   // Page token from previous response
   string page_token = 2;
-  
+
   // Filter by session ID
   string session_id = 3;
-  
+
   // Filter by player ID
   string player_id = 4;
 }
@@ -208,10 +206,10 @@ message ListCharactersRequest {
 message ListCharactersResponse {
   // The list of characters
   repeated Character characters = 1;
-  
+
   // Token for next page if available
   string next_page_token = 2;
-  
+
   // Total number of characters matching filters
   int32 total_size = 3;
 }
@@ -220,7 +218,7 @@ message ListCharactersResponse {
 message UpdateCharacterRequest {
   // The character to update (ID required)
   Character character = 1;
-  
+
   // Field mask to specify which fields to update
   // For now, we'll allow updating specific fields
   repeated string update_mask = 2;
@@ -248,13 +246,13 @@ message DeleteCharacterResponse {
 message CharacterDraft {
   // Unique identifier
   string id = 1;
-  
+
   // Player creating this character
   string player_id = 2;
-  
+
   // Session if part of one
   string session_id = 3;
-  
+
   // All fields are optional during draft
   string name = 4;
   Race race = 5;
@@ -265,13 +263,13 @@ message CharacterDraft {
   Alignment alignment = 10;
   repeated Skill starting_skills = 11;
   repeated Language additional_languages = 12;
-  
+
   // Track what steps are complete
   CreationProgress progress = 13;
-  
+
   // When this draft expires (e.g., 30 days)
   int64 expires_at = 14;
-  
+
   // Metadata
   DraftMetadata metadata = 15;
 }
@@ -285,10 +283,10 @@ message CreationProgress {
   bool has_ability_scores = 5;
   bool has_skills = 6;
   bool has_languages = 7;
-  
+
   // Overall completion percentage
   int32 completion_percentage = 8;
-  
+
   // What step they're currently on
   CreationStep current_step = 9;
 }
@@ -317,8 +315,8 @@ message DraftMetadata {
 // Request to create a draft
 message CreateDraftRequest {
   string player_id = 1;
-  string session_id = 2;  // Optional
-  
+  string session_id = 2; // Optional
+
   // Can optionally provide initial data
   CharacterDraft initial_data = 3;
 }
@@ -339,17 +337,17 @@ message GetDraftResponse {
 // Request to update a draft
 message UpdateDraftRequest {
   string draft_id = 1;
-  
+
   // Only provided fields will be updated
   CharacterDraft updates = 2;
-  
+
   // Which fields to update (field mask pattern)
   repeated string update_mask = 3;
 }
 
 message UpdateDraftResponse {
   CharacterDraft draft = 1;
-  
+
   // Any validation warnings (not errors)
   repeated ValidationWarning warnings = 2;
 }
@@ -427,7 +425,7 @@ enum WarningType {
 // Request to list drafts
 message ListDraftsRequest {
   string player_id = 1;
-  string session_id = 2;  // Optional filter
+  string session_id = 2; // Optional filter
   int32 page_size = 3;
   string page_token = 4;
 }
@@ -445,10 +443,10 @@ message ValidateDraftRequest {
 message ValidateDraftResponse {
   bool is_complete = 1;
   bool is_valid = 2;
-  
+
   repeated ValidationError errors = 3;
   repeated ValidationWarning warnings = 4;
-  
+
   // What's still needed
   repeated CreationStep missing_steps = 5;
 }
@@ -460,7 +458,7 @@ message FinalizeDraftRequest {
 
 message FinalizeDraftResponse {
   Character character = 1;
-  
+
   // Draft is automatically deleted after finalization
   bool draft_deleted = 2;
 }

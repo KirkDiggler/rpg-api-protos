@@ -1,31 +1,30 @@
 version: v2
 managed:
-  enabled: true
-  override:
-    - file_option: go_package_prefix
-      value: github.com/KirkDiggler/rpg-api-protos-gen-go
+  enabled: false
 plugins:
-  # Go plugins
+  # Go plugins - generate with module prefix stripped
   - remote: buf.build/protocolbuffers/go
-    out: gen/go
+    out: .
     opt:
       - paths=import
+      - module=github.com/KirkDiggler/rpg-api-protos
   - remote: buf.build/grpc/go
-    out: gen/go
+    out: .
     opt:
       - paths=import
-      - require_unimplemented_servers=false
+      - module=github.com/KirkDiggler/rpg-api-protos
   - remote: buf.build/connectrpc/go
-    out: gen/go
+    out: .
     opt:
       - paths=import
+      - module=github.com/KirkDiggler/rpg-api-protos
   
-  # TypeScript plugins - single plugin for both messages and Connect services
+  # TypeScript plugins - in their own directory
   - remote: buf.build/bufbuild/es
-    out: gen/ts
+    out: ts
     opt:
       - target=ts
   - remote: buf.build/connectrpc/es
-    out: gen/ts
+    out: ts
     opt:
       - target=ts

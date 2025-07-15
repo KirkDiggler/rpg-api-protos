@@ -54,11 +54,6 @@ jobs:
       - name: Generate code
         run: buf generate
       
-      - name: Fix Connect imports
-        run: |
-          # Fix imports in Connect generated files to include /gen/go prefix
-          find gen/go -name "*.connect.go" -type f -exec sed -i 's|"github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1"|"github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1"|g' {} \;
-      
       - name: Generate mocks
         run: |
           # Generate mocks for gRPC services
@@ -113,16 +108,17 @@ jobs:
       
       - name: Generate all code
         run: |
-          buf generate
-          # Fix imports in Connect generated files to include /gen/go prefix
-          find gen/go -name "*.connect.go" -type f -exec sed -i 's|"github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1"|"github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1"|g' {} \;
-          mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks
-          mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
+          # Use special config for generated branch
+          buf generate --config buf.gen.generated.yaml
+          
+          # Generate mocks (paths will be simpler now)
+          mkdir -p dnd5e/api/v1alpha1/mocks
+          mockgen -source=dnd5e/api/v1alpha1/character_grpc.pb.go -destination=dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
       
       - name: Setup Go module
         run: |
-          cd gen/go
-          go mod init github.com/KirkDiggler/rpg-api-protos/gen/go
+          # Initialize at root since we're generating there
+          go mod init github.com/KirkDiggler/rpg-api-protos
           go mod tidy
       
       - name: Create release branch
@@ -134,12 +130,11 @@ jobs:
           # Create release branch
           git checkout -B generated
           
-          # Remove gen/ from gitignore temporarily
-          sed '/^gen\/$/d' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore
+          # Clean up source files that shouldn't be in generated branch
+          rm -rf dnd5e/*.proto docs/ *.md buf.yaml buf.gen.yaml
           
-          # Add generated code
-          git add gen/
-          git add .gitignore
+          # Add all generated code
+          git add .
           
           # Commit if there are changes
           git diff --staged --quiet || git commit -m "chore: update generated code and mocks"

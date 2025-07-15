@@ -1,4 +1,4 @@
-module github.com/KirkDiggler/rpg-api-protos/gen/go
+module dnd5eapi
 
 go 1.21
 

@@ -4832,8 +4832,8 @@ const file_dnd5e_api_v1alpha1_character_proto_rawDesc = "" +
 	"\x0fListBackgrounds\x12*.dnd5e.api.v1alpha1.ListBackgroundsRequest\x1a+.dnd5e.api.v1alpha1.ListBackgroundsResponse\x12g\n" +
 	"\x0eGetRaceDetails\x12).dnd5e.api.v1alpha1.GetRaceDetailsRequest\x1a*.dnd5e.api.v1alpha1.GetRaceDetailsResponse\x12j\n" +
 	"\x0fGetClassDetails\x12*.dnd5e.api.v1alpha1.GetClassDetailsRequest\x1a+.dnd5e.api.v1alpha1.GetClassDetailsResponse\x12y\n" +
-	"\x14GetBackgroundDetails\x12/.dnd5e.api.v1alpha1.GetBackgroundDetailsRequest\x1a0.dnd5e.api.v1alpha1.GetBackgroundDetailsResponseB\xd8\x01\n" +
-	"\x16com.dnd5e.api.v1alpha1B\x0eCharacterProtoP\x01ZDgithub.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1;apiv1alpha1\xa2\x02\x03DAX\xaa\x02\x12Dnd5e.Api.V1alpha1\xca\x02\x12Dnd5e\\Api\\V1alpha1\xe2\x02\x1eDnd5e\\Api\\V1alpha1\\GPBMetadata\xea\x02\x14Dnd5e::Api::V1alpha1b\x06proto3"
+	"\x14GetBackgroundDetails\x12/.dnd5e.api.v1alpha1.GetBackgroundDetailsRequest\x1a0.dnd5e.api.v1alpha1.GetBackgroundDetailsResponseB\xbb\x01\n" +
+	"\x16com.dnd5e.api.v1alpha1B\x0eCharacterProtoP\x01Z'dnd5eapi/dnd5e/api/v1alpha1;apiv1alpha1\xa2\x02\x03DAX\xaa\x02\x12Dnd5e.Api.V1alpha1\xca\x02\x12Dnd5e\\Api\\V1alpha1\xe2\x02\x1eDnd5e\\Api\\V1alpha1\\GPBMetadata\xea\x02\x14Dnd5e::Api::V1alpha1b\x06proto3"
 
 var (
 	file_dnd5e_api_v1alpha1_character_proto_rawDescOnce sync.Once

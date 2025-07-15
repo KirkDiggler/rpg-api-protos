@@ -7,8 +7,8 @@ package apiv1alpha1connect
 import (
 	connect "connectrpc.com/connect"
 	context "context"
+	v1alpha1 "dnd5eapi/dnd5e/api/v1alpha1"
 	errors "errors"
-	v1alpha1 "github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1"
 	http "net/http"
 	strings "strings"
 )

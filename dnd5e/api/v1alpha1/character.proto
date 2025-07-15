@@ -34,6 +34,14 @@ service CharacterService {
   rpc GetCharacter(GetCharacterRequest) returns (GetCharacterResponse);
   rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
   rpc DeleteCharacter(DeleteCharacterRequest) returns (DeleteCharacterResponse);
+
+  // Data loading for character creation UI
+  rpc ListRaces(ListRacesRequest) returns (ListRacesResponse);
+  rpc ListClasses(ListClassesRequest) returns (ListClassesResponse);
+  rpc ListBackgrounds(ListBackgroundsRequest) returns (ListBackgroundsResponse);
+  rpc GetRaceDetails(GetRaceDetailsRequest) returns (GetRaceDetailsResponse);
+  rpc GetClassDetails(GetClassDetailsRequest) returns (GetClassDetailsResponse);
+  rpc GetBackgroundDetails(GetBackgroundDetailsRequest) returns (GetBackgroundDetailsResponse);
 }
 
 // Ability scores for a character
@@ -470,4 +478,240 @@ message DeleteDraftRequest {
 
 message DeleteDraftResponse {
   string message = 1;
+}
+
+// Data loading messages for character creation UI
+
+// Detailed race information for selection UI
+message RaceInfo {
+  // Basic identification
+  string id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Mechanical information
+  int32 speed = 4;
+  Size size = 5;
+
+  // Ability score increases
+  map<string, int32> ability_bonuses = 6;
+
+  // Racial traits
+  repeated RacialTrait traits = 7;
+
+  // Available subraces
+  repeated SubraceInfo subraces = 8;
+
+  // Starting proficiencies
+  repeated string proficiencies = 9;
+
+  // Starting languages
+  repeated Language languages = 10;
+
+  // Additional flavor text
+  string age_description = 11;
+  string alignment_description = 12;
+}
+
+// Subrace information
+message SubraceInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Additional ability bonuses from subrace
+  map<string, int32> ability_bonuses = 4;
+
+  // Additional traits from subrace
+  repeated RacialTrait traits = 5;
+}
+
+// Racial trait description
+message RacialTrait {
+  string name = 1;
+  string description = 2;
+
+  // Whether this is a choice or automatic
+  bool is_choice = 3;
+
+  // Options if this is a choice
+  repeated string options = 4;
+}
+
+// Character size category
+enum Size {
+  SIZE_UNSPECIFIED = 0;
+  SIZE_TINY = 1;
+  SIZE_SMALL = 2;
+  SIZE_MEDIUM = 3;
+  SIZE_LARGE = 4;
+  SIZE_HUGE = 5;
+  SIZE_GARGANTUAN = 6;
+}
+
+// Detailed class information for selection UI
+message ClassInfo {
+  // Basic identification
+  string id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Mechanical information
+  string hit_die = 4;
+  repeated string primary_abilities = 5;
+
+  // Proficiencies
+  repeated string armor_proficiencies = 6;
+  repeated string weapon_proficiencies = 7;
+  repeated string tool_proficiencies = 8;
+  repeated string saving_throw_proficiencies = 9;
+
+  // Skill choices
+  int32 skill_choices_count = 10;
+  repeated string available_skills = 11;
+
+  // Starting equipment
+  repeated string starting_equipment = 12;
+  repeated EquipmentChoice equipment_choices = 13;
+
+  // Class features at level 1
+  repeated ClassFeature level_1_features = 14;
+
+  // Spellcasting information (if applicable)
+  SpellcastingInfo spellcasting = 15;
+}
+
+// Equipment choice for starting gear
+message EquipmentChoice {
+  string description = 1;
+  repeated string options = 2;
+  int32 choose_count = 3;
+}
+
+// Class feature description
+message ClassFeature {
+  string name = 1;
+  string description = 2;
+  int32 level = 3;
+
+  // Whether this feature has choices
+  bool has_choices = 4;
+  repeated string choices = 5;
+}
+
+// Spellcasting information
+message SpellcastingInfo {
+  string spellcasting_ability = 1;
+  bool ritual_casting = 2;
+  string spellcasting_focus = 3;
+  int32 cantrips_known = 4;
+  int32 spells_known = 5;
+  int32 spell_slots_level_1 = 6;
+}
+
+// Detailed background information for selection UI
+message BackgroundInfo {
+  // Basic identification
+  string id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Mechanical benefits
+  repeated string skill_proficiencies = 4;
+  repeated string tool_proficiencies = 5;
+  repeated Language languages = 6;
+  int32 additional_languages = 7;
+
+  // Starting equipment
+  repeated string starting_equipment = 8;
+  int32 starting_gold = 9;
+
+  // Background feature
+  string feature_name = 10;
+  string feature_description = 11;
+
+  // Suggested characteristics
+  repeated string personality_traits = 12;
+  repeated string ideals = 13;
+  repeated string bonds = 14;
+  repeated string flaws = 15;
+}
+
+// Request to list races
+message ListRacesRequest {
+  // Pagination
+  int32 page_size = 1;
+  string page_token = 2;
+
+  // Optional filters
+  bool include_subraces = 3;
+}
+
+// Response with race list
+message ListRacesResponse {
+  repeated RaceInfo races = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+// Request to list classes
+message ListClassesRequest {
+  // Pagination
+  int32 page_size = 1;
+  string page_token = 2;
+
+  // Optional filters
+  bool include_spellcasters_only = 3;
+  bool include_features = 4;
+}
+
+// Response with class list
+message ListClassesResponse {
+  repeated ClassInfo classes = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+// Request to list backgrounds
+message ListBackgroundsRequest {
+  // Pagination
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+// Response with background list
+message ListBackgroundsResponse {
+  repeated BackgroundInfo backgrounds = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+// Request to get detailed race information
+message GetRaceDetailsRequest {
+  string race_id = 1;
+}
+
+// Response with detailed race information
+message GetRaceDetailsResponse {
+  RaceInfo race = 1;
+}
+
+// Request to get detailed class information
+message GetClassDetailsRequest {
+  string class_id = 1;
+}
+
+// Response with detailed class information
+message GetClassDetailsResponse {
+  ClassInfo class = 1;
+}
+
+// Request to get detailed background information
+message GetBackgroundDetailsRequest {
+  string background_id = 1;
+}
+
+// Response with detailed background information
+message GetBackgroundDetailsResponse {
+  BackgroundInfo background = 1;
 }

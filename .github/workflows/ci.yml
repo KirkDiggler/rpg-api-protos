@@ -108,18 +108,9 @@ jobs:
       
       - name: Generate all code
         run: |
-          # Use special config for generated branch
-          buf generate --config buf.gen.generated.yaml
-          
-          # Generate mocks (paths will be simpler now)
-          mkdir -p dnd5e/api/v1alpha1/mocks
-          mockgen -source=dnd5e/api/v1alpha1/character_grpc.pb.go -destination=dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
-      
-      - name: Setup Go module
-        run: |
-          # Initialize at root since we're generating there
-          go mod init github.com/KirkDiggler/rpg-api-protos
-          go mod tidy
+          buf generate
+          mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks
+          mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
       
       - name: Create release branch
         run: |

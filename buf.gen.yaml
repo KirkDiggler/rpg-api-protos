@@ -15,9 +15,17 @@ plugins:
     opt:
       - paths=import
       - require_unimplemented_servers=false
+  - remote: buf.build/connectrpc/go
+    out: gen/go
+    opt:
+      - paths=import
   
   # TypeScript plugins - single plugin for both messages and Connect services
   - remote: buf.build/bufbuild/es
+    out: gen/ts
+    opt:
+      - target=ts
+  - remote: buf.build/connectrpc/es
     out: gen/ts
     opt:
       - target=ts

@@ -488,26 +488,26 @@ message RaceInfo {
   string id = 1;
   string name = 2;
   string description = 3;
-  
+
   // Mechanical information
   int32 speed = 4;
   Size size = 5;
-  
+
   // Ability score increases
   map<string, int32> ability_bonuses = 6;
-  
+
   // Racial traits
   repeated RacialTrait traits = 7;
-  
+
   // Available subraces
   repeated SubraceInfo subraces = 8;
-  
+
   // Starting proficiencies
   repeated string proficiencies = 9;
-  
+
   // Starting languages
   repeated Language languages = 10;
-  
+
   // Additional flavor text
   string age_description = 11;
   string alignment_description = 12;
@@ -518,10 +518,10 @@ message SubraceInfo {
   string id = 1;
   string name = 2;
   string description = 3;
-  
+
   // Additional ability bonuses from subrace
   map<string, int32> ability_bonuses = 4;
-  
+
   // Additional traits from subrace
   repeated RacialTrait traits = 5;
 }
@@ -530,10 +530,10 @@ message SubraceInfo {
 message RacialTrait {
   string name = 1;
   string description = 2;
-  
+
   // Whether this is a choice or automatic
   bool is_choice = 3;
-  
+
   // Options if this is a choice
   repeated string options = 4;
 }
@@ -555,28 +555,28 @@ message ClassInfo {
   string id = 1;
   string name = 2;
   string description = 3;
-  
+
   // Mechanical information
   string hit_die = 4;
   repeated string primary_abilities = 5;
-  
+
   // Proficiencies
   repeated string armor_proficiencies = 6;
   repeated string weapon_proficiencies = 7;
   repeated string tool_proficiencies = 8;
   repeated string saving_throw_proficiencies = 9;
-  
+
   // Skill choices
   int32 skill_choices_count = 10;
   repeated string available_skills = 11;
-  
+
   // Starting equipment
   repeated string starting_equipment = 12;
   repeated EquipmentChoice equipment_choices = 13;
-  
+
   // Class features at level 1
   repeated ClassFeature level_1_features = 14;
-  
+
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 15;
 }
@@ -593,7 +593,7 @@ message ClassFeature {
   string name = 1;
   string description = 2;
   int32 level = 3;
-  
+
   // Whether this feature has choices
   bool has_choices = 4;
   repeated string choices = 5;
@@ -615,21 +615,21 @@ message BackgroundInfo {
   string id = 1;
   string name = 2;
   string description = 3;
-  
+
   // Mechanical benefits
   repeated string skill_proficiencies = 4;
   repeated string tool_proficiencies = 5;
   repeated Language languages = 6;
   int32 additional_languages = 7;
-  
+
   // Starting equipment
   repeated string starting_equipment = 8;
   int32 starting_gold = 9;
-  
+
   // Background feature
   string feature_name = 10;
   string feature_description = 11;
-  
+
   // Suggested characteristics
   repeated string personality_traits = 12;
   repeated string ideals = 13;
@@ -642,7 +642,7 @@ message ListRacesRequest {
   // Pagination
   int32 page_size = 1;
   string page_token = 2;
-  
+
   // Optional filters
   bool include_subraces = 3;
 }
@@ -659,7 +659,7 @@ message ListClassesRequest {
   // Pagination
   int32 page_size = 1;
   string page_token = 2;
-  
+
   // Optional filters
   bool include_spellcasters_only = 3;
   bool include_features = 4;

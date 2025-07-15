@@ -1,9 +1,6 @@
 version: v2
 managed:
-  enabled: true
-  override:
-    - file_option: go_package_prefix
-      value: github.com/KirkDiggler/rpg-api-protos/gen/go
+  enabled: false
 plugins:
   # Go plugins
   - remote: buf.build/protocolbuffers/go

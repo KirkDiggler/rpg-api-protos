@@ -54,6 +54,11 @@ jobs:
       - name: Generate code
         run: buf generate
       
+      - name: Fix Connect imports
+        run: |
+          # Fix imports in Connect generated files to include /gen/go prefix
+          find gen/go -name "*.connect.go" -type f -exec sed -i 's|"github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1"|"github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1"|g' {} \;
+      
       - name: Generate mocks
         run: |
           # Generate mocks for gRPC services
@@ -109,6 +114,8 @@ jobs:
       - name: Generate all code
         run: |
           buf generate
+          # Fix imports in Connect generated files to include /gen/go prefix
+          find gen/go -name "*.connect.go" -type f -exec sed -i 's|"github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1"|"github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1"|g' {} \;
           mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks
           mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
       

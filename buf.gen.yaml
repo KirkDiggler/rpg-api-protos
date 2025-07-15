@@ -1,6 +1,15 @@
 version: v2
 managed:
-  enabled: false
+  enabled: true
+  disable:
+    - file_option: java_package
+    - file_option: java_multiple_files
+    - file_option: java_outer_classname
+    - file_option: objc_class_prefix
+    - file_option: csharp_namespace
+  override:
+    - file_option: go_package_prefix
+      value: github.com/KirkDiggler/rpg-api-protos/gen/go
 plugins:
   # Go plugins
   - remote: buf.build/protocolbuffers/go

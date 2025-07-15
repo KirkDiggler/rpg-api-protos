@@ -28,12 +28,12 @@ test: ## Run tests (lint + format check + generate + mocks)
 	buf lint
 	buf format --diff --exit-code
 	buf generate
-	mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks
-	mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
+	mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks
+	mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
 
 mocks: ## Generate mocks for gRPC services
-	mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks
-	mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
+	mkdir -p gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks
+	mockgen -source=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
 
 breaking: ## Check for breaking changes against main branch
 	buf breaking --against '.git#branch=main'

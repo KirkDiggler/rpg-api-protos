@@ -2,8 +2,8 @@
   "name": "@kirkdiggler/rpg-api-protos",
   "version": "0.1.0",
   "description": "Protocol Buffer definitions for the RPG API - Generated TypeScript client",
-  "main": "dnd5e/api/v1alpha1/character_pb.js",
-  "types": "dnd5e/api/v1alpha1/character_pb.d.ts",
+  "main": "gen/ts/dnd5e/api/v1alpha1/character_pb.js",
+  "types": "gen/ts/dnd5e/api/v1alpha1/character_pb.d.ts",
   "scripts": {
     "generate": "buf generate",
     "lint": "buf lint",
@@ -32,9 +32,9 @@
     "typescript": "^5.0.0"
   },
   "files": [
-    "dnd5e/**/*.js",
-    "dnd5e/**/*.d.ts",
-    "dnd5e/**/*.ts"
+    "gen/ts/**/*.js",
+    "gen/ts/**/*.d.ts",
+    "gen/ts/**/*.ts"
   ],
   "repository": {
     "type": "git",

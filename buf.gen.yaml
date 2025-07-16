@@ -16,18 +16,15 @@ plugins:
       - paths=import
       - require_unimplemented_servers=false
   
-  # Connect plugin for Go
-  - remote: buf.build/connectrpc/go
-    out: gen/go
-    opt:
-      - paths=import
-  
-  # TypeScript plugins - single plugin for both messages and Connect services
+  # TypeScript plugins for protobuf messages
   - remote: buf.build/bufbuild/es
     out: gen/ts
     opt:
       - target=ts
-  - remote: buf.build/connectrpc/es
+  
+  # gRPC-Web plugin for TypeScript (works with Envoy proxy)
+  - remote: buf.build/grpc/web
     out: gen/ts
     opt:
-      - target=ts
+      - import_style=commonjs
+      - mode=grpcwebtext

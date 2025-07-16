@@ -5,8 +5,6 @@ package dnd5e.api.v1alpha1;
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/dnd5e/api/v1alpha1;dnd5ev1alpha1";
-
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
 service CharacterService {

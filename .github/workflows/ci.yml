@@ -126,7 +126,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           # Create release branch
-          git checkout -B generated
+          git checkout -B latest
           
           # Remove gen/ from gitignore temporarily
           sed '/^gen\/$/d' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore
@@ -139,7 +139,7 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: update generated code and mocks"
           
           # Push release branch
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git generated --force
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git latest --force
       
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
-
 // D&D 5e character races
 enum Race {
   RACE_UNSPECIFIED = 0;

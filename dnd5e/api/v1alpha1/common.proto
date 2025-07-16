@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
-
 // Common error details for D&D 5e validation
 message ValidationError {
   // Field that failed validation

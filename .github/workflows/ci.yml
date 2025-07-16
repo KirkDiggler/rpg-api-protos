@@ -159,9 +159,9 @@ jobs:
           # Export tag for later steps
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
       
-      # Add this step when implementing connectrc
-      - name: Wait for Go proxy and use connectrc
-        if: false  # Change to true when ready to use
+      # Wait for Go proxy to index the new module
+      - name: Wait for Go proxy availability
+        if: true
         run: |
           echo "Waiting for Go proxy to index $NEW_TAG..."
           
@@ -186,8 +186,60 @@ jobs:
             sleep $SLEEP_TIME
           done
           
-          # Now safe to use connectrc
-          # Add your connectrc commands here that do go get github.com/${{ github.repository }}@$NEW_TAG
+          # Module is now available in Go proxy
+          echo "✓ Module github.com/${{ github.repository }}/gen/go@$NEW_TAG is available!"
+          
+          # Validate the module can be imported and used
+          echo "Validating Connect code generation..."
+          
+          # Create a test project to verify imports work
+          mkdir -p /tmp/connect-test && cd /tmp/connect-test
+          go mod init test-connect
+          go get github.com/${{ github.repository }}/gen/go@$NEW_TAG
+          
+          # Test that Connect handlers can be implemented
+          cat > main.go <<'EOF'
+          package main
+          
+          import (
+              "context"
+              "log"
+              "net/http"
+              
+              "github.com/KirkDiggler/rpg-api-protos/gen/go/clients/dnd5e/api/v1alpha1"
+              "github.com/KirkDiggler/rpg-api-protos/gen/go/clients/dnd5e/api/v1alpha1/dnd5ev1alpha1connect"
+              "connectrpc.com/connect"
+          )
+          
+          // Verify we can implement the Connect service interface
+          type CharacterService struct {
+              dnd5ev1alpha1connect.UnimplementedCharacterServiceHandler
+          }
+          
+          func (s *CharacterService) GetCharacter(
+              ctx context.Context,
+              req *connect.Request[v1alpha1.GetCharacterRequest],
+          ) (*connect.Response[v1alpha1.GetCharacterResponse], error) {
+              return nil, connect.NewError(connect.CodeUnimplemented, nil)
+          }
+          
+          func main() {
+              // Verify we can create the service handler
+              _, handler := dnd5ev1alpha1connect.NewCharacterServiceHandler(&CharacterService{})
+              
+              mux := http.NewServeMux()
+              mux.Handle(handler)
+              
+              log.Println("✓ Connect service implementation validated")
+          }
+          EOF
+          
+          # Compile but don't run (just validate it builds)
+          go build -o /dev/null main.go
+          echo "✓ Connect handlers can be implemented successfully"
+          
+          # Cleanup
+          cd - && rm -rf /tmp/connect-test
       
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')

@@ -40,6 +40,9 @@ service CharacterService {
   rpc GetRaceDetails(GetRaceDetailsRequest) returns (GetRaceDetailsResponse);
   rpc GetClassDetails(GetClassDetailsRequest) returns (GetClassDetailsResponse);
   rpc GetBackgroundDetails(GetBackgroundDetailsRequest) returns (GetBackgroundDetailsResponse);
+
+  // Dice rolling for character creation
+  rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
 }
 
 // Ability scores for a character
@@ -382,7 +385,15 @@ message UpdateBackgroundRequest {
 
 message UpdateAbilityScoresRequest {
   string draft_id = 1;
-  AbilityScores ability_scores = 2;
+  
+  // Choose how to set ability scores
+  oneof scores_input {
+    // Manually set ability scores
+    AbilityScores ability_scores = 2;
+    
+    // Assign rolled dice to abilities
+    RollAssignments roll_assignments = 3;
+  }
 }
 
 message UpdateSkillsRequest {
@@ -712,4 +723,48 @@ message GetBackgroundDetailsRequest {
 // Response with detailed background information
 message GetBackgroundDetailsResponse {
   BackgroundInfo background = 1;
+}
+
+// Dice rolling messages for ability scores
+
+// Request to roll ability scores for a character draft
+message RollAbilityScoresRequest {
+  string draft_id = 1;
+}
+
+// A single ability score roll (4d6 drop lowest)
+message AbilityScoreRoll {
+  // Unique identifier for this roll (roll_1, roll_2, etc.)
+  string roll_id = 1;
+  
+  // The individual dice that were rolled (4 dice)
+  repeated int32 dice = 2;
+  
+  // The sum of the highest 3 dice (final ability score value)
+  int32 total = 3;
+  
+  // The dice value that was dropped (lowest)
+  int32 dropped = 4;
+  
+  // Human readable notation (e.g., "4d6 drop lowest: [6,5,4,1] = 15")
+  string notation = 5;
+}
+
+// Response containing 6 ability score rolls
+message RollAbilityScoresResponse {
+  // Array of 6 rolls that can be assigned to abilities
+  repeated AbilityScoreRoll rolls = 1;
+  
+  // Unix timestamp when these rolls expire (15 minutes from creation)
+  int64 expires_at = 2;
+}
+
+// Roll assignment mapping for ability scores
+message RollAssignments {
+  string strength_roll_id = 1;
+  string dexterity_roll_id = 2;
+  string constitution_roll_id = 3;
+  string intelligence_roll_id = 4;
+  string wisdom_roll_id = 5;
+  string charisma_roll_id = 6;
 }

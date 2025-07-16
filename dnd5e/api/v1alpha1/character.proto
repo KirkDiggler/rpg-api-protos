@@ -385,12 +385,12 @@ message UpdateBackgroundRequest {
 
 message UpdateAbilityScoresRequest {
   string draft_id = 1;
-  
+
   // Choose how to set ability scores
   oneof scores_input {
     // Manually set ability scores
     AbilityScores ability_scores = 2;
-    
+
     // Assign rolled dice to abilities
     RollAssignments roll_assignments = 3;
   }
@@ -736,16 +736,16 @@ message RollAbilityScoresRequest {
 message AbilityScoreRoll {
   // Unique identifier for this roll (roll_1, roll_2, etc.)
   string roll_id = 1;
-  
+
   // The individual dice that were rolled (4 dice)
   repeated int32 dice = 2;
-  
+
   // The sum of the highest 3 dice (final ability score value)
   int32 total = 3;
-  
+
   // The dice value that was dropped (lowest)
   int32 dropped = 4;
-  
+
   // Human readable notation (e.g., "4d6 drop lowest: [6,5,4,1] = 15")
   string notation = 5;
 }
@@ -754,7 +754,7 @@ message AbilityScoreRoll {
 message RollAbilityScoresResponse {
   // Array of 6 rolls that can be assigned to abilities
   repeated AbilityScoreRoll rolls = 1;
-  
+
   // Unix timestamp when these rolls expire (15 minutes from creation)
   int64 expires_at = 2;
 }

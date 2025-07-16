@@ -65,6 +65,8 @@ jobs:
         run: |
           cd gen/go
           go mod init clients
+          # Add replace directive to use local generated code
+          echo "replace clients => ./" >> go.mod
           go mod tidy
           go build ./...
       

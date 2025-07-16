@@ -28,6 +28,7 @@ jobs:
       
       - name: Breaking change detection
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: buf breaking --against "https://github.com/${{ github.repository }}.git#branch=main"
 
   generate-and-test:

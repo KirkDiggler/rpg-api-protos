@@ -126,7 +126,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           # Create release branch
-          git checkout -B latest
+          git checkout -B generated
           
           # Remove gen/ from gitignore temporarily
           sed '/^gen\/$/d' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore
@@ -139,7 +139,7 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: update generated code and mocks"
           
           # Push release branch
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git latest --force
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git generated --force
           
           # Fetch all tags from origin
           git fetch --tags origin
@@ -152,9 +152,42 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
           echo "New tag: $NEW_TAG"
           
-          # Create and push tag on the latest branch (we're already on it)
+          # Create and push tag on the generated branch (we're already on it)
           git tag -a $NEW_TAG -m "Generated code for $NEW_TAG"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $NEW_TAG
+          
+          # Export tag for later steps
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+      
+      # Add this step when implementing connectrc
+      - name: Wait for Go proxy and use connectrc
+        if: false  # Change to true when ready to use
+        run: |
+          echo "Waiting for Go proxy to index $NEW_TAG..."
+          
+          # Retry logic for Go proxy
+          MAX_ATTEMPTS=30
+          SLEEP_TIME=10
+          
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i/$MAX_ATTEMPTS..."
+            
+            if go list -m github.com/${{ github.repository }}@$NEW_TAG >/dev/null 2>&1; then
+              echo "✓ Module is available in Go proxy!"
+              break
+            fi
+            
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "❌ Module not available after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+            
+            echo "Module not yet available, waiting ${SLEEP_TIME}s..."
+            sleep $SLEEP_TIME
+          done
+          
+          # Now safe to use connectrc
+          # Add your connectrc commands here that do go get github.com/${{ github.repository }}@$NEW_TAG
       
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')

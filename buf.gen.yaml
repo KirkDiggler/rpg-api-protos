@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/KirkDiggler/rpg-api-protos/gen/go
+      value: clients
 plugins:
   # Go plugins
   - remote: buf.build/protocolbuffers/go
@@ -16,8 +16,18 @@ plugins:
       - paths=import
       - require_unimplemented_servers=false
   
+  # Connect plugin for Go
+  - remote: buf.build/connectrpc/go
+    out: gen/go
+    opt:
+      - paths=import
+  
   # TypeScript plugins - single plugin for both messages and Connect services
   - remote: buf.build/bufbuild/es
+    out: gen/ts
+    opt:
+      - target=ts
+  - remote: buf.build/connectrpc/es
     out: gen/ts
     opt:
       - target=ts

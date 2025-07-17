@@ -110,4 +110,3 @@ message ClearRollSessionResponse {
   // Number of rolls that were cleared
   int32 rolls_cleared = 2;
 }
-

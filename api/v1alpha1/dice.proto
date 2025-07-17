@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package api.v1alpha1;
+
+// Generic dice service for all RPG systems
+// Provides universal dice mechanics with entity+context grouping
+service DiceService {
+  // Roll dice and store in a session
+  rpc RollDice(RollDiceRequest) returns (RollDiceResponse);
+  
+  // Get existing roll session
+  rpc GetRollSession(GetRollSessionRequest) returns (GetRollSessionResponse);
+  
+  // Clear a roll session
+  rpc ClearRollSession(ClearRollSessionRequest) returns (ClearRollSessionResponse);
+}
+
+// Request to roll dice
+message RollDiceRequest {
+  // Entity that owns these rolls (e.g., "char_draft_123", "char_789", "monster_456")
+  string entity_id = 1;
+  
+  // Context for grouping related rolls (e.g., "ability_scores", "combat_round_1", "damage_rolls")
+  string context = 2;
+  
+  // Dice notation to roll (e.g., "4d6", "1d20", "2d8+3")
+  string notation = 3;
+  
+  // Number of separate rolls to make (default 1)
+  int32 count = 4;
+  
+  // TTL in seconds for this roll session (default 900 = 15 minutes)
+  int32 ttl_seconds = 5;
+  
+  // Optional modifier description for display
+  string modifier_description = 6;
+}
+
+// Response with dice roll results
+message RollDiceResponse {
+  // The rolls that were generated
+  repeated DiceRoll rolls = 1;
+  
+  // When this roll session expires (Unix timestamp)
+  int64 expires_at = 2;
+}
+
+// A single dice roll result
+message DiceRoll {
+  // Unique identifier for this roll within the session
+  string roll_id = 1;
+  
+  // Dice notation that was rolled
+  string notation = 2;
+  
+  // Individual dice values that were rolled
+  repeated int32 dice = 3;
+  
+  // Final result after applying modifiers
+  int32 total = 4;
+  
+  // Any dice that were dropped (for "drop lowest" etc.)
+  repeated int32 dropped = 5;
+  
+  // Human-readable description of the roll
+  string description = 6;
+  
+  // Raw dice total before modifiers
+  int32 dice_total = 7;
+  
+  // Modifier applied to get final total
+  int32 modifier = 8;
+}
+
+// Request to get an existing roll session
+message GetRollSessionRequest {
+  // Entity that owns the rolls
+  string entity_id = 1;
+  
+  // Context to retrieve
+  string context = 2;
+}
+
+// Response with roll session data
+message GetRollSessionResponse {
+  // The rolls in this session
+  repeated DiceRoll rolls = 1;
+  
+  // When this session expires (Unix timestamp)
+  int64 expires_at = 2;
+  
+  // When this session was created (Unix timestamp)
+  int64 created_at = 3;
+}
+
+// Request to clear a roll session
+message ClearRollSessionRequest {
+  // Entity that owns the rolls
+  string entity_id = 1;
+  
+  // Context to clear
+  string context = 2;
+}
+
+// Response from clearing a roll session
+message ClearRollSessionResponse {
+  // Confirmation message
+  string message = 1;
+  
+  // Number of rolls that were cleared
+  int32 rolls_cleared = 2;
+}

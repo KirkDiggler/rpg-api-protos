@@ -520,6 +520,15 @@ message RaceInfo {
   // Additional flavor text
   string age_description = 11;
   string alignment_description = 12;
+  
+  // Size description
+  string size_description = 13;
+  
+  // Language choices (e.g., "choose 1 from any language")
+  Choice language_options = 14;
+  
+  // Proficiency choices (e.g., "choose 2 skills from...")
+  repeated Choice proficiency_options = 15;
 }
 
 // Subrace information
@@ -533,6 +542,12 @@ message SubraceInfo {
 
   // Additional traits from subrace
   repeated RacialTrait traits = 5;
+  
+  // Additional languages from subrace
+  repeated Language languages = 6;
+  
+  // Additional proficiencies from subrace
+  repeated string proficiencies = 7;
 }
 
 // Racial trait description
@@ -545,6 +560,21 @@ message RacialTrait {
 
   // Options if this is a choice
   repeated string options = 4;
+}
+
+// Generic choice structure for proficiencies, languages, etc
+message Choice {
+  // Type of choice (e.g., "language", "skill", "tool_proficiency")
+  string type = 1;
+  
+  // How many to choose
+  int32 choose = 2;
+  
+  // Available options
+  repeated string options = 3;
+  
+  // Optional filter/category (e.g., "from_list", "any")
+  string from = 4;
 }
 
 // Character size category
@@ -588,6 +618,9 @@ message ClassInfo {
 
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 15;
+  
+  // Proficiency choices (e.g., "choose 2 skills from class list")
+  repeated Choice proficiency_choices = 16;
 }
 
 // Equipment choice for starting gear

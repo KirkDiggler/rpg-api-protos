@@ -40,6 +40,7 @@ service CharacterService {
   rpc GetRaceDetails(GetRaceDetailsRequest) returns (GetRaceDetailsResponse);
   rpc GetClassDetails(GetClassDetailsRequest) returns (GetClassDetailsResponse);
   rpc GetBackgroundDetails(GetBackgroundDetailsRequest) returns (GetBackgroundDetailsResponse);
+  rpc GetFeature(GetFeatureRequest) returns (GetFeatureResponse);
 
   // Dice rolling for character creation
   rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
@@ -620,7 +621,7 @@ message ClassInfo {
   repeated EquipmentChoice equipment_choices = 13;
 
   // Class features at level 1
-  repeated ClassFeature level_1_features = 14;
+  repeated FeatureInfo level_1_features = 14;
 
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 15;
@@ -636,16 +637,15 @@ message EquipmentChoice {
   int32 choose_count = 3;
 }
 
-// Class feature description
-message ClassFeature {
-  string name = 1;
-  string description = 2;
-  int32 level = 3;
-
-  // Whether this feature has choices
-  bool has_choices = 4;
-  repeated string choices = 5;
-}
+// Deprecated: Use FeatureInfo instead for richer feature data
+// message ClassFeature {
+//   string name = 1;
+//   string description = 2;
+//   int32 level = 3;
+//   // Whether this feature has choices
+//   bool has_choices = 4;
+//   repeated string choices = 5;
+// }
 
 // Spellcasting information
 message SpellcastingInfo {
@@ -683,6 +683,37 @@ message BackgroundInfo {
   repeated string ideals = 13;
   repeated string bonds = 14;
   repeated string flaws = 15;
+}
+
+// Detailed feature information for class features, racial traits, etc.
+message FeatureInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 level = 4;
+  string class_name = 5;
+  repeated Choice choices = 6;
+  bool has_choices = 7;
+  // Contains spell selection requirements for features that involve spell selection.
+  // This field is only populated for features that allow or require selecting spells.
+  SpellSelectionInfo spell_selection = 8;
+}
+
+// Programmatic spell selection requirements
+message SpellSelectionInfo {
+  int32 spells_to_select = 1; // Number of spells to select
+  repeated int32 spell_levels = 2; // Allowed spell levels (0 for cantrips)
+  repeated string spell_lists = 3; // Allowed spell lists (e.g., "wizard", "cleric")
+  SpellSelectionType selection_type = 4; // Type of spell selection system
+  bool requires_replace = 5; // Whether spells can be replaced on level up
+}
+
+// Types of spell selection systems
+enum SpellSelectionType {
+  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
+  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
+  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
+  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
 }
 
 // Request to list races
@@ -762,6 +793,16 @@ message GetBackgroundDetailsRequest {
 // Response with detailed background information
 message GetBackgroundDetailsResponse {
   BackgroundInfo background = 1;
+}
+
+// Request for a specific feature by its ID
+message GetFeatureRequest {
+  string feature_id = 1;
+}
+
+// Response with detailed feature information
+message GetFeatureResponse {
+  FeatureInfo feature = 1;
 }
 
 // Dice rolling messages for ability scores

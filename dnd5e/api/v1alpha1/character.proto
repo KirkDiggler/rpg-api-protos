@@ -824,7 +824,7 @@ message Equipment {
   Cost cost = 4;
   float weight = 5;
   string description = 6;
-  
+
   // Equipment type-specific data
   oneof equipment_data {
     WeaponData weapon_data = 7;
@@ -876,10 +876,10 @@ message Spell {
   bool concentration = 10;
   string components = 11; // "V, S, M", etc.
   string description = 12;
-  
+
   // Spell damage information
   SpellDamage damage = 13;
-  
+
   // Area of effect
   AreaOfEffect area_of_effect = 14;
 }

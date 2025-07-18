@@ -43,6 +43,12 @@ service CharacterService {
 
   // Dice rolling for character creation
   rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
+
+  // Equipment listing by type
+  rpc ListEquipmentByType(ListEquipmentByTypeRequest) returns (ListEquipmentByTypeResponse);
+
+  // Spell listing by level
+  rpc ListSpellsByLevel(ListSpellsByLevelRequest) returns (ListSpellsByLevelResponse);
 }
 
 // Ability scores for a character
@@ -800,4 +806,125 @@ message RollAssignments {
   string intelligence_roll_id = 4;
   string wisdom_roll_id = 5;
   string charisma_roll_id = 6;
+}
+
+// Equipment messages
+
+// Cost information for equipment
+message Cost {
+  int32 quantity = 1;
+  string unit = 2; // "gp", "sp", "cp", etc.
+}
+
+// Equipment item
+message Equipment {
+  string id = 1;
+  string name = 2;
+  string category = 3; // "simple-weapon", "martial-weapon", etc.
+  Cost cost = 4;
+  float weight = 5;
+  string description = 6;
+
+  // Equipment type-specific data
+  oneof equipment_data {
+    WeaponData weapon_data = 7;
+    ArmorData armor_data = 8;
+    GearData gear_data = 9;
+  }
+}
+
+// Weapon-specific data
+message WeaponData {
+  string weapon_category = 1; // "simple", "martial"
+  string damage_dice = 2; // "1d6", "1d8", etc.
+  string damage_type = 3; // "slashing", "piercing", etc.
+  repeated string properties = 4; // "light", "finesse", etc.
+  string range = 5; // "melee", "ranged"
+  int32 normal_range = 6; // range in feet for ranged weapons
+  int32 long_range = 7; // long range in feet for ranged weapons
+}
+
+// Armor-specific data
+message ArmorData {
+  string armor_category = 1; // "light", "medium", "heavy", "shield"
+  int32 base_ac = 2;
+  bool dex_bonus = 3;
+  int32 max_dex_bonus = 4; // -1 for no limit
+  int32 str_minimum = 5;
+  bool stealth_disadvantage = 6;
+}
+
+// General gear data
+message GearData {
+  string gear_category = 1; // "adventuring-gear", "tools", etc.
+  repeated string properties = 2;
+}
+
+// Spell messages
+
+// Spell item
+message Spell {
+  string id = 1;
+  string name = 2;
+  int32 level = 3; // 0-9 (0 = cantrips)
+  string school = 4; // "evocation", "abjuration", etc.
+  repeated string classes = 5; // Classes that can cast this spell
+  string casting_time = 6; // "1 action", "1 bonus action", etc.
+  string range = 7; // "Touch", "30 feet", etc.
+  string duration = 8; // "Instantaneous", "1 minute", etc.
+  bool ritual = 9;
+  bool concentration = 10;
+  string components = 11; // "V, S, M", etc.
+  string description = 12;
+
+  // Spell damage information
+  SpellDamage damage = 13;
+
+  // Area of effect
+  AreaOfEffect area_of_effect = 14;
+}
+
+// Spell damage information
+message SpellDamage {
+  string damage_type = 1;
+  map<int32, string> damage_at_slot_level = 2; // slot level -> damage dice
+}
+
+// Area of effect information
+message AreaOfEffect {
+  string type = 1; // "sphere", "cone", "line", etc.
+  int32 size = 2; // radius, length, etc.
+}
+
+// List equipment by type
+
+// Request to list equipment by type
+message ListEquipmentByTypeRequest {
+  string equipment_type = 1; // "simple-weapon", "martial-weapon", etc.
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+// Response with equipment list
+message ListEquipmentByTypeResponse {
+  repeated Equipment equipment = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+// List spells by level
+
+// Request to list spells by level
+message ListSpellsByLevelRequest {
+  int32 level = 1; // 0-9 (0 = cantrips)
+  string class = 2; // Optional: filter by class
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+// Response with spell list
+message ListSpellsByLevelResponse {
+  repeated Spell spells = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
 }

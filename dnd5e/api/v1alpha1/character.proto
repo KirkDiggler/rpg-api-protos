@@ -694,17 +694,26 @@ message FeatureInfo {
   string class_name = 5;
   repeated Choice choices = 6;
   bool has_choices = 7;
+  // Contains spell selection requirements for features that involve spell selection.
+  // This field is only populated for features that allow or require selecting spells.
   SpellSelectionInfo spell_selection = 8;
 }
 
 // Programmatic spell selection requirements
 message SpellSelectionInfo {
   int32 spells_to_select = 1;     // Number of spells to select
-  int32 spell_level = 2;          // Required spell level (0 for cantrips)
-  repeated int32 spell_levels = 3; // Multiple allowed spell levels
-  repeated string spell_lists = 4; // Allowed spell lists (e.g., "wizard", "cleric")
-  string selection_type = 5;      // "spellbook", "known", "prepared"
-  bool requires_replace = 6;      // Whether spells can be replaced on level up
+  repeated int32 spell_levels = 2; // Allowed spell levels (0 for cantrips)
+  repeated string spell_lists = 3; // Allowed spell lists (e.g., "wizard", "cleric")
+  SpellSelectionType selection_type = 4; // Type of spell selection system
+  bool requires_replace = 5;      // Whether spells can be replaced on level up
+}
+
+// Types of spell selection systems
+enum SpellSelectionType {
+  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
+  SPELL_SELECTION_TYPE_SPELLBOOK = 1;   // Wizard spellbook system
+  SPELL_SELECTION_TYPE_KNOWN = 2;       // Fixed known spells (sorcerer, warlock)
+  SPELL_SELECTION_TYPE_PREPARED = 3;    // Prepared spells (cleric, druid)
 }
 
 // Request to list races

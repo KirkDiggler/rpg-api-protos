@@ -701,19 +701,19 @@ message FeatureInfo {
 
 // Programmatic spell selection requirements
 message SpellSelectionInfo {
-  int32 spells_to_select = 1;     // Number of spells to select
+  int32 spells_to_select = 1; // Number of spells to select
   repeated int32 spell_levels = 2; // Allowed spell levels (0 for cantrips)
   repeated string spell_lists = 3; // Allowed spell lists (e.g., "wizard", "cleric")
   SpellSelectionType selection_type = 4; // Type of spell selection system
-  bool requires_replace = 5;      // Whether spells can be replaced on level up
+  bool requires_replace = 5; // Whether spells can be replaced on level up
 }
 
 // Types of spell selection systems
 enum SpellSelectionType {
   SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
-  SPELL_SELECTION_TYPE_SPELLBOOK = 1;   // Wizard spellbook system
-  SPELL_SELECTION_TYPE_KNOWN = 2;       // Fixed known spells (sorcerer, warlock)
-  SPELL_SELECTION_TYPE_PREPARED = 3;    // Prepared spells (cleric, druid)
+  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
+  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
+  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
 }
 
 // Request to list races

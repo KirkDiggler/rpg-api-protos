@@ -40,6 +40,7 @@ service CharacterService {
   rpc GetRaceDetails(GetRaceDetailsRequest) returns (GetRaceDetailsResponse);
   rpc GetClassDetails(GetClassDetailsRequest) returns (GetClassDetailsResponse);
   rpc GetBackgroundDetails(GetBackgroundDetailsRequest) returns (GetBackgroundDetailsResponse);
+  rpc GetFeature(GetFeatureRequest) returns (GetFeatureResponse);
 
   // Dice rolling for character creation
   rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
@@ -685,6 +686,28 @@ message BackgroundInfo {
   repeated string flaws = 15;
 }
 
+// Detailed feature information for class features, racial traits, etc.
+message FeatureInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 level = 4;
+  string class_name = 5;
+  repeated Choice choices = 6;
+  bool has_choices = 7;
+  SpellSelectionInfo spell_selection = 8;
+}
+
+// Programmatic spell selection requirements
+message SpellSelectionInfo {
+  int32 spells_to_select = 1;     // Number of spells to select
+  int32 spell_level = 2;          // Required spell level (0 for cantrips)
+  repeated int32 spell_levels = 3; // Multiple allowed spell levels
+  repeated string spell_lists = 4; // Allowed spell lists (e.g., "wizard", "cleric")
+  string selection_type = 5;      // "spellbook", "known", "prepared"
+  bool requires_replace = 6;      // Whether spells can be replaced on level up
+}
+
 // Request to list races
 message ListRacesRequest {
   // Pagination
@@ -762,6 +785,16 @@ message GetBackgroundDetailsRequest {
 // Response with detailed background information
 message GetBackgroundDetailsResponse {
   BackgroundInfo background = 1;
+}
+
+// Request for a specific feature by its ID
+message GetFeatureRequest {
+  string feature_id = 1;
+}
+
+// Response with detailed feature information
+message GetFeatureResponse {
+  FeatureInfo feature = 1;
 }
 
 // Dice rolling messages for ability scores

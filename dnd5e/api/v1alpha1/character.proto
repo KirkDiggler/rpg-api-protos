@@ -621,7 +621,7 @@ message ClassInfo {
   repeated EquipmentChoice equipment_choices = 13;
 
   // Class features at level 1
-  repeated ClassFeature level_1_features = 14;
+  repeated FeatureInfo level_1_features = 14;
 
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 15;
@@ -637,16 +637,15 @@ message EquipmentChoice {
   int32 choose_count = 3;
 }
 
-// Class feature description
-message ClassFeature {
-  string name = 1;
-  string description = 2;
-  int32 level = 3;
-
-  // Whether this feature has choices
-  bool has_choices = 4;
-  repeated string choices = 5;
-}
+// Deprecated: Use FeatureInfo instead for richer feature data
+// message ClassFeature {
+//   string name = 1;
+//   string description = 2;
+//   int32 level = 3;
+//   // Whether this feature has choices
+//   bool has_choices = 4;
+//   repeated string choices = 5;
+// }
 
 // Spellcasting information
 message SpellcastingInfo {

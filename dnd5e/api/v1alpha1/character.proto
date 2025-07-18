@@ -816,13 +816,19 @@ message Cost {
   string unit = 2; // "gp", "sp", "cp", etc.
 }
 
+// Weight information for equipment
+message Weight {
+  int32 quantity = 1; // Weight value in fixed-point representation (e.g., grams or ounces)
+  string unit = 2; // Unit of measurement (e.g., "g", "oz", "lbs")
+}
+
 // Equipment item
 message Equipment {
   string id = 1;
   string name = 2;
   string category = 3; // "simple-weapon", "martial-weapon", etc.
   Cost cost = 4;
-  float weight = 5;
+  Weight weight = 5;
   string description = 6;
 
   // Equipment type-specific data
@@ -849,9 +855,10 @@ message ArmorData {
   string armor_category = 1; // "light", "medium", "heavy", "shield"
   int32 base_ac = 2;
   bool dex_bonus = 3;
-  int32 max_dex_bonus = 4; // -1 for no limit
-  int32 str_minimum = 5;
-  bool stealth_disadvantage = 6;
+  bool has_dex_limit = 4; // Indicates if max_dex_bonus is applicable
+  int32 max_dex_bonus = 5; // Maximum Dexterity bonus to AC, valid only if has_dex_limit is true
+  int32 str_minimum = 6;
+  bool stealth_disadvantage = 7;
 }
 
 // General gear data
@@ -887,7 +894,13 @@ message Spell {
 // Spell damage information
 message SpellDamage {
   string damage_type = 1;
-  map<int32, string> damage_at_slot_level = 2; // slot level -> damage dice
+  repeated DamageAtSlotLevel damage_at_slot_level = 2; // List of damage dice by slot level
+}
+
+// Damage at a specific slot level
+message DamageAtSlotLevel {
+  int32 slot_level = 1; // Spell slot level (0-9)
+  string damage_dice = 2; // Damage dice (e.g., "2d6", "3d8")
 }
 
 // Area of effect information
@@ -900,7 +913,7 @@ message AreaOfEffect {
 
 // Request to list equipment by type
 message ListEquipmentByTypeRequest {
-  string equipment_type = 1; // "simple-weapon", "martial-weapon", etc.
+  EquipmentType equipment_type = 1; // Type of equipment to filter by
   int32 page_size = 2;
   string page_token = 3;
 }
@@ -917,7 +930,7 @@ message ListEquipmentByTypeResponse {
 // Request to list spells by level
 message ListSpellsByLevelRequest {
   int32 level = 1; // 0-9 (0 = cantrips)
-  string class = 2; // Optional: filter by class
+  Class class = 2; // Optional: filter by class
   int32 page_size = 3;
   string page_token = 4;
 }

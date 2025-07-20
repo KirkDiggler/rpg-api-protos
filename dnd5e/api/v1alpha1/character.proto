@@ -568,14 +568,14 @@ message RacialTrait {
 
 // Unified choice for all types - equipment, proficiencies, languages, etc.
 message Choice {
-  string id = 1;                   // Unique identifier for tracking
-  string description = 2;          // Human-readable description  
-  int32 choose_count = 3;          // How many options to choose
-  ChoiceType choice_type = 4;      // What kind of choice this is
-  
+  string id = 1; // Unique identifier for tracking
+  string description = 2; // Human-readable description
+  int32 choose_count = 3; // How many options to choose
+  ChoiceType choice_type = 4; // What kind of choice this is
+
   oneof option_set {
-    ExplicitOptions explicit_options = 5;      // List of specific options
-    CategoryReference category_reference = 6;   // Reference to expandable category
+    ExplicitOptions explicit_options = 5; // List of specific options
+    CategoryReference category_reference = 6; // Reference to expandable category
   }
 }
 
@@ -586,50 +586,50 @@ message ExplicitOptions {
 
 // Reference to a category that needs to be resolved/expanded
 message CategoryReference {
-  string category_id = 1;           // e.g., "martial-weapons", "artisan-tools"
-  repeated string exclude_ids = 2;  // Optional exclusions
+  string category_id = 1; // e.g., "martial-weapons", "artisan-tools"
+  repeated string exclude_ids = 2; // Optional exclusions
 }
 
 // Individual option within a choice
 message ChoiceOption {
   oneof option_type {
-    ItemReference item = 1;              // Single item reference
+    ItemReference item = 1; // Single item reference
     CountedItemReference counted_item = 2; // Item with quantity
-    ItemBundle bundle = 3;               // Multiple items as one option
-    NestedChoice nested_choice = 4;      // For complex nested choices
+    ItemBundle bundle = 3; // Multiple items as one option
+    NestedChoice nested_choice = 4; // For complex nested choices
   }
 }
 
 message ItemReference {
-  string item_id = 1;   // ID to query with
-  string name = 2;      // Display name
+  string item_id = 1; // ID to query with
+  string name = 2; // Display name
 }
 
 message CountedItemReference {
   string item_id = 1;
   string name = 2;
-  int32 quantity = 3;   // e.g., 20 arrows
+  int32 quantity = 3; // e.g., 20 arrows
 }
 
 message ItemBundle {
-  repeated CountedItemReference items = 1;  // Multiple items together
+  repeated CountedItemReference items = 1; // Multiple items together
 }
 
 message NestedChoice {
-  Choice choice = 1;    // Allows arbitrarily complex choices
+  Choice choice = 1; // Allows arbitrarily complex choices
 }
 
 // Type of choice being made
 enum ChoiceType {
   CHOICE_TYPE_UNSPECIFIED = 0;
   CHOICE_TYPE_EQUIPMENT = 1;
-  CHOICE_TYPE_SKILL = 2;              // Skill proficiencies
-  CHOICE_TYPE_TOOL = 3;               // Tool proficiencies  
-  CHOICE_TYPE_LANGUAGE = 4;           // Languages
+  CHOICE_TYPE_SKILL = 2; // Skill proficiencies
+  CHOICE_TYPE_TOOL = 3; // Tool proficiencies
+  CHOICE_TYPE_LANGUAGE = 4; // Languages
   CHOICE_TYPE_WEAPON_PROFICIENCY = 5; // Weapon proficiencies
-  CHOICE_TYPE_ARMOR_PROFICIENCY = 6;  // Armor proficiencies
-  CHOICE_TYPE_SPELL = 7;              // Spells known/prepared
-  CHOICE_TYPE_FEAT = 8;               // Feats
+  CHOICE_TYPE_ARMOR_PROFICIENCY = 6; // Armor proficiencies
+  CHOICE_TYPE_SPELL = 7; // Spells known/prepared
+  CHOICE_TYPE_FEAT = 8; // Feats
 }
 
 // Character size category
@@ -676,7 +676,6 @@ message ClassInfo {
   // All choices (equipment, proficiencies, etc.)
   repeated Choice choices = 15;
 }
-
 
 // Deprecated: Use FeatureInfo instead for richer feature data
 // message ClassFeature {

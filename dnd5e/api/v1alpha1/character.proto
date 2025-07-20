@@ -531,11 +531,8 @@ message RaceInfo {
   // Size description
   string size_description = 13;
 
-  // Language choices (e.g., "choose 1 from any language")
-  Choice language_options = 14;
-
-  // Proficiency choices (e.g., "choose 2 skills from...")
-  repeated Choice proficiency_options = 15;
+  // All choices (languages, proficiencies, etc.)
+  repeated Choice choices = 14;
 }
 
 // Subrace information
@@ -569,19 +566,70 @@ message RacialTrait {
   repeated string options = 4;
 }
 
-// Generic choice structure for proficiencies, languages, etc
+// Unified choice for all types - equipment, proficiencies, languages, etc.
 message Choice {
-  // Type of choice (e.g., "language", "skill", "tool_proficiency")
-  string type = 1;
+  string id = 1;                   // Unique identifier for tracking
+  string description = 2;          // Human-readable description  
+  int32 choose_count = 3;          // How many options to choose
+  ChoiceType choice_type = 4;      // What kind of choice this is
+  
+  oneof option_set {
+    ExplicitOptions explicit_options = 5;      // List of specific options
+    CategoryReference category_reference = 6;   // Reference to expandable category
+  }
+}
 
-  // How many to choose
-  int32 choose = 2;
+// Explicit list of options to choose from
+message ExplicitOptions {
+  repeated ChoiceOption options = 1;
+}
 
-  // Available options
-  repeated string options = 3;
+// Reference to a category that needs to be resolved/expanded
+message CategoryReference {
+  string category_id = 1;           // e.g., "martial-weapons", "artisan-tools"
+  repeated string exclude_ids = 2;  // Optional exclusions
+}
 
-  // Optional filter/category (e.g., "from_list", "any")
-  string from = 4;
+// Individual option within a choice
+message ChoiceOption {
+  oneof option_type {
+    ItemReference item = 1;              // Single item reference
+    CountedItemReference counted_item = 2; // Item with quantity
+    ItemBundle bundle = 3;               // Multiple items as one option
+    NestedChoice nested_choice = 4;      // For complex nested choices
+  }
+}
+
+message ItemReference {
+  string item_id = 1;   // ID to query with
+  string name = 2;      // Display name
+}
+
+message CountedItemReference {
+  string item_id = 1;
+  string name = 2;
+  int32 quantity = 3;   // e.g., 20 arrows
+}
+
+message ItemBundle {
+  repeated CountedItemReference items = 1;  // Multiple items together
+}
+
+message NestedChoice {
+  Choice choice = 1;    // Allows arbitrarily complex choices
+}
+
+// Type of choice being made
+enum ChoiceType {
+  CHOICE_TYPE_UNSPECIFIED = 0;
+  CHOICE_TYPE_EQUIPMENT = 1;
+  CHOICE_TYPE_SKILL = 2;              // Skill proficiencies
+  CHOICE_TYPE_TOOL = 3;               // Tool proficiencies  
+  CHOICE_TYPE_LANGUAGE = 4;           // Languages
+  CHOICE_TYPE_WEAPON_PROFICIENCY = 5; // Weapon proficiencies
+  CHOICE_TYPE_ARMOR_PROFICIENCY = 6;  // Armor proficiencies
+  CHOICE_TYPE_SPELL = 7;              // Spells known/prepared
+  CHOICE_TYPE_FEAT = 8;               // Feats
 }
 
 // Character size category
@@ -618,24 +666,17 @@ message ClassInfo {
 
   // Starting equipment
   repeated string starting_equipment = 12;
-  repeated EquipmentChoice equipment_choices = 13;
 
   // Class features at level 1
-  repeated FeatureInfo level_1_features = 14;
+  repeated FeatureInfo level_1_features = 13;
 
   // Spellcasting information (if applicable)
-  SpellcastingInfo spellcasting = 15;
+  SpellcastingInfo spellcasting = 14;
 
-  // Proficiency choices (e.g., "choose 2 skills from class list")
-  repeated Choice proficiency_choices = 16;
+  // All choices (equipment, proficiencies, etc.)
+  repeated Choice choices = 15;
 }
 
-// Equipment choice for starting gear
-message EquipmentChoice {
-  string description = 1;
-  repeated string options = 2;
-  int32 choose_count = 3;
-}
 
 // Deprecated: Use FeatureInfo instead for richer feature data
 // message ClassFeature {

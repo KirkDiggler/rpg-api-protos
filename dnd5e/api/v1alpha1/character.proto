@@ -612,7 +612,15 @@ message CountedItemReference {
 }
 
 message ItemBundle {
-  repeated CountedItemReference items = 1; // Multiple items together
+  repeated BundleItem items = 1; // Items in the bundle (can be concrete or choices)
+}
+
+// Represents a single item in a bundle, which can be either a concrete item or a choice
+message BundleItem {
+  oneof item_type {
+    CountedItemReference concrete_item = 1; // Concrete item like "leather armor"
+    NestedChoice choice_item = 2; // Choice like "a martial weapon"
+  }
 }
 
 message NestedChoice {

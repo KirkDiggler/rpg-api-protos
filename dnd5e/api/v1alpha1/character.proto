@@ -618,8 +618,8 @@ message ItemBundle {
 // Represents a single item in a bundle, which can be either a concrete item or a choice
 message BundleItem {
   oneof item_type {
-    CountedItemReference concrete_item = 1;  // Concrete item like "leather armor"
-    NestedChoice choice_item = 2;            // Choice like "a martial weapon"
+    CountedItemReference concrete_item = 1; // Concrete item like "leather armor"
+    NestedChoice choice_item = 2; // Choice like "a martial weapon"
   }
 }
 

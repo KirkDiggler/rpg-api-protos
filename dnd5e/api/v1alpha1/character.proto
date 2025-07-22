@@ -261,8 +261,8 @@ message DeleteCharacterResponse {
   string message = 1;
 }
 
-// Character draft with optional fields
-message CharacterDraft {
+// Character draft data for storage with optional fields
+message CharacterDraftData {
   // Unique identifier
   string id = 1;
 
@@ -336,8 +336,8 @@ message DraftMetadata {
   string discord_message_id = 4;
 }
 
-// Hydrated character draft with full details for responses
-message CharacterDraftDetailed {
+// Character draft with full details for responses
+message CharacterDraft {
   // Unique identifier
   string id = 1;
 
@@ -379,11 +379,11 @@ message CreateDraftRequest {
   string session_id = 2; // Optional
 
   // Can optionally provide initial data
-  CharacterDraft initial_data = 3;
+  CharacterDraftData initial_data = 3;
 }
 
 message CreateDraftResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
 }
 
 // Request to get a draft
@@ -392,7 +392,7 @@ message GetDraftRequest {
 }
 
 message GetDraftResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
 }
 
 // Request to update a draft
@@ -400,14 +400,14 @@ message UpdateDraftRequest {
   string draft_id = 1;
 
   // Only provided fields will be updated
-  CharacterDraft updates = 2;
+  CharacterDraftData updates = 2;
 
   // Which fields to update (field mask pattern)
   repeated string update_mask = 3;
 }
 
 message UpdateDraftResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
 
   // Any validation warnings (not errors)
   repeated ValidationWarning warnings = 2;
@@ -455,32 +455,32 @@ message UpdateSkillsRequest {
 
 // Section-based update responses
 message UpdateNameResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateRaceResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateClassResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateBackgroundResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateAbilityScoresResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateSkillsResponse {
-  CharacterDraftDetailed draft = 1;
+  CharacterDraft draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
@@ -500,7 +500,7 @@ message ListDraftsRequest {
 }
 
 message ListDraftsResponse {
-  repeated CharacterDraftDetailed drafts = 1;
+  repeated CharacterDraft drafts = 1;
   string next_page_token = 2;
 }
 
@@ -526,7 +526,7 @@ message GetDraftPreviewRequest {
 }
 
 message GetDraftPreviewResponse {
-  CharacterDraftDetailed draft = 1; // The draft with choices
+  CharacterDraft draft = 1; // The draft with choices
   Character preview = 2; // Computed character state
   repeated ValidationWarning warnings = 3;
   repeated ValidationError errors = 4;

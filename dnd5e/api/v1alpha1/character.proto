@@ -25,6 +25,9 @@ service CharacterService {
   // Validation
   rpc ValidateDraft(ValidateDraftRequest) returns (ValidateDraftResponse);
 
+  // Get a preview of what the character would look like if finalized
+  rpc GetDraftPreview(GetDraftPreviewRequest) returns (GetDraftPreviewResponse);
+
   // Character finalization
   rpc FinalizeDraft(FinalizeDraftRequest) returns (FinalizeDraftResponse);
 
@@ -269,7 +272,7 @@ message CharacterDraft {
   // Session if part of one
   string session_id = 3;
 
-  // All fields are optional during draft
+  // Identity fields - stored as enums
   string name = 4;
   Race race = 5;
   Subrace subrace = 6;
@@ -277,14 +280,19 @@ message CharacterDraft {
   Background background = 8;
   AbilityScores ability_scores = 9;
   Alignment alignment = 10;
-  repeated Skill starting_skills = 11;
-  repeated Language additional_languages = 12;
+
+  // Store player choices instead of computed state
+  repeated ChoiceSelection choices = 20;
 
   // Track what steps are complete
   CreationProgress progress = 13;
 
   // When this draft expires (e.g., 30 days)
   int64 expires_at = 14;
+
+  // Timestamps
+  int64 created_at = 16;
+  int64 updated_at = 17;
 
   // Metadata
   DraftMetadata metadata = 15;
@@ -328,6 +336,43 @@ message DraftMetadata {
   string discord_message_id = 4;
 }
 
+// Hydrated character draft with full details for responses
+message CharacterDraftDetailed {
+  // Unique identifier
+  string id = 1;
+
+  // Player creating this character
+  string player_id = 2;
+
+  // Session if part of one
+  string session_id = 3;
+
+  // Identity fields
+  string name = 4;
+  RaceInfo race = 5;
+  SubraceInfo subrace = 6;
+  ClassInfo class = 7;
+  BackgroundInfo background = 8;
+  AbilityScores ability_scores = 9;
+  Alignment alignment = 10;
+
+  // Store player choices
+  repeated ChoiceSelection choices = 20;
+
+  // Track what steps are complete
+  CreationProgress progress = 13;
+
+  // When this draft expires (e.g., 30 days)
+  int64 expires_at = 14;
+
+  // Timestamps
+  int64 created_at = 16;
+  int64 updated_at = 17;
+
+  // Metadata
+  DraftMetadata metadata = 15;
+}
+
 // Request to create a draft
 message CreateDraftRequest {
   string player_id = 1;
@@ -338,7 +383,7 @@ message CreateDraftRequest {
 }
 
 message CreateDraftResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
 }
 
 // Request to get a draft
@@ -347,7 +392,7 @@ message GetDraftRequest {
 }
 
 message GetDraftResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
 }
 
 // Request to update a draft
@@ -362,7 +407,7 @@ message UpdateDraftRequest {
 }
 
 message UpdateDraftResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
 
   // Any validation warnings (not errors)
   repeated ValidationWarning warnings = 2;
@@ -410,32 +455,32 @@ message UpdateSkillsRequest {
 
 // Section-based update responses
 message UpdateNameResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateRaceResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateClassResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateBackgroundResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateAbilityScoresResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
 message UpdateSkillsResponse {
-  CharacterDraft draft = 1;
+  CharacterDraftDetailed draft = 1;
   repeated ValidationWarning warnings = 2;
 }
 
@@ -455,7 +500,7 @@ message ListDraftsRequest {
 }
 
 message ListDraftsResponse {
-  repeated CharacterDraft drafts = 1;
+  repeated CharacterDraftDetailed drafts = 1;
   string next_page_token = 2;
 }
 
@@ -473,6 +518,18 @@ message ValidateDraftResponse {
 
   // What's still needed
   repeated CreationStep missing_steps = 5;
+}
+
+// Request to get a preview of the character
+message GetDraftPreviewRequest {
+  string draft_id = 1;
+}
+
+message GetDraftPreviewResponse {
+  CharacterDraftDetailed draft = 1; // The draft with choices
+  Character preview = 2; // Computed character state
+  repeated ValidationWarning warnings = 3;
+  repeated ValidationError errors = 4;
 }
 
 // Request to finalize draft
@@ -978,6 +1035,33 @@ message Spell {
 
   // Area of effect
   AreaOfEffect area_of_effect = 14;
+}
+
+// Source of a choice during character creation
+enum ChoiceSource {
+  CHOICE_SOURCE_UNSPECIFIED = 0;
+  CHOICE_SOURCE_RACE = 1;
+  CHOICE_SOURCE_CLASS = 2;
+  CHOICE_SOURCE_BACKGROUND = 3;
+  CHOICE_SOURCE_SUBRACE = 4;
+  CHOICE_SOURCE_FEATURE = 5; // For class features that grant choices
+}
+
+// Tracks a choice made during character creation
+message ChoiceSelection {
+  string choice_id = 1; // ID from Choice in RaceInfo/ClassInfo
+  ChoiceType choice_type = 2; // EQUIPMENT, SKILL, etc.
+  ChoiceSource source = 3; // Where this choice came from
+  repeated string selected_keys = 4; // What was selected
+
+  // For ability score choices
+  repeated AbilityScoreChoice ability_score_choices = 5;
+}
+
+// Represents an ability score bonus selection
+message AbilityScoreChoice {
+  Ability ability = 1;
+  int32 bonus = 2;
 }
 
 // Spell damage information

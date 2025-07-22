@@ -423,16 +423,19 @@ message UpdateRaceRequest {
   string draft_id = 1;
   Race race = 2;
   Subrace subrace = 3; // Optional, required for some races
+  repeated ChoiceSelection race_choices = 4; // Choices made for this race
 }
 
 message UpdateClassRequest {
   string draft_id = 1;
   Class class = 2;
+  repeated ChoiceSelection class_choices = 3; // Choices made for this class
 }
 
 message UpdateBackgroundRequest {
   string draft_id = 1;
   Background background = 2;
+  repeated ChoiceSelection background_choices = 3; // Choices made for this background
 }
 
 message UpdateAbilityScoresRequest {
@@ -1041,10 +1044,9 @@ message Spell {
 enum ChoiceSource {
   CHOICE_SOURCE_UNSPECIFIED = 0;
   CHOICE_SOURCE_RACE = 1;
-  CHOICE_SOURCE_CLASS = 2;
-  CHOICE_SOURCE_BACKGROUND = 3;
-  CHOICE_SOURCE_SUBRACE = 4;
-  CHOICE_SOURCE_FEATURE = 5; // For class features that grant choices
+  CHOICE_SOURCE_SUBRACE = 2;
+  CHOICE_SOURCE_CLASS = 3;
+  CHOICE_SOURCE_BACKGROUND = 4;
 }
 
 // Tracks a choice made during character creation

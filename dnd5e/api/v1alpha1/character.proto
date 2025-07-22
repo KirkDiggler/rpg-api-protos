@@ -282,20 +282,20 @@ message CharacterDraftData {
   Alignment alignment = 10;
 
   // Store player choices instead of computed state
-  repeated ChoiceSelection choices = 20;
+  repeated ChoiceSelection choices = 11;
 
   // Track what steps are complete
-  CreationProgress progress = 13;
+  CreationProgress progress = 12;
 
   // When this draft expires (e.g., 30 days)
-  int64 expires_at = 14;
+  int64 expires_at = 13;
 
   // Timestamps
-  int64 created_at = 16;
-  int64 updated_at = 17;
+  int64 created_at = 14;
+  int64 updated_at = 15;
 
   // Metadata
-  DraftMetadata metadata = 15;
+  DraftMetadata metadata = 16;
 }
 
 // Tracks which parts of character creation are complete
@@ -357,20 +357,20 @@ message CharacterDraft {
   Alignment alignment = 10;
 
   // Store player choices
-  repeated ChoiceSelection choices = 20;
+  repeated ChoiceSelection choices = 11;
 
   // Track what steps are complete
-  CreationProgress progress = 13;
+  CreationProgress progress = 12;
 
   // When this draft expires (e.g., 30 days)
-  int64 expires_at = 14;
+  int64 expires_at = 13;
 
   // Timestamps
-  int64 created_at = 16;
-  int64 updated_at = 17;
+  int64 created_at = 14;
+  int64 updated_at = 15;
 
   // Metadata
-  DraftMetadata metadata = 15;
+  DraftMetadata metadata = 16;
 }
 
 // Request to create a draft

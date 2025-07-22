@@ -25,6 +25,9 @@ service CharacterService {
   // Validation
   rpc ValidateDraft(ValidateDraftRequest) returns (ValidateDraftResponse);
 
+  // Get a preview of what the character would look like if finalized
+  rpc GetDraftPreview(GetDraftPreviewRequest) returns (GetDraftPreviewResponse);
+
   // Character finalization
   rpc FinalizeDraft(FinalizeDraftRequest) returns (FinalizeDraftResponse);
 
@@ -258,8 +261,8 @@ message DeleteCharacterResponse {
   string message = 1;
 }
 
-// Character draft with optional fields
-message CharacterDraft {
+// Character draft data for storage with optional fields
+message CharacterDraftData {
   // Unique identifier
   string id = 1;
 
@@ -269,7 +272,7 @@ message CharacterDraft {
   // Session if part of one
   string session_id = 3;
 
-  // All fields are optional during draft
+  // Identity fields - stored as enums
   string name = 4;
   Race race = 5;
   Subrace subrace = 6;
@@ -277,17 +280,22 @@ message CharacterDraft {
   Background background = 8;
   AbilityScores ability_scores = 9;
   Alignment alignment = 10;
-  repeated Skill starting_skills = 11;
-  repeated Language additional_languages = 12;
+
+  // Store player choices instead of computed state
+  repeated ChoiceSelection choices = 11;
 
   // Track what steps are complete
-  CreationProgress progress = 13;
+  CreationProgress progress = 12;
 
   // When this draft expires (e.g., 30 days)
-  int64 expires_at = 14;
+  int64 expires_at = 13;
+
+  // Timestamps
+  int64 created_at = 14;
+  int64 updated_at = 15;
 
   // Metadata
-  DraftMetadata metadata = 15;
+  DraftMetadata metadata = 16;
 }
 
 // Tracks which parts of character creation are complete
@@ -328,13 +336,50 @@ message DraftMetadata {
   string discord_message_id = 4;
 }
 
+// Character draft with full details for responses
+message CharacterDraft {
+  // Unique identifier
+  string id = 1;
+
+  // Player creating this character
+  string player_id = 2;
+
+  // Session if part of one
+  string session_id = 3;
+
+  // Identity fields
+  string name = 4;
+  RaceInfo race = 5;
+  SubraceInfo subrace = 6;
+  ClassInfo class = 7;
+  BackgroundInfo background = 8;
+  AbilityScores ability_scores = 9;
+  Alignment alignment = 10;
+
+  // Store player choices
+  repeated ChoiceSelection choices = 11;
+
+  // Track what steps are complete
+  CreationProgress progress = 12;
+
+  // When this draft expires (e.g., 30 days)
+  int64 expires_at = 13;
+
+  // Timestamps
+  int64 created_at = 14;
+  int64 updated_at = 15;
+
+  // Metadata
+  DraftMetadata metadata = 16;
+}
+
 // Request to create a draft
 message CreateDraftRequest {
   string player_id = 1;
   string session_id = 2; // Optional
 
   // Can optionally provide initial data
-  CharacterDraft initial_data = 3;
+  CharacterDraftData initial_data = 3;
 }
 
 message CreateDraftResponse {
@@ -355,7 +400,7 @@ message UpdateDraftRequest {
   string draft_id = 1;
 
   // Only provided fields will be updated
-  CharacterDraft updates = 2;
+  CharacterDraftData updates = 2;
 
   // Which fields to update (field mask pattern)
   repeated string update_mask = 3;
@@ -473,6 +518,18 @@ message ValidateDraftResponse {
 
   // What's still needed
   repeated CreationStep missing_steps = 5;
+}
+
+// Request to get a preview of the character
+message GetDraftPreviewRequest {
+  string draft_id = 1;
+}
+
+message GetDraftPreviewResponse {
+  CharacterDraft draft = 1; // The draft with choices
+  Character preview = 2; // Computed character state
+  repeated ValidationWarning warnings = 3;
+  repeated ValidationError errors = 4;
 }
 
 // Request to finalize draft
@@ -978,6 +1035,33 @@ message Spell {
 
   // Area of effect
   AreaOfEffect area_of_effect = 14;
+}
+
+// Source of a choice during character creation
+enum ChoiceSource {
+  CHOICE_SOURCE_UNSPECIFIED = 0;
+  CHOICE_SOURCE_RACE = 1;
+  CHOICE_SOURCE_CLASS = 2;
+  CHOICE_SOURCE_BACKGROUND = 3;
+  CHOICE_SOURCE_SUBRACE = 4;
+  CHOICE_SOURCE_FEATURE = 5; // For class features that grant choices
+}
+
+// Tracks a choice made during character creation
+message ChoiceSelection {
+  string choice_id = 1; // ID from Choice in RaceInfo/ClassInfo
+  ChoiceType choice_type = 2; // EQUIPMENT, SKILL, etc.
+  ChoiceSource source = 3; // Where this choice came from
+  repeated string selected_keys = 4; // What was selected
+
+  // For ability score choices
+  repeated AbilityScoreChoice ability_score_choices = 5;
+}
+
+// Represents an ability score bonus selection
+message AbilityScoreChoice {
+  Ability ability = 1;
+  int32 bonus = 2;
 }
 
 // Spell damage information

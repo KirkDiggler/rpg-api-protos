@@ -1,0 +1,1064 @@
+syntax = "proto3";
+
+package api.v1alpha1;
+
+import "api/v1alpha1/room_common.proto";
+
+// Spatial query service for tactical gameplay operations
+// Handles line of sight, movement, pathfinding, and area effects
+service SpatialService {
+  // Basic spatial queries (Phase 2)
+  rpc QueryLineOfSight(QueryLineOfSightRequest) returns (QueryLineOfSightResponse);
+  rpc ValidateMovement(ValidateMovementRequest) returns (ValidateMovementResponse);
+  rpc ValidateEntityPlacement(ValidateEntityPlacementRequest) returns (ValidateEntityPlacementResponse);
+  rpc QueryEntitiesInRange(QueryEntitiesInRangeRequest) returns (QueryEntitiesInRangeResponse);
+
+  // Advanced spatial queries (Phase 4)
+  rpc CalculateMovementPath(CalculateMovementPathRequest) returns (CalculateMovementPathResponse);
+  rpc QueryAreaOfEffect(QueryAreaOfEffectRequest) returns (QueryAreaOfEffectResponse);
+  rpc QueryMultiRoomLineOfSight(QueryMultiRoomLineOfSightRequest) returns (QueryMultiRoomLineOfSightResponse);
+  rpc CalculateMultiRoomPath(CalculateMultiRoomPathRequest) returns (CalculateMultiRoomPathResponse);
+  rpc QuerySpatialIndex(QuerySpatialIndexRequest) returns (QuerySpatialIndexResponse);
+
+  // Spatial optimization and analytics
+  rpc GetSpatialStats(GetSpatialStatsRequest) returns (GetSpatialStatsResponse);
+  rpc InvalidateSpatialCache(InvalidateSpatialCacheRequest) returns (InvalidateSpatialCacheResponse);
+}
+
+// Line of sight query request
+message QueryLineOfSightRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Source position
+  Position from_position = 2;
+
+  // Target position
+  Position to_position = 3;
+
+  // Entity performing the check (for size/height considerations)
+  string entity_id = 4;
+
+  // Entity size if not specified by entity_id
+  double entity_size = 5;
+
+  // Line of sight options
+  LineOfSightOptions options = 6;
+}
+
+// Options for line of sight calculations
+message LineOfSightOptions {
+  // Whether to consider entity height
+  bool consider_height = 1;
+
+  // Whether partial cover blocks sight
+  bool partial_cover_blocks = 2;
+
+  // Maximum range for line of sight
+  double max_range = 3;
+
+  // Whether to ignore certain entity types
+  repeated string ignore_entity_types = 4;
+
+  // Whether to provide detailed blocking information
+  bool detailed_blocking_info = 5;
+}
+
+// Line of sight query response
+message QueryLineOfSightResponse {
+  // Whether line of sight exists
+  bool has_line_of_sight = 1;
+
+  // Distance between positions
+  double distance = 2;
+
+  // Blocking information if no line of sight
+  BlockingInfo blocking_info = 3;
+
+  // Cover information
+  CoverInfo cover_info = 4;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 5;
+}
+
+// Information about what blocks line of sight
+message BlockingInfo {
+  // Entity that blocks the line of sight
+  string blocking_entity_id = 1;
+
+  // Position where line of sight is blocked
+  Position blocking_position = 2;
+
+  // Type of blocking ("wall", "entity", "terrain")
+  string blocking_type = 3;
+
+  // Percentage of line blocked
+  double blocking_percentage = 4;
+}
+
+// Information about cover between positions
+message CoverInfo {
+  // Cover type
+  CoverType cover_type = 1;
+
+  // Cover percentage (0.0 = no cover, 1.0 = full cover)
+  double cover_percentage = 2;
+
+  // Entity providing cover
+  string cover_source_id = 3;
+
+  // Cover position
+  Position cover_position = 4;
+}
+
+// Types of cover
+enum CoverType {
+  COVER_TYPE_UNSPECIFIED = 0;
+  COVER_TYPE_NONE = 1;
+  COVER_TYPE_PARTIAL = 2;
+  COVER_TYPE_HALF = 3;
+  COVER_TYPE_THREE_QUARTERS = 4;
+  COVER_TYPE_FULL = 5;
+}
+
+// Movement validation request
+message ValidateMovementRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Entity attempting movement
+  string entity_id = 2;
+
+  // Starting position
+  Position from_position = 3;
+
+  // Ending position
+  Position to_position = 4;
+
+  // Movement options
+  MovementOptions options = 5;
+}
+
+// Options for movement validation
+message MovementOptions {
+  // Movement type
+  MovementType movement_type = 1;
+
+  // Available movement speed
+  double movement_speed = 2;
+
+  // Whether to allow movement through difficult terrain
+  bool allow_difficult_terrain = 3;
+
+  // Whether to allow movement through other entities
+  bool allow_entity_overlap = 4;
+
+  // Maximum movement cost allowed
+  double max_movement_cost = 5;
+}
+
+// Types of movement
+enum MovementType {
+  MOVEMENT_TYPE_UNSPECIFIED = 0;
+  MOVEMENT_TYPE_WALK = 1;
+  MOVEMENT_TYPE_RUN = 2;
+  MOVEMENT_TYPE_FLY = 3;
+  MOVEMENT_TYPE_SWIM = 4;
+  MOVEMENT_TYPE_CLIMB = 5;
+  MOVEMENT_TYPE_BURROW = 6;
+  MOVEMENT_TYPE_TELEPORT = 7;
+}
+
+// Movement validation response
+message ValidateMovementResponse {
+  // Whether movement is valid
+  bool is_valid = 1;
+
+  // Movement cost
+  double movement_cost = 2;
+
+  // Path taken (simplified)
+  repeated Position path = 3;
+
+  // Terrain effects encountered
+  repeated TerrainEffect terrain_effects = 4;
+
+  // Validation errors if invalid
+  repeated RoomError errors = 5;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 6;
+}
+
+// Terrain effect information
+message TerrainEffect {
+  // Position of the effect
+  Position position = 1;
+
+  // Type of terrain effect
+  string effect_type = 2; // "difficult", "hazardous", "impassable"
+
+  // Movement cost multiplier
+  double cost_multiplier = 3;
+
+  // Description of the effect
+  string description = 4;
+
+  // Source of the terrain effect
+  string source_id = 5;
+}
+
+// Entity placement validation request
+message ValidateEntityPlacementRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Entity to place
+  string entity_id = 2;
+
+  // Desired position
+  Position position = 3;
+
+  // Entity size if not specified by entity_id
+  double entity_size = 4;
+
+  // Placement options
+  PlacementOptions options = 5;
+}
+
+// Options for entity placement
+message PlacementOptions {
+  // Whether to allow overlap with other entities
+  bool allow_entity_overlap = 1;
+
+  // Whether to allow placement on difficult terrain
+  bool allow_difficult_terrain = 2;
+
+  // Whether to find nearest valid position if invalid
+  bool find_nearest_valid = 3;
+
+  // Maximum distance to search for valid position
+  double max_search_distance = 4;
+}
+
+// Entity placement validation response
+message ValidateEntityPlacementResponse {
+  // Whether placement is valid
+  bool is_valid = 1;
+
+  // Actual placement position (may differ if find_nearest_valid used)
+  Position actual_position = 2;
+
+  // Overlapping entities if any
+  repeated string overlapping_entities = 3;
+
+  // Terrain effects at position
+  repeated TerrainEffect terrain_effects = 4;
+
+  // Placement errors if invalid
+  repeated RoomError errors = 5;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 6;
+}
+
+// Range query request
+message QueryEntitiesInRangeRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Center position
+  Position center_position = 2;
+
+  // Range radius
+  double range = 3;
+
+  // Range query options
+  RangeQueryOptions options = 4;
+}
+
+// Options for range queries
+message RangeQueryOptions {
+  // Entity types to include
+  repeated string include_entity_types = 1;
+
+  // Entity types to exclude
+  repeated string exclude_entity_types = 2;
+
+  // Whether to require line of sight
+  bool require_line_of_sight = 3;
+
+  // Maximum number of entities to return
+  int32 max_results = 4;
+
+  // Sort order for results
+  RangeSortOrder sort_order = 5;
+}
+
+// Sort order for range query results
+enum RangeSortOrder {
+  RANGE_SORT_ORDER_UNSPECIFIED = 0;
+  RANGE_SORT_ORDER_DISTANCE_ASC = 1;
+  RANGE_SORT_ORDER_DISTANCE_DESC = 2;
+  RANGE_SORT_ORDER_SIZE_ASC = 3;
+  RANGE_SORT_ORDER_SIZE_DESC = 4;
+}
+
+// Range query response
+message QueryEntitiesInRangeResponse {
+  // Entities found in range
+  repeated EntityRangeResult entities = 1;
+
+  // Total entities in range (before max_results limit)
+  int32 total_count = 2;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 3;
+}
+
+// Entity result with range information
+message EntityRangeResult {
+  // Entity information
+  Entity entity = 1;
+
+  // Distance from center
+  double distance = 2;
+
+  // Direction from center (radians)
+  double direction = 3;
+
+  // Whether entity has line of sight to center
+  bool has_line_of_sight = 4;
+
+  // Cover information
+  CoverInfo cover_info = 5;
+}
+
+// Advanced movement path calculation request
+message CalculateMovementPathRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Entity requesting path
+  string entity_id = 2;
+
+  // Starting position
+  Position from_position = 3;
+
+  // Target position
+  Position to_position = 4;
+
+  // Pathfinding options
+  PathfindingOptions options = 5;
+}
+
+// Advanced pathfinding options
+message PathfindingOptions {
+  // Movement type
+  MovementType movement_type = 1;
+
+  // Entity size
+  double entity_size = 2;
+
+  // Maximum movement cost
+  double max_cost = 3;
+
+  // Path preference
+  PathPreference path_preference = 4;
+
+  // Entity types to avoid
+  repeated string avoid_entity_types = 5;
+
+  // Whether to allow difficult terrain
+  bool allow_difficult_terrain = 6;
+
+  // Number of alternative paths to calculate
+  int32 max_alternatives = 7;
+
+  // Pathfinding algorithm to use
+  PathfindingAlgorithm algorithm = 8;
+}
+
+// Path preference types
+enum PathPreference {
+  PATH_PREFERENCE_UNSPECIFIED = 0;
+  PATH_PREFERENCE_OPTIMAL = 1; // Shortest/lowest cost path
+  PATH_PREFERENCE_SAFE = 2; // Avoid hazards and enemies
+  PATH_PREFERENCE_DIRECT = 3; // Most direct route
+  PATH_PREFERENCE_COVER = 4; // Maximize cover from enemies
+}
+
+// Pathfinding algorithms
+enum PathfindingAlgorithm {
+  PATHFINDING_ALGORITHM_UNSPECIFIED = 0;
+  PATHFINDING_ALGORITHM_A_STAR = 1;
+  PATHFINDING_ALGORITHM_DIJKSTRA = 2;
+  PATHFINDING_ALGORITHM_JUMP_POINT = 3;
+  PATHFINDING_ALGORITHM_HIERARCHICAL = 4;
+}
+
+// Movement path calculation response
+message CalculateMovementPathResponse {
+  // Primary path
+  MovementPath path = 1;
+
+  // Whether path reaches destination
+  bool is_complete = 2;
+
+  // All reachable positions within movement range
+  repeated Position reachable_area = 3;
+
+  // Alternative paths
+  repeated MovementPath alternatives = 4;
+
+  // Pathfinding performance metrics
+  PathfindingStats pathfinding_stats = 5;
+}
+
+// Movement path information
+message MovementPath {
+  // Path positions
+  repeated Position positions = 1;
+
+  // Total movement cost
+  double total_cost = 2;
+
+  // Human-readable path description
+  string description = 3;
+
+  // Terrain effects along path
+  repeated TerrainEffect terrain_effects = 4;
+
+  // Path type
+  PathPreference path_type = 5;
+}
+
+// Pathfinding performance statistics
+message PathfindingStats {
+  // Number of nodes explored
+  int32 nodes_explored = 1;
+
+  // Computation time in milliseconds
+  double computation_time_ms = 2;
+
+  // Algorithm used
+  PathfindingAlgorithm algorithm = 3;
+
+  // Cache hit ratio
+  double cache_hit_ratio = 4;
+
+  // Memory used for pathfinding
+  int64 memory_bytes = 5;
+}
+
+// Area of effect query request
+message QueryAreaOfEffectRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Center of effect
+  Position center_position = 2;
+
+  // Area of effect definition
+  AreaOfEffectShape shape = 3;
+
+  // Query options
+  AreaOfEffectOptions options = 4;
+}
+
+// Area of effect shape definition
+message AreaOfEffectShape {
+  // Shape type
+  AreaOfEffectType shape_type = 1;
+
+  // Shape parameters
+  oneof shape_params {
+    CircleParams circle = 2;
+    ConeParams cone = 3;
+    LineParams line = 4;
+    RectangleParams rectangle = 5;
+    CustomShapeParams custom = 6;
+  }
+}
+
+// Area of effect types
+enum AreaOfEffectType {
+  AREA_OF_EFFECT_TYPE_UNSPECIFIED = 0;
+  AREA_OF_EFFECT_TYPE_CIRCLE = 1;
+  AREA_OF_EFFECT_TYPE_CONE = 2;
+  AREA_OF_EFFECT_TYPE_LINE = 3;
+  AREA_OF_EFFECT_TYPE_RECTANGLE = 4;
+  AREA_OF_EFFECT_TYPE_CUSTOM = 5;
+}
+
+// Circle area parameters
+message CircleParams {
+  double radius = 1;
+}
+
+// Cone area parameters
+message ConeParams {
+  double radius = 1;
+  double direction = 2; // Direction in radians
+  double angle = 3; // Cone angle in radians
+}
+
+// Line area parameters
+message LineParams {
+  double length = 1;
+  double width = 2;
+  double direction = 3; // Direction in radians
+}
+
+// Rectangle area parameters
+message RectangleParams {
+  double width = 1;
+  double height = 2;
+  double rotation = 3; // Rotation in radians
+}
+
+// Custom shape parameters
+message CustomShapeParams {
+  repeated Position vertices = 1;
+}
+
+// Area of effect query options
+message AreaOfEffectOptions {
+  // Entity types to include
+  repeated string include_entity_types = 1;
+
+  // Whether to require line of sight
+  bool require_line_of_sight = 2;
+
+  // Whether to exclude center position
+  bool exclude_center = 3;
+
+  // Cover calculation rules
+  CoverRules cover_rules = 4;
+
+  // Whether to calculate secondary effects
+  bool calculate_secondary_effects = 5;
+}
+
+// Cover calculation rules
+enum CoverRules {
+  COVER_RULES_UNSPECIFIED = 0;
+  COVER_RULES_STRICT = 1; // Any cover blocks effect
+  COVER_RULES_PARTIAL = 2; // Partial cover reduces effect
+  COVER_RULES_IGNORE = 3; // Ignore cover completely
+}
+
+// Area of effect query response
+message QueryAreaOfEffectResponse {
+  // Affected entities
+  repeated AreaOfEffectResult affected_entities = 1;
+
+  // All positions in area of effect
+  repeated Position area_positions = 2;
+
+  // Total area coverage
+  double total_area = 3;
+
+  // Effect center position
+  Position effect_center = 4;
+
+  // Cover analysis results
+  repeated CoverAnalysisResult cover_analysis = 5;
+
+  // Secondary effects
+  repeated SecondaryEffect secondary_effects = 6;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 7;
+}
+
+// Result for entity in area of effect
+message AreaOfEffectResult {
+  // Entity information
+  Entity entity = 1;
+
+  // Distance from effect center
+  double distance = 2;
+
+  // Whether entity has line of sight to center
+  bool line_of_sight = 3;
+
+  // Direction from center (radians)
+  double direction = 4;
+
+  // Relative position description
+  string relative_position = 5;
+
+  // Cover type affecting entity
+  CoverType cover_type = 6;
+
+  // Cover percentage
+  double cover_percentage = 7;
+
+  // Effect strength after cover (0.0-1.0)
+  double effect_strength = 8;
+}
+
+// Cover analysis result
+message CoverAnalysisResult {
+  // Position being analyzed
+  Position position = 1;
+
+  // Cover type at position
+  CoverType cover_type = 2;
+
+  // Entity providing cover
+  string cover_source = 3;
+
+  // Cover percentage
+  double cover_percentage = 4;
+}
+
+// Secondary effect from area of effect
+message SecondaryEffect {
+  // Effect type
+  string effect_type = 1; // "ricochet", "explosion", "chain"
+
+  // Origin position of secondary effect
+  Position origin = 2;
+
+  // Entities affected by secondary effect
+  repeated string target_entities = 3;
+
+  // Secondary effect intensity
+  double intensity = 4;
+
+  // Description of secondary effect
+  string description = 5;
+}
+
+// Multi-room line of sight request
+message QueryMultiRoomLineOfSightRequest {
+  // Starting room
+  string from_room_id = 1;
+
+  // Target room (optional, auto-detected if not provided)
+  string to_room_id = 2;
+
+  // Source position
+  Position from_position = 3;
+
+  // Target position
+  Position to_position = 4;
+
+  // Entity performing check
+  string entity_id = 5;
+
+  // Multi-room options
+  MultiRoomOptions options = 6;
+}
+
+// Options for multi-room queries
+message MultiRoomOptions {
+  // Entity size
+  double entity_size = 1;
+
+  // Maximum range across rooms
+  double max_range = 2;
+
+  // Whether to allow crossing room boundaries
+  bool cross_rooms = 3;
+
+  // Maximum number of rooms to traverse
+  int32 max_rooms = 4;
+}
+
+// Multi-room line of sight response
+message QueryMultiRoomLineOfSightResponse {
+  // Whether line of sight exists across rooms
+  bool has_line_of_sight = 1;
+
+  // Entity blocking line of sight
+  string blocking_entity_id = 2;
+
+  // Position where blocked
+  Position blocking_position = 3;
+
+  // Rooms crossed in path
+  repeated string rooms_crossed = 4;
+
+  // Connection points used (doors, passages)
+  repeated ConnectionPoint connection_points = 5;
+
+  // Total distance across rooms
+  double total_distance = 6;
+
+  // Path positions across rooms
+  repeated MultiRoomPosition path_positions = 7;
+
+  // Query performance metrics
+  SpatialQueryStats stats = 8;
+}
+
+// Connection point between rooms
+message ConnectionPoint {
+  // Room containing connection
+  string room_id = 1;
+
+  // Room connected to
+  string connected_to = 2;
+
+  // Position of connection
+  Position position = 3;
+
+  // Type of connection
+  string connection_type = 4; // "door", "passage", "window"
+
+  // Whether connection is blocked
+  bool is_blocked = 5;
+
+  // Entity blocking connection
+  string blocking_entity = 6;
+}
+
+// Position with room context
+message MultiRoomPosition {
+  // Room identifier
+  string room_id = 1;
+
+  // Position within room
+  Position position = 2;
+}
+
+// Multi-room pathfinding request
+message CalculateMultiRoomPathRequest {
+  // Starting room
+  string from_room_id = 1;
+
+  // Target room (optional)
+  string to_room_id = 2;
+
+  // Starting position
+  Position from_position = 3;
+
+  // Target position
+  Position to_position = 4;
+
+  // Entity requesting path
+  string entity_id = 5;
+
+  // Multi-room pathfinding options
+  MultiRoomPathfindingOptions options = 6;
+}
+
+// Options for multi-room pathfinding
+message MultiRoomPathfindingOptions {
+  // Entity size
+  double entity_size = 1;
+
+  // Movement type
+  MovementType movement_type = 2;
+
+  // Maximum total cost across rooms
+  double max_total_cost = 3;
+
+  // Whether to allow door opening
+  bool allow_door_opening = 4;
+
+  // Whether to prefer known paths
+  bool prefer_known_paths = 5;
+
+  // Maximum number of rooms to traverse
+  int32 max_rooms = 6;
+}
+
+// Multi-room pathfinding response
+message CalculateMultiRoomPathResponse {
+  // Multi-room path
+  MultiRoomPath path = 1;
+
+  // Whether path is complete
+  bool is_complete = 2;
+
+  // Room transitions required
+  repeated RoomTransition room_transitions = 3;
+
+  // Total distance across rooms
+  double total_distance = 4;
+
+  // Estimated time to traverse path
+  double estimated_time_seconds = 5;
+
+  // Required actions along path
+  repeated PathAction required_actions = 6;
+
+  // Pathfinding performance metrics
+  PathfindingStats pathfinding_stats = 7;
+}
+
+// Multi-room path information
+message MultiRoomPath {
+  // Path segments (one per room)
+  repeated PathSegment segments = 1;
+
+  // Total cost across all segments
+  double total_cost = 2;
+
+  // Path description
+  string description = 3;
+}
+
+// Path segment within a single room
+message PathSegment {
+  // Room identifier
+  string room_id = 1;
+
+  // Positions within room
+  repeated Position positions = 2;
+
+  // Entry point to room
+  Position enter_point = 3;
+
+  // Exit point from room
+  Position exit_point = 4;
+
+  // Segment cost
+  double segment_cost = 5;
+}
+
+// Room transition information
+message RoomTransition {
+  // Source room
+  string from_room_id = 1;
+
+  // Target room
+  string to_room_id = 2;
+
+  // Connection identifier
+  string connection_id = 3;
+
+  // Transition position
+  Position position = 4;
+
+  // Transition type
+  string transition_type = 5;
+
+  // Required action for transition
+  string required_action = 6;
+}
+
+// Action required along path
+message PathAction {
+  // Action type
+  string action_type = 1; // "open_door", "climb", "jump"
+
+  // Action position
+  Position position = 2;
+
+  // Target for action
+  string target = 3;
+
+  // Action difficulty
+  string difficulty = 4; // "trivial", "easy", "hard"
+
+  // Time required for action
+  double time_seconds = 5;
+
+  // Action description
+  string description = 6;
+}
+
+// Spatial index query request
+message QuerySpatialIndexRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Index type to use
+  SpatialIndexType index_type = 2;
+
+  // Query bounding box
+  BoundingBox bounding_box = 3;
+
+  // Entity types to include
+  repeated string entity_types = 4;
+
+  // Entity tags to match
+  repeated string tags = 5;
+
+  // Query precision
+  QueryPrecision precision = 6;
+}
+
+// Spatial index types
+enum SpatialIndexType {
+  SPATIAL_INDEX_TYPE_UNSPECIFIED = 0;
+  SPATIAL_INDEX_TYPE_QUADTREE = 1;
+  SPATIAL_INDEX_TYPE_R_TREE = 2;
+  SPATIAL_INDEX_TYPE_GRID = 3;
+  SPATIAL_INDEX_TYPE_AUTO = 4; // Choose best index automatically
+}
+
+// Bounding box for spatial queries
+message BoundingBox {
+  double min_x = 1;
+  double min_y = 2;
+  double max_x = 3;
+  double max_y = 4;
+}
+
+// Query precision levels
+enum QueryPrecision {
+  QUERY_PRECISION_UNSPECIFIED = 0;
+  QUERY_PRECISION_FAST = 1; // Fast but may have false positives
+  QUERY_PRECISION_ACCURATE = 2; // Balance of speed and accuracy
+  QUERY_PRECISION_EXHAUSTIVE = 3; // Slow but completely accurate
+}
+
+// Spatial index query response
+message QuerySpatialIndexResponse {
+  // Entities found in query
+  repeated EntityIndexResult entities = 1;
+
+  // Index performance statistics
+  IndexStats index_stats = 2;
+
+  // Query region
+  BoundingBox query_region = 3;
+
+  // Total candidates before filtering
+  int32 total_candidates = 4;
+
+  // Results after filtering
+  int32 filtered_results = 5;
+}
+
+// Entity result from spatial index
+message EntityIndexResult {
+  // Entity information
+  Entity entity = 1;
+
+  // Distance from query center
+  double distance = 2;
+
+  // Whether entity exactly matches query bounds
+  bool exact_match = 3;
+
+  // Entity bounding box
+  BoundingBox entity_bounds = 4;
+}
+
+// Spatial index performance statistics
+message IndexStats {
+  // Index type used
+  SpatialIndexType index_type = 1;
+
+  // Time to build index
+  double build_time_ms = 2;
+
+  // Time to execute query
+  double query_time_ms = 3;
+
+  // Cache hit ratio
+  double cache_hit_ratio = 4;
+
+  // Index memory usage
+  int64 index_memory_bytes = 5;
+
+  // When index was last updated
+  int64 last_updated = 6;
+}
+
+// Spatial statistics request
+message GetSpatialStatsRequest {
+  // Room identifier (optional, for room-specific stats)
+  string room_id = 1;
+
+  // Time range for statistics
+  TimeRange time_range = 2;
+}
+
+// Time range for statistics
+message TimeRange {
+  int64 start_time = 1;
+  int64 end_time = 2;
+}
+
+// Spatial statistics response
+message GetSpatialStatsResponse {
+  // Overall spatial query statistics
+  SpatialQueryStats overall_stats = 1;
+
+  // Statistics by query type
+  map<string, SpatialQueryStats> stats_by_type = 2;
+
+  // Cache performance statistics
+  CacheStats cache_stats = 3;
+
+  // Index performance statistics
+  map<string, IndexStats> index_stats = 4;
+}
+
+// Cache performance statistics
+message CacheStats {
+  // Overall cache hit ratio
+  double hit_ratio = 1;
+
+  // Number of cache hits
+  int64 hits = 2;
+
+  // Number of cache misses
+  int64 misses = 3;
+
+  // Cache size in bytes
+  int64 size_bytes = 4;
+
+  // Number of cached entries
+  int32 entry_count = 5;
+}
+
+// Cache invalidation request
+message InvalidateSpatialCacheRequest {
+  // Room identifier (optional, for room-specific invalidation)
+  string room_id = 1;
+
+  // Cache types to invalidate
+  repeated CacheType cache_types = 2;
+
+  // Whether to invalidate all caches
+  bool invalidate_all = 3;
+}
+
+// Cache types for invalidation
+enum CacheType {
+  CACHE_TYPE_UNSPECIFIED = 0;
+  CACHE_TYPE_SPATIAL_INDEX = 1;
+  CACHE_TYPE_QUERY_RESULTS = 2;
+  CACHE_TYPE_ROOM_STRUCTURE = 3;
+  CACHE_TYPE_PATHFINDING = 4;
+}
+
+// Cache invalidation response
+message InvalidateSpatialCacheResponse {
+  // Confirmation message
+  string message = 1;
+
+  // Number of cache entries invalidated
+  int32 entries_invalidated = 2;
+
+  // Memory freed in bytes
+  int64 memory_freed_bytes = 3;
+}
+
+// Performance metrics for spatial queries
+message SpatialQueryStats {
+  // Query execution time
+  double execution_time_ms = 1;
+
+  // Number of entities processed
+  int32 entities_processed = 2;
+
+  // Cache hit ratio for this query
+  double cache_hit_ratio = 3;
+
+  // Memory used for query
+  int64 memory_bytes = 4;
+
+  // Number of spatial calculations performed
+  int32 calculations_performed = 5;
+}

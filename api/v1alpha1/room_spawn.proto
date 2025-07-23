@@ -1,0 +1,1424 @@
+syntax = "proto3";
+
+package api.v1alpha1;
+
+import "api/v1alpha1/room_common.proto";
+import "api/v1alpha1/room_spatial.proto";
+
+// Entity spawning and management service for rooms
+// Handles entity creation, placement, movement, and lifecycle management
+service SpawnService {
+  // Entity spawning operations
+  rpc SpawnEntity(SpawnEntityRequest) returns (SpawnEntityResponse);
+  rpc SpawnMultipleEntities(SpawnMultipleEntitiesRequest) returns (SpawnMultipleEntitiesResponse);
+  rpc SpawnFromTemplate(SpawnFromTemplateRequest) returns (SpawnFromTemplateResponse);
+
+  // Entity management operations
+  rpc MoveEntity(MoveEntityRequest) returns (MoveEntityResponse);
+  rpc UpdateEntity(UpdateEntityRequest) returns (UpdateEntityResponse);
+  rpc RemoveEntity(RemoveEntityRequest) returns (RemoveEntityResponse);
+
+  // Entity query operations
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse);
+  rpc ListEntities(ListEntitiesRequest) returns (ListEntitiesResponse);
+  rpc FindEntitiesByType(FindEntitiesByTypeRequest) returns (FindEntitiesByTypeResponse);
+
+  // Spawn template operations
+  rpc ListSpawnTemplates(ListSpawnTemplatesRequest) returns (ListSpawnTemplatesResponse);
+  rpc CreateSpawnTemplate(CreateSpawnTemplateRequest) returns (CreateSpawnTemplateResponse);
+  rpc GetSpawnTemplate(GetSpawnTemplateRequest) returns (GetSpawnTemplateResponse);
+
+  // Batch operations
+  rpc BatchSpawnEntities(BatchSpawnEntitiesRequest) returns (BatchSpawnEntitiesResponse);
+  rpc BatchMoveEntities(BatchMoveEntitiesRequest) returns (BatchMoveEntitiesResponse);
+  rpc BatchRemoveEntities(BatchRemoveEntitiesRequest) returns (BatchRemoveEntitiesResponse);
+}
+
+// Single entity spawn request
+message SpawnEntityRequest {
+  // Room to spawn entity in
+  string room_id = 1;
+
+  // Entity definition
+  EntityDefinition entity_definition = 2;
+
+  // Spawn options
+  SpawnOptions spawn_options = 3;
+
+  // Spawn location preferences
+  SpawnLocationPreferences location_preferences = 4;
+}
+
+// Entity definition for spawning
+message EntityDefinition {
+  // Entity type
+  string entity_type = 1; // "character", "monster", "object", "terrain"
+
+  // Entity name
+  string name = 2;
+
+  // Entity size
+  double size = 3;
+
+  // Entity properties
+  map<string, string> properties = 4;
+
+  // Visual representation
+  string sprite_id = 5;
+  string color = 6;
+
+  // Gameplay properties
+  bool blocks_movement = 7;
+  bool blocks_line_of_sight = 8;
+  bool is_interactive = 9;
+
+  // Entity-specific data
+  oneof entity_data {
+    CharacterData character_data = 10;
+    MonsterData monster_data = 11;
+    ObjectData object_data = 12;
+    TerrainData terrain_data = 13;
+  }
+}
+
+// Character-specific spawn data
+message CharacterData {
+  // Character ID if spawning existing character
+  string character_id = 1;
+
+  // Player ID who controls this character
+  string player_id = 2;
+
+  // Character level
+  int32 level = 3;
+
+  // Hit points
+  int32 current_hit_points = 4;
+  int32 max_hit_points = 5;
+
+  // Armor class
+  int32 armor_class = 6;
+
+  // Movement speed
+  int32 movement_speed = 7;
+}
+
+// Monster-specific spawn data
+message MonsterData {
+  // Monster type/species
+  string monster_type = 1;
+
+  // Challenge rating
+  double challenge_rating = 2;
+
+  // Hit points
+  int32 current_hit_points = 3;
+  int32 max_hit_points = 4;
+
+  // Armor class
+  int32 armor_class = 5;
+
+  // Movement speed
+  int32 movement_speed = 6;
+
+  // Aggressive behavior
+  bool is_hostile = 7;
+
+  // AI behavior type
+  string ai_behavior = 8;
+}
+
+// Object-specific spawn data
+message ObjectData {
+  // Object category
+  string object_category = 1; // "furniture", "treasure", "trap", "door"
+
+  // Whether object can be moved
+  bool is_movable = 2;
+
+  // Whether object can be interacted with
+  bool is_interactable = 3;
+
+  // Object state
+  string state = 4; // "open", "closed", "locked", "broken"
+
+  // Loot or contents
+  repeated LootItem contents = 5;
+}
+
+// Terrain-specific spawn data
+message TerrainData {
+  // Terrain type
+  string terrain_type = 1; // "wall", "door", "pit", "water", "difficult"
+
+  // Movement cost multiplier
+  double movement_multiplier = 2;
+
+  // Whether terrain is hazardous
+  bool is_hazardous = 3;
+
+  // Damage dealt by terrain
+  string damage_type = 4;
+  int32 damage_amount = 5;
+}
+
+// Loot item definition
+message LootItem {
+  // Item identifier
+  string item_id = 1;
+
+  // Item name
+  string name = 2;
+
+  // Item quantity
+  int32 quantity = 3;
+
+  // Item rarity
+  string rarity = 4;
+
+  // Item value
+  int32 value_gp = 5;
+}
+
+// Options for entity spawning
+message SpawnOptions {
+  // Whether to validate placement before spawning
+  bool validate_placement = 1;
+
+  // Whether to auto-find valid position if specified position invalid
+  bool auto_position = 2;
+
+  // Maximum attempts to find valid position
+  int32 max_position_attempts = 3;
+
+  // Whether to allow spawning on top of other entities
+  bool allow_overlap = 4;
+
+  // Whether to generate random properties
+  bool randomize_properties = 5;
+
+  // Random seed for property generation
+  string random_seed = 6;
+}
+
+// Location preferences for spawning
+message SpawnLocationPreferences {
+  // Preferred position (exact)
+  Position preferred_position = 1;
+
+  // Preferred area (spawn anywhere in this area)
+  SpawnArea preferred_area = 2;
+
+  // Spawn constraints
+  SpawnConstraints constraints = 3;
+
+  // Distance preferences from other entities
+  repeated DistancePreference distance_preferences = 4;
+}
+
+// Area definition for spawning
+message SpawnArea {
+  // Area type
+  SpawnAreaType area_type = 1;
+
+  // Area parameters
+  oneof area_params {
+    CircleArea circle = 2;
+    RectangleArea rectangle = 3;
+    CustomArea custom = 4;
+  }
+}
+
+// Spawn area types
+enum SpawnAreaType {
+  SPAWN_AREA_TYPE_UNSPECIFIED = 0;
+  SPAWN_AREA_TYPE_CIRCLE = 1;
+  SPAWN_AREA_TYPE_RECTANGLE = 2;
+  SPAWN_AREA_TYPE_CUSTOM = 3;
+}
+
+// Circle spawn area
+message CircleArea {
+  Position center = 1;
+  double radius = 2;
+}
+
+// Rectangle spawn area
+message RectangleArea {
+  Position top_left = 1;
+  Position bottom_right = 2;
+}
+
+// Custom polygon spawn area
+message CustomArea {
+  repeated Position vertices = 1;
+}
+
+// Constraints for entity spawning
+message SpawnConstraints {
+  // Terrain types to avoid
+  repeated string avoid_terrain_types = 1;
+
+  // Entity types to avoid overlapping with
+  repeated string avoid_entity_types = 2;
+
+  // Minimum distance from walls
+  double min_wall_distance = 3;
+
+  // Minimum distance from other entities
+  double min_entity_distance = 4;
+
+  // Maximum distance from spawn center
+  double max_distance_from_center = 5;
+
+  // Required line of sight to specific position
+  Position require_los_to = 6;
+}
+
+// Distance preference from other entities
+message DistancePreference {
+  // Entity type or specific entity ID
+  string target = 1;
+
+  // Preferred distance
+  double preferred_distance = 2;
+
+  // Distance tolerance
+  double tolerance = 3;
+
+  // Preference weight (higher = more important)
+  double weight = 4;
+}
+
+// Response from single entity spawn
+message SpawnEntityResponse {
+  // Spawned entity
+  Entity entity = 1;
+
+  // Actual spawn position used
+  Position actual_position = 2;
+
+  // Spawn statistics
+  SpawnStats spawn_stats = 3;
+
+  // Any warnings during spawn
+  repeated RoomError warnings = 4;
+}
+
+// Statistics about entity spawning
+message SpawnStats {
+  // Time taken to spawn
+  int64 spawn_time_ms = 1;
+
+  // Number of position attempts
+  int32 position_attempts = 2;
+
+  // Whether auto-positioning was used
+  bool used_auto_position = 3;
+
+  // Distance from preferred position
+  double distance_from_preferred = 4;
+
+  // Spawn method used
+  string spawn_method = 5;
+}
+
+// Multiple entity spawn request
+message SpawnMultipleEntitiesRequest {
+  // Room to spawn entities in
+  string room_id = 1;
+
+  // List of entities to spawn
+  repeated EntitySpawnDefinition entities = 2;
+
+  // Global spawn options
+  SpawnOptions global_options = 3;
+
+  // Coordination options for multiple spawns
+  MultiSpawnOptions coordination_options = 4;
+}
+
+// Individual entity spawn definition with options
+message EntitySpawnDefinition {
+  // Entity definition
+  EntityDefinition entity_definition = 1;
+
+  // Spawn options (overrides global if specified)
+  SpawnOptions spawn_options = 2;
+
+  // Location preferences
+  SpawnLocationPreferences location_preferences = 3;
+
+  // Spawn priority (higher spawns first)
+  int32 priority = 4;
+}
+
+// Options for coordinating multiple entity spawns
+message MultiSpawnOptions {
+  // Whether to maintain minimum distances between spawned entities
+  bool maintain_spacing = 1;
+
+  // Minimum distance between spawned entities
+  double min_inter_entity_distance = 2;
+
+  // Whether to abort all spawns if any fail
+  bool all_or_nothing = 3;
+
+  // Maximum time to spend on all spawns
+  int32 timeout_ms = 4;
+
+  // Spawn order strategy
+  SpawnOrderStrategy spawn_order = 5;
+}
+
+// Strategy for spawn order
+enum SpawnOrderStrategy {
+  SPAWN_ORDER_STRATEGY_UNSPECIFIED = 0;
+  SPAWN_ORDER_STRATEGY_PRIORITY = 1; // Spawn by priority first
+  SPAWN_ORDER_STRATEGY_SIZE_DESC = 2; // Largest entities first
+  SPAWN_ORDER_STRATEGY_SIZE_ASC = 3; // Smallest entities first
+  SPAWN_ORDER_STRATEGY_RANDOM = 4; // Random order
+}
+
+// Response from multiple entity spawn
+message SpawnMultipleEntitiesResponse {
+  // Successfully spawned entities
+  repeated Entity spawned_entities = 1;
+
+  // Failed spawn attempts
+  repeated SpawnFailure failed_spawns = 2;
+
+  // Overall spawn statistics
+  MultiSpawnStats spawn_stats = 3;
+}
+
+// Information about failed spawn attempt
+message SpawnFailure {
+  // Entity definition that failed to spawn
+  EntityDefinition entity_definition = 1;
+
+  // Reason for failure
+  string failure_reason = 2;
+
+  // Error details
+  repeated RoomError errors = 3;
+
+  // Number of attempts made
+  int32 attempts_made = 4;
+}
+
+// Statistics for multiple entity spawning
+message MultiSpawnStats {
+  // Total spawn time
+  int64 total_spawn_time_ms = 1;
+
+  // Number of successful spawns
+  int32 successful_spawns = 2;
+
+  // Number of failed spawns
+  int32 failed_spawns = 3;
+
+  // Average time per spawn
+  double average_spawn_time_ms = 4;
+
+  // Total position attempts across all entities
+  int32 total_position_attempts = 5;
+}
+
+// Template-based spawn request
+message SpawnFromTemplateRequest {
+  // Room to spawn entities in
+  string room_id = 1;
+
+  // Spawn template to use
+  string template_id = 2;
+
+  // Template parameters
+  map<string, string> template_parameters = 3;
+
+  // Spawn area for template
+  SpawnArea spawn_area = 4;
+
+  // Template spawn options
+  TemplateSpawnOptions template_options = 5;
+}
+
+// Options for template-based spawning
+message TemplateSpawnOptions {
+  // Random seed for template spawning
+  string random_seed = 1;
+
+  // Difficulty modifier
+  double difficulty_modifier = 2;
+
+  // Whether to scale entities based on party level
+  bool scale_to_party_level = 3;
+
+  // Party level for scaling
+  int32 party_level = 4;
+
+  // Maximum entities to spawn from template
+  int32 max_entities = 5;
+}
+
+// Response from template spawn
+message SpawnFromTemplateResponse {
+  // Spawned entities from template
+  repeated Entity spawned_entities = 1;
+
+  // Template that was used
+  SpawnTemplate template_used = 2;
+
+  // Template spawn statistics
+  TemplateSpawnStats spawn_stats = 3;
+
+  // Any warnings during template spawn
+  repeated RoomError warnings = 4;
+}
+
+// Statistics for template spawning
+message TemplateSpawnStats {
+  // Template spawn time
+  int64 template_spawn_time_ms = 1;
+
+  // Number of entities spawned
+  int32 entities_spawned = 2;
+
+  // Number of spawn rolls made
+  int32 spawn_rolls_made = 3;
+
+  // Actual difficulty rating
+  double actual_difficulty = 4;
+
+  // Random seed used
+  string seed_used = 5;
+}
+
+// Entity movement request
+message MoveEntityRequest {
+  // Room containing entity
+  string room_id = 1;
+
+  // Entity to move
+  string entity_id = 2;
+
+  // New position
+  Position new_position = 3;
+
+  // Movement options
+  EntityMovementOptions movement_options = 4;
+}
+
+// Options for entity movement
+message EntityMovementOptions {
+  // Whether to validate movement before executing
+  bool validate_movement = 1;
+
+  // Whether to use pathfinding for movement
+  bool use_pathfinding = 2;
+
+  // Movement animation duration (seconds)
+  double animation_duration = 3;
+
+  // Whether to trigger movement events
+  bool trigger_events = 4;
+
+  // Whether to check for opportunity attacks
+  bool check_opportunity_attacks = 5;
+}
+
+// Entity movement response
+message MoveEntityResponse {
+  // Updated entity with new position
+  Entity entity = 1;
+
+  // Actual path taken (if pathfinding used)
+  repeated Position path_taken = 2;
+
+  // Movement cost
+  double movement_cost = 3;
+
+  // Movement events triggered
+  repeated MovementEvent events_triggered = 4;
+
+  // Movement statistics
+  MovementStats movement_stats = 5;
+}
+
+// Event triggered by entity movement
+message MovementEvent {
+  // Event type
+  string event_type = 1; // "opportunity_attack", "terrain_effect", "trap_triggered"
+
+  // Entity that triggered event
+  string triggering_entity = 2;
+
+  // Target entity (if applicable)
+  string target_entity = 3;
+
+  // Event position
+  Position position = 4;
+
+  // Event description
+  string description = 5;
+
+  // Event data
+  map<string, string> event_data = 6;
+}
+
+// Statistics for entity movement
+message MovementStats {
+  // Movement execution time
+  int64 movement_time_ms = 1;
+
+  // Whether pathfinding was used
+  bool used_pathfinding = 2;
+
+  // Number of pathfinding nodes explored
+  int32 pathfinding_nodes = 3;
+
+  // Distance moved
+  double distance_moved = 4;
+
+  // Number of events triggered
+  int32 events_triggered = 5;
+}
+
+// Entity update request
+message UpdateEntityRequest {
+  // Room containing entity
+  string room_id = 1;
+
+  // Entity to update
+  string entity_id = 2;
+
+  // Updated entity data
+  EntityUpdate entity_update = 3;
+
+  // Update options
+  UpdateEntityOptions update_options = 4;
+}
+
+// Entity update data
+message EntityUpdate {
+  // Updated name
+  string name = 1;
+
+  // Updated properties
+  map<string, string> properties = 2;
+
+  // Updated visual representation
+  string sprite_id = 3;
+  string color = 4;
+
+  // Updated gameplay properties
+  bool blocks_movement = 5;
+  bool blocks_line_of_sight = 6;
+  bool is_interactive = 7;
+
+  // Field mask for partial updates
+  repeated string update_mask = 8;
+}
+
+// Options for entity updates
+message UpdateEntityOptions {
+  // Whether to validate update before applying
+  bool validate_update = 1;
+
+  // Whether to trigger update events
+  bool trigger_events = 2;
+
+  // Whether to broadcast changes to other players
+  bool broadcast_changes = 3;
+}
+
+// Entity update response
+message UpdateEntityResponse {
+  // Updated entity
+  Entity entity = 1;
+
+  // Update events triggered
+  repeated UpdateEvent events_triggered = 2;
+
+  // Update statistics
+  EntityUpdateStats update_stats = 3;
+}
+
+// Event triggered by entity update
+message UpdateEvent {
+  // Event type
+  string event_type = 1;
+
+  // Updated entity
+  string entity_id = 2;
+
+  // Fields that were changed
+  repeated string changed_fields = 3;
+
+  // Previous values
+  map<string, string> previous_values = 4;
+
+  // New values
+  map<string, string> new_values = 5;
+}
+
+// Statistics for entity updates
+message EntityUpdateStats {
+  // Update execution time
+  int64 update_time_ms = 1;
+
+  // Number of fields updated
+  int32 fields_updated = 2;
+
+  // Number of events triggered
+  int32 events_triggered = 3;
+}
+
+// Entity removal request
+message RemoveEntityRequest {
+  // Room containing entity
+  string room_id = 1;
+
+  // Entity to remove
+  string entity_id = 2;
+
+  // Removal options
+  RemovalOptions removal_options = 3;
+}
+
+// Options for entity removal
+message RemovalOptions {
+  // Reason for removal
+  string removal_reason = 1;
+
+  // Whether to drop loot when removing
+  bool drop_loot = 2;
+
+  // Whether to trigger removal events
+  bool trigger_events = 3;
+
+  // Whether to animate removal
+  bool animate_removal = 4;
+
+  // Animation duration (seconds)
+  double animation_duration = 5;
+}
+
+// Entity removal response
+message RemoveEntityResponse {
+  // Confirmation message
+  string message = 1;
+
+  // Loot dropped by entity (if any)
+  repeated LootItem loot_dropped = 2;
+
+  // Removal events triggered
+  repeated RemovalEvent events_triggered = 3;
+
+  // Removal statistics
+  RemovalStats removal_stats = 4;
+}
+
+// Event triggered by entity removal
+message RemovalEvent {
+  // Event type
+  string event_type = 1;
+
+  // Removed entity ID
+  string entity_id = 2;
+
+  // Removal position
+  Position position = 3;
+
+  // Event description
+  string description = 4;
+
+  // Event data
+  map<string, string> event_data = 5;
+}
+
+// Statistics for entity removal
+message RemovalStats {
+  // Removal execution time
+  int64 removal_time_ms = 1;
+
+  // Number of events triggered
+  int32 events_triggered = 2;
+
+  // Amount of loot dropped
+  int32 loot_items_dropped = 3;
+}
+
+// Get entity request
+message GetEntityRequest {
+  // Room containing entity
+  string room_id = 1;
+
+  // Entity identifier
+  string entity_id = 2;
+
+  // Whether to include detailed information
+  bool include_details = 3;
+}
+
+// Get entity response
+message GetEntityResponse {
+  // Requested entity
+  Entity entity = 1;
+
+  // Entity details (if requested)
+  EntityDetails details = 2;
+}
+
+// Detailed entity information
+message EntityDetails {
+  // Entity creation time
+  int64 created_at = 1;
+
+  // Entity last update time
+  int64 updated_at = 2;
+
+  // Entity movement history
+  repeated MovementHistory movement_history = 3;
+
+  // Entity interaction history
+  repeated InteractionHistory interaction_history = 4;
+
+  // Entity statistics
+  EntityLifetimeStats lifetime_stats = 5;
+}
+
+// Entity movement history entry
+message MovementHistory {
+  int64 timestamp = 1;
+  Position from_position = 2;
+  Position to_position = 3;
+  double movement_cost = 4;
+  string movement_reason = 5;
+}
+
+// Entity interaction history entry
+message InteractionHistory {
+  int64 timestamp = 1;
+  string interaction_type = 2;
+  string interacting_entity = 3;
+  string description = 4;
+  map<string, string> interaction_data = 5;
+}
+
+// Lifetime statistics for entity
+message EntityLifetimeStats {
+  // Total distance moved
+  double total_distance_moved = 1;
+
+  // Number of times moved
+  int32 move_count = 2;
+
+  // Number of interactions
+  int32 interaction_count = 3;
+
+  // Time spent in room
+  int64 time_in_room_ms = 4;
+
+  // Number of updates
+  int32 update_count = 5;
+}
+
+// List entities request
+message ListEntitiesRequest {
+  // Room to list entities from
+  string room_id = 1;
+
+  // Entity filter
+  EntityFilter filter = 2;
+
+  // Pagination
+  PageInfo page_info = 3;
+
+  // Sort options
+  EntitySortOptions sort_options = 4;
+
+  // Whether to include entity details
+  bool include_details = 5;
+}
+
+// Filter for entity queries
+message EntityFilter {
+  // Entity types to include
+  repeated string entity_types = 1;
+
+  // Entity names to match (partial match)
+  string name_pattern = 2;
+
+  // Position-based filters
+  PositionFilter position_filter = 3;
+
+  // Property-based filters
+  map<string, string> property_filters = 4;
+
+  // Entity states to include
+  repeated string states = 5;
+}
+
+// Position-based entity filter
+message PositionFilter {
+  // Center position for range filter
+  Position center = 1;
+
+  // Range from center
+  double range = 2;
+
+  // Bounding box filter
+  BoundingBox bounding_box = 3;
+}
+
+// Sort options for entity lists
+message EntitySortOptions {
+  // Field to sort by
+  EntitySortField sort_by = 1;
+
+  // Sort direction
+  EntitySortDirection direction = 2;
+}
+
+// Sort direction for entities
+enum EntitySortDirection {
+  ENTITY_SORT_DIRECTION_UNSPECIFIED = 0;
+  ENTITY_SORT_DIRECTION_ASC = 1;
+  ENTITY_SORT_DIRECTION_DESC = 2;
+}
+
+// Available sort fields for entities
+enum EntitySortField {
+  ENTITY_SORT_FIELD_UNSPECIFIED = 0;
+  ENTITY_SORT_FIELD_NAME = 1;
+  ENTITY_SORT_FIELD_TYPE = 2;
+  ENTITY_SORT_FIELD_CREATED_AT = 3;
+  ENTITY_SORT_FIELD_DISTANCE_FROM_CENTER = 4;
+  ENTITY_SORT_FIELD_SIZE = 5;
+}
+
+// List entities response
+message ListEntitiesResponse {
+  // List of entities
+  repeated Entity entities = 1;
+
+  // Pagination information
+  PageInfo page_info = 2;
+
+  // List statistics
+  EntityListStats stats = 3;
+}
+
+// Statistics for entity list
+message EntityListStats {
+  // Total entities matching filter
+  int32 total_count = 1;
+
+  // Entities returned in this page
+  int32 returned_count = 2;
+
+  // Entities by type breakdown
+  map<string, int32> entities_by_type = 3;
+
+  // Average entity size
+  double average_size = 4;
+}
+
+// Find entities by type request
+message FindEntitiesByTypeRequest {
+  // Room to search in
+  string room_id = 1;
+
+  // Entity type to find
+  string entity_type = 2;
+
+  // Additional search criteria
+  TypeSearchCriteria search_criteria = 3;
+
+  // Maximum results to return
+  int32 max_results = 4;
+}
+
+// Search criteria for entity type queries
+message TypeSearchCriteria {
+  // Required properties
+  map<string, string> required_properties = 1;
+
+  // Position constraints
+  PositionFilter position_constraints = 2;
+
+  // Size constraints
+  SizeFilter size_constraints = 3;
+
+  // State constraints
+  repeated string allowed_states = 4;
+}
+
+// Size-based filter
+message SizeFilter {
+  double min_size = 1;
+  double max_size = 2;
+}
+
+// Find entities by type response
+message FindEntitiesByTypeResponse {
+  // Found entities
+  repeated Entity entities = 1;
+
+  // Search statistics
+  TypeSearchStats search_stats = 2;
+}
+
+// Statistics for type search
+message TypeSearchStats {
+  // Search execution time
+  int64 search_time_ms = 1;
+
+  // Total entities examined
+  int32 entities_examined = 2;
+
+  // Entities matching criteria
+  int32 entities_matched = 3;
+
+  // Whether results were truncated
+  bool results_truncated = 4;
+}
+
+// List spawn templates request
+message ListSpawnTemplatesRequest {
+  // Template filter
+  SpawnTemplateFilter filter = 1;
+
+  // Pagination
+  PageInfo page_info = 2;
+
+  // Whether to include template details
+  bool include_details = 3;
+}
+
+// Filter for spawn templates
+message SpawnTemplateFilter {
+  // Template categories
+  repeated string categories = 1;
+
+  // Template themes
+  repeated string themes = 2;
+
+  // Difficulty ranges
+  DifficultyRange difficulty_range = 3;
+
+  // Entity types included in template
+  repeated string entity_types = 4;
+
+  // Search term in name/description
+  string search_term = 5;
+}
+
+// Difficulty range filter
+message DifficultyRange {
+  double min_difficulty = 1;
+  double max_difficulty = 2;
+}
+
+// List spawn templates response
+message ListSpawnTemplatesResponse {
+  // Available spawn templates
+  repeated SpawnTemplate templates = 1;
+
+  // Pagination information
+  PageInfo page_info = 2;
+}
+
+// Spawn template definition
+message SpawnTemplate {
+  // Template identifier
+  string id = 1;
+
+  // Template name
+  string name = 2;
+
+  // Template description
+  string description = 3;
+
+  // Template category
+  string category = 4;
+
+  // Template theme
+  string theme = 5;
+
+  // Difficulty rating
+  double difficulty_rating = 6;
+
+  // Entity spawn definitions
+  repeated TemplateEntitySpawn entity_spawns = 7;
+
+  // Template metadata
+  SpawnTemplateMetadata metadata = 8;
+}
+
+// Entity spawn definition within template
+message TemplateEntitySpawn {
+  // Entity definition
+  EntityDefinition entity_definition = 1;
+
+  // Spawn probability (0.0-1.0)
+  double spawn_probability = 2;
+
+  // Minimum count to spawn
+  int32 min_count = 3;
+
+  // Maximum count to spawn
+  int32 max_count = 4;
+
+  // Spawn weight for random selection
+  double spawn_weight = 5;
+
+  // Location constraints
+  SpawnConstraints location_constraints = 6;
+}
+
+// Metadata for spawn template
+message SpawnTemplateMetadata {
+  // Template author
+  string author = 1;
+
+  // Template version
+  string version = 2;
+
+  // Creation timestamp
+  int64 created_at = 3;
+
+  // Last update timestamp
+  int64 updated_at = 4;
+
+  // Usage statistics
+  SpawnTemplateUsageStats usage_stats = 5;
+
+  // Template tags
+  repeated string tags = 6;
+}
+
+// Usage statistics for spawn template
+message SpawnTemplateUsageStats {
+  // Number of times template has been used
+  int64 usage_count = 1;
+
+  // Total entities spawned from template
+  int64 entities_spawned = 2;
+
+  // Average entities per spawn
+  double average_entities_per_spawn = 3;
+
+  // Success rate of spawns
+  double spawn_success_rate = 4;
+
+  // Last used timestamp
+  int64 last_used = 5;
+
+  // Average user rating
+  double average_rating = 6;
+
+  // Number of ratings
+  int32 rating_count = 7;
+}
+
+// Create spawn template request
+message CreateSpawnTemplateRequest {
+  // Template to create
+  SpawnTemplate template = 1;
+
+  // Whether to make template public
+  bool is_public = 2;
+}
+
+// Create spawn template response
+message CreateSpawnTemplateResponse {
+  // Created template
+  SpawnTemplate template = 1;
+
+  // Creation confirmation
+  string message = 2;
+}
+
+// Get spawn template request
+message GetSpawnTemplateRequest {
+  // Template identifier
+  string template_id = 1;
+
+  // Whether to include usage statistics
+  bool include_stats = 2;
+}
+
+// Get spawn template response
+message GetSpawnTemplateResponse {
+  // Requested template
+  SpawnTemplate template = 1;
+
+  // Template usage statistics (if requested)
+  SpawnTemplateUsageStats usage_stats = 2;
+}
+
+// Batch spawn entities request
+message BatchSpawnEntitiesRequest {
+  // Room to spawn entities in
+  string room_id = 1;
+
+  // Batch of spawn operations
+  repeated SpawnOperation spawn_operations = 2;
+
+  // Batch options
+  BatchOptions batch_options = 3;
+}
+
+// Individual spawn operation in batch
+message SpawnOperation {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity definition
+  EntityDefinition entity_definition = 2;
+
+  // Spawn options
+  SpawnOptions spawn_options = 3;
+
+  // Location preferences
+  SpawnLocationPreferences location_preferences = 4;
+}
+
+// Options for batch operations
+message BatchOptions {
+  // Whether to abort all operations if any fail
+  bool all_or_nothing = 1;
+
+  // Maximum time for entire batch
+  int32 timeout_ms = 2;
+
+  // Number of parallel operations
+  int32 parallelism = 3;
+
+  // Whether to maintain order of operations
+  bool maintain_order = 4;
+}
+
+// Batch spawn entities response
+message BatchSpawnEntitiesResponse {
+  // Successful spawn results
+  repeated BatchSpawnResult successful_spawns = 1;
+
+  // Failed spawn operations
+  repeated BatchSpawnFailure failed_spawns = 2;
+
+  // Batch statistics
+  BatchSpawnStats batch_stats = 3;
+}
+
+// Result of successful batch spawn operation
+message BatchSpawnResult {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Spawned entity
+  Entity entity = 2;
+
+  // Spawn statistics
+  SpawnStats spawn_stats = 3;
+}
+
+// Failed batch spawn operation
+message BatchSpawnFailure {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity definition that failed
+  EntityDefinition entity_definition = 2;
+
+  // Failure reason
+  string failure_reason = 3;
+
+  // Error details
+  repeated RoomError errors = 4;
+}
+
+// Statistics for batch spawn operations
+message BatchSpawnStats {
+  // Total batch time
+  int64 total_batch_time_ms = 1;
+
+  // Successful operations
+  int32 successful_operations = 2;
+
+  // Failed operations
+  int32 failed_operations = 3;
+
+  // Average operation time
+  double average_operation_time_ms = 4;
+
+  // Parallel operations executed
+  int32 parallel_operations = 5;
+}
+
+// Batch move entities request
+message BatchMoveEntitiesRequest {
+  // Room containing entities
+  string room_id = 1;
+
+  // Batch of move operations
+  repeated MoveOperation move_operations = 2;
+
+  // Batch options
+  BatchOptions batch_options = 3;
+}
+
+// Individual move operation in batch
+message MoveOperation {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity to move
+  string entity_id = 2;
+
+  // New position
+  Position new_position = 3;
+
+  // Movement options
+  EntityMovementOptions movement_options = 4;
+}
+
+// Batch move entities response
+message BatchMoveEntitiesResponse {
+  // Successful move results
+  repeated BatchMoveResult successful_moves = 1;
+
+  // Failed move operations
+  repeated BatchMoveFailure failed_moves = 2;
+
+  // Batch statistics
+  BatchMoveStats batch_stats = 3;
+}
+
+// Result of successful batch move operation
+message BatchMoveResult {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Updated entity
+  Entity entity = 2;
+
+  // Movement statistics
+  MovementStats movement_stats = 3;
+}
+
+// Failed batch move operation
+message BatchMoveFailure {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity that failed to move
+  string entity_id = 2;
+
+  // Failure reason
+  string failure_reason = 3;
+
+  // Error details
+  repeated RoomError errors = 4;
+}
+
+// Statistics for batch move operations
+message BatchMoveStats {
+  // Total batch time
+  int64 total_batch_time_ms = 1;
+
+  // Successful operations
+  int32 successful_operations = 2;
+
+  // Failed operations
+  int32 failed_operations = 3;
+
+  // Average operation time
+  double average_operation_time_ms = 4;
+
+  // Total distance moved
+  double total_distance_moved = 5;
+}
+
+// Batch remove entities request
+message BatchRemoveEntitiesRequest {
+  // Room containing entities
+  string room_id = 1;
+
+  // Batch of remove operations
+  repeated RemoveOperation remove_operations = 2;
+
+  // Batch options
+  BatchOptions batch_options = 3;
+}
+
+// Individual remove operation in batch
+message RemoveOperation {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity to remove
+  string entity_id = 2;
+
+  // Removal options
+  RemovalOptions removal_options = 3;
+}
+
+// Batch remove entities response
+message BatchRemoveEntitiesResponse {
+  // Successful remove results
+  repeated BatchRemoveResult successful_removes = 1;
+
+  // Failed remove operations
+  repeated BatchRemoveFailure failed_removes = 2;
+
+  // Batch statistics
+  BatchRemoveStats batch_stats = 3;
+}
+
+// Result of successful batch remove operation
+message BatchRemoveResult {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Confirmation message
+  string message = 2;
+
+  // Removal statistics
+  RemovalStats removal_stats = 3;
+}
+
+// Failed batch remove operation
+message BatchRemoveFailure {
+  // Operation identifier
+  string operation_id = 1;
+
+  // Entity that failed to remove
+  string entity_id = 2;
+
+  // Failure reason
+  string failure_reason = 3;
+
+  // Error details
+  repeated RoomError errors = 4;
+}
+
+// Statistics for batch remove operations
+message BatchRemoveStats {
+  // Total batch time
+  int64 total_batch_time_ms = 1;
+
+  // Successful operations
+  int32 successful_operations = 2;
+
+  // Failed operations
+  int32 failed_operations = 3;
+
+  // Average operation time
+  double average_operation_time_ms = 4;
+
+  // Total loot items dropped
+  int32 total_loot_dropped = 5;
+}

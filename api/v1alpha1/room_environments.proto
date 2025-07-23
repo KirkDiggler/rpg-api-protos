@@ -1,0 +1,530 @@
+syntax = "proto3";
+
+package api.v1alpha1;
+
+import "api/v1alpha1/room_common.proto";
+
+// Environment generation service for room layout and structure
+// Handles room creation, configuration, and basic CRUD operations
+service EnvironmentService {
+  // Generate a new room environment
+  rpc GenerateRoom(GenerateRoomRequest) returns (GenerateRoomResponse);
+
+  // Get details of an existing room
+  rpc GetRoomDetails(GetRoomDetailsRequest) returns (GetRoomDetailsResponse);
+
+  // List rooms with filtering and pagination
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+
+  // Update room configuration (regenerates structure)
+  rpc UpdateRoom(UpdateRoomRequest) returns (UpdateRoomResponse);
+
+  // Delete a room
+  rpc DeleteRoom(DeleteRoomRequest) returns (DeleteRoomResponse);
+
+  // Validate room configuration before generation
+  rpc ValidateRoomConfig(ValidateRoomConfigRequest) returns (ValidateRoomConfigResponse);
+
+  // Get room generation templates
+  rpc ListRoomTemplates(ListRoomTemplatesRequest) returns (ListRoomTemplatesResponse);
+
+  // Create custom room template
+  rpc CreateRoomTemplate(CreateRoomTemplateRequest) returns (CreateRoomTemplateResponse);
+}
+
+// Request to generate a new room
+message GenerateRoomRequest {
+  // Room generation configuration
+  RoomConfig config = 1;
+
+  // Optional seed for deterministic generation
+  string seed = 2;
+
+  // Session association
+  string session_id = 3;
+
+  // Room ownership
+  string owner_id = 4;
+
+  // Room naming
+  string name = 5;
+  string description = 6;
+
+  // Generation options
+  GenerationOptions options = 7;
+}
+
+// Additional options for room generation
+message GenerationOptions {
+  // Whether to populate with entities during generation
+  bool populate_entities = 1;
+
+  // Whether to create room connections
+  bool create_connections = 2;
+
+  // Maximum generation attempts if validation fails
+  int32 max_attempts = 3;
+
+  // Whether to store generation metadata
+  bool include_metadata = 4;
+
+  // Template to base generation on
+  string template_id = 5;
+}
+
+// Response from room generation
+message GenerateRoomResponse {
+  // The generated room
+  Room room = 1;
+
+  // Generation statistics
+  GenerationStats stats = 2;
+
+  // Any warnings during generation
+  repeated RoomError warnings = 3;
+}
+
+// Statistics about room generation process
+message GenerationStats {
+  // Time taken to generate (milliseconds)
+  int64 generation_time_ms = 1;
+
+  // Number of generation attempts made
+  int32 attempts = 2;
+
+  // Seed used for generation
+  string seed_used = 3;
+
+  // Number of entities spawned
+  int32 entities_spawned = 4;
+
+  // Number of connections created
+  int32 connections_created = 5;
+
+  // Generator version used
+  string generator_version = 6;
+}
+
+// Request to get room details
+message GetRoomDetailsRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Include entity details in response
+  bool include_entities = 2;
+
+  // Include room connections
+  bool include_connections = 3;
+
+  // Include generation metadata
+  bool include_metadata = 4;
+}
+
+// Response with room details
+message GetRoomDetailsResponse {
+  // The requested room
+  Room room = 1;
+
+  // Room generation metadata if requested
+  GenerationMetadata metadata = 2;
+}
+
+// Metadata about room generation
+message GenerationMetadata {
+  // Original generation request
+  RoomConfig original_config = 1;
+
+  // Generation statistics
+  GenerationStats stats = 2;
+
+  // Room version (increments on updates)
+  int32 version = 3;
+
+  // Generation history
+  repeated GenerationEvent history = 4;
+}
+
+// Event in room generation history
+message GenerationEvent {
+  // Event timestamp
+  int64 timestamp = 1;
+
+  // Event type
+  string event_type = 2; // "generated", "updated", "entities_added", etc.
+
+  // Event description
+  string description = 3;
+
+  // User who triggered event
+  string user_id = 4;
+
+  // Additional event data
+  map<string, string> data = 5;
+}
+
+// Request to list rooms
+message ListRoomsRequest {
+  // Filtering criteria
+  RoomFilter filter = 1;
+
+  // Pagination
+  PageInfo page_info = 2;
+
+  // Sorting options
+  RoomSortOptions sort_options = 3;
+
+  // Fields to include in response
+  RoomFields include_fields = 4;
+}
+
+// Sorting options for room lists
+message RoomSortOptions {
+  // Field to sort by
+  RoomSortField sort_by = 1;
+
+  // Sort direction
+  SortDirection direction = 2;
+}
+
+// Available sort fields for rooms
+enum RoomSortField {
+  ROOM_SORT_FIELD_UNSPECIFIED = 0;
+  ROOM_SORT_FIELD_NAME = 1;
+  ROOM_SORT_FIELD_CREATED_AT = 2;
+  ROOM_SORT_FIELD_UPDATED_AT = 3;
+  ROOM_SORT_FIELD_LAST_ACCESSED = 4;
+  ROOM_SORT_FIELD_SIZE = 5;
+}
+
+// Sort direction
+enum SortDirection {
+  SORT_DIRECTION_UNSPECIFIED = 0;
+  SORT_DIRECTION_ASC = 1;
+  SORT_DIRECTION_DESC = 2;
+}
+
+// Fields to include in room list responses
+message RoomFields {
+  bool include_entities = 1;
+  bool include_connections = 2;
+  bool include_metadata = 3;
+  bool include_stats = 4;
+}
+
+// Response with room list
+message ListRoomsResponse {
+  // List of rooms
+  repeated Room rooms = 1;
+
+  // Pagination information
+  PageInfo page_info = 2;
+
+  // List statistics
+  ListStats stats = 3;
+}
+
+// Statistics about room list
+message ListStats {
+  // Total rooms matching filter (before pagination)
+  int32 total_count = 1;
+
+  // Number of rooms returned in this page
+  int32 returned_count = 2;
+
+  // Average room size
+  double average_size = 3;
+
+  // Most common room type
+  string most_common_type = 4;
+}
+
+// Request to update a room
+message UpdateRoomRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Updated configuration (will trigger regeneration)
+  RoomConfig config = 2;
+
+  // Update options
+  UpdateOptions options = 3;
+
+  // Optional new seed
+  string seed = 4;
+}
+
+// Options for room updates
+message UpdateOptions {
+  // Whether to preserve existing entities
+  bool preserve_entities = 1;
+
+  // Whether to preserve entity positions if possible
+  bool preserve_positions = 2;
+
+  // Whether to update connections to other rooms
+  bool update_connections = 3;
+
+  // Whether to validate before updating
+  bool validate_before_update = 4;
+}
+
+// Response from room update
+message UpdateRoomResponse {
+  // The updated room
+  Room room = 1;
+
+  // Update statistics
+  UpdateStats stats = 2;
+
+  // Any warnings during update
+  repeated RoomError warnings = 3;
+}
+
+// Statistics about room update
+message UpdateStats {
+  // Time taken to update
+  int64 update_time_ms = 1;
+
+  // Number of entities preserved
+  int32 entities_preserved = 2;
+
+  // Number of entities repositioned
+  int32 entities_repositioned = 3;
+
+  // Number of entities removed (no valid position)
+  int32 entities_removed = 4;
+
+  // Whether room structure changed significantly
+  bool structure_changed = 5;
+}
+
+// Request to delete a room
+message DeleteRoomRequest {
+  // Room identifier
+  string room_id = 1;
+
+  // Whether to force deletion even if room has connections
+  bool force = 2;
+}
+
+// Response from room deletion
+message DeleteRoomResponse {
+  // Confirmation message
+  string message = 1;
+
+  // Number of connections removed
+  int32 connections_removed = 2;
+
+  // Number of entities removed
+  int32 entities_removed = 3;
+}
+
+// Request to validate room configuration
+message ValidateRoomConfigRequest {
+  // Configuration to validate
+  RoomConfig config = 1;
+
+  // Validation options
+  ValidationOptions options = 2;
+}
+
+// Options for room configuration validation
+message ValidationOptions {
+  // Whether to check for entity spawn conflicts
+  bool check_entity_conflicts = 1;
+
+  // Whether to validate against templates
+  bool check_template_compatibility = 2;
+
+  // Whether to perform deep validation (slower)
+  bool deep_validation = 3;
+
+  // Maximum validation time (milliseconds)
+  int32 timeout_ms = 4;
+}
+
+// Response from room configuration validation
+message ValidateRoomConfigResponse {
+  // Overall validation result
+  ValidationResult result = 1;
+
+  // Specific validation checks
+  repeated ValidationCheck checks = 2;
+
+  // Validation statistics
+  ValidationStats stats = 3;
+}
+
+// Individual validation check result
+message ValidationCheck {
+  // Check name/type
+  string check_name = 1;
+
+  // Check result
+  ValidationCheckResult result = 2;
+
+  // Check message
+  string message = 3;
+
+  // Field that was checked
+  string field = 4;
+
+  // Severity level
+  ValidationSeverity severity = 5;
+}
+
+// Result of a validation check
+enum ValidationCheckResult {
+  VALIDATION_CHECK_RESULT_UNSPECIFIED = 0;
+  VALIDATION_CHECK_RESULT_PASS = 1;
+  VALIDATION_CHECK_RESULT_FAIL = 2;
+  VALIDATION_CHECK_RESULT_WARNING = 3;
+  VALIDATION_CHECK_RESULT_SKIP = 4;
+}
+
+// Severity of validation issues
+enum ValidationSeverity {
+  VALIDATION_SEVERITY_UNSPECIFIED = 0;
+  VALIDATION_SEVERITY_INFO = 1;
+  VALIDATION_SEVERITY_WARNING = 2;
+  VALIDATION_SEVERITY_ERROR = 3;
+  VALIDATION_SEVERITY_CRITICAL = 4;
+}
+
+// Statistics about validation process
+message ValidationStats {
+  // Total validation time
+  int64 validation_time_ms = 1;
+
+  // Number of checks performed
+  int32 checks_performed = 2;
+
+  // Number of checks passed
+  int32 checks_passed = 3;
+
+  // Number of checks failed
+  int32 checks_failed = 4;
+
+  // Number of warnings generated
+  int32 warnings_count = 5;
+}
+
+// Request to list room templates
+message ListRoomTemplatesRequest {
+  // Template filters
+  TemplateFilter filter = 1;
+
+  // Pagination
+  PageInfo page_info = 2;
+
+  // Include template details
+  bool include_details = 3;
+}
+
+// Filter for room templates
+message TemplateFilter {
+  // Template category
+  repeated string categories = 1;
+
+  // Template themes
+  repeated string themes = 2;
+
+  // Grid types supported
+  repeated GridType grid_types = 3;
+
+  // Difficulty levels
+  repeated string difficulties = 4;
+
+  // Search term in name/description
+  string search_term = 5;
+}
+
+// Response with room templates
+message ListRoomTemplatesResponse {
+  // Available templates
+  repeated RoomTemplate templates = 1;
+
+  // Pagination information
+  PageInfo page_info = 2;
+}
+
+// Room generation template
+message RoomTemplate {
+  // Template identifier
+  string id = 1;
+
+  // Template name
+  string name = 2;
+
+  // Template description
+  string description = 3;
+
+  // Template category
+  string category = 4;
+
+  // Default configuration
+  RoomConfig default_config = 5;
+
+  // Template metadata
+  TemplateMetadata metadata = 6;
+
+  // Template preview image
+  string preview_image_url = 7;
+
+  // Template tags
+  repeated string tags = 8;
+}
+
+// Metadata about room template
+message TemplateMetadata {
+  // Template author
+  string author = 1;
+
+  // Template version
+  string version = 2;
+
+  // When template was created
+  int64 created_at = 3;
+
+  // When template was last updated
+  int64 updated_at = 4;
+
+  // Template usage statistics
+  TemplateUsageStats usage_stats = 5;
+
+  // Whether template is official
+  bool is_official = 6;
+}
+
+// Usage statistics for template
+message TemplateUsageStats {
+  // Number of times used
+  int32 usage_count = 1;
+
+  // Average user rating
+  double average_rating = 2;
+
+  // Number of ratings
+  int32 rating_count = 3;
+
+  // Last used timestamp
+  int64 last_used = 4;
+}
+
+// Request to create room template
+message CreateRoomTemplateRequest {
+  // Template definition
+  RoomTemplate template = 1;
+
+  // Whether to make template public
+  bool is_public = 2;
+}
+
+// Response from template creation
+message CreateRoomTemplateResponse {
+  // Created template
+  RoomTemplate template = 1;
+
+  // Template creation confirmation
+  string message = 2;
+}

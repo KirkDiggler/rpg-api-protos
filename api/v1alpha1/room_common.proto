@@ -1,0 +1,255 @@
+syntax = "proto3";
+
+package api.v1alpha1;
+
+// Common types shared across all room generation services
+// Provides universal spatial concepts and entity structures
+
+// Universal position coordinates for all grid systems
+message Position {
+  double x = 1;
+  double y = 2;
+  double z = 3; // Optional for future 3D support
+}
+
+// Grid type enumeration for different RPG systems
+enum GridType {
+  GRID_TYPE_UNSPECIFIED = 0;
+  GRID_TYPE_SQUARE = 1; // Chebyshev distance (D&D 5e, Pathfinder)
+  GRID_TYPE_HEX_POINTY = 2; // Cube coordinates, pointy-top orientation
+  GRID_TYPE_HEX_FLAT = 3; // Cube coordinates, flat-top orientation
+  GRID_TYPE_GRIDLESS = 4; // Euclidean distance (narrative systems)
+}
+
+// Room dimensions and spatial properties
+message RoomDimensions {
+  double width = 1; // Room width in grid units
+  double height = 2; // Room height in grid units
+  GridType grid_type = 3;
+  double grid_size = 4; // Size of each grid cell (e.g., 5 feet)
+}
+
+// Generic entity that can exist in a room
+message Entity {
+  string id = 1;
+  string type = 2; // "character", "monster", "object", "terrain"
+  string name = 3;
+  Position position = 4;
+  double size = 5; // Entity size in grid units
+
+  // Entity-specific properties
+  map<string, string> properties = 6;
+
+  // Visual representation hints
+  string sprite_id = 7;
+  string color = 8;
+
+  // Gameplay properties
+  bool blocks_movement = 9;
+  bool blocks_line_of_sight = 10;
+  bool is_interactive = 11;
+
+  // Entity metadata
+  int64 created_at = 12;
+  int64 updated_at = 13;
+}
+
+// Room generation configuration
+message RoomConfig {
+  string room_type = 1; // "dungeon", "tavern", "forest", etc.
+  string theme = 2; // "medieval", "modern", "sci-fi", etc.
+  string difficulty = 3; // "easy", "medium", "hard"
+
+  // Dimensional constraints
+  RoomDimensions dimensions = 4;
+
+  // Generation parameters
+  map<string, string> parameters = 5;
+
+  // Entity generation hints
+  EntitySpawnConfig spawn_config = 6;
+}
+
+// Configuration for entity spawning during room generation
+message EntitySpawnConfig {
+  int32 min_entities = 1;
+  int32 max_entities = 2;
+  repeated string allowed_types = 3;
+  repeated string forbidden_types = 4;
+
+  // Spawn distribution hints
+  map<string, int32> type_weights = 5;
+}
+
+// Room structure data (walls, doors, terrain features)
+message RoomStructure {
+  string id = 1;
+  RoomDimensions dimensions = 2;
+
+  // Structural elements
+  repeated Wall walls = 3;
+  repeated Door doors = 4;
+  repeated TerrainFeature terrain_features = 5;
+
+  // Room connections to other rooms
+  repeated RoomConnection connections = 6;
+
+  // Generation metadata
+  string seed = 7; // Seed used for generation
+  RoomConfig config = 8; // Configuration used
+  int64 generated_at = 9;
+}
+
+// Wall structure within a room
+message Wall {
+  Position start = 1;
+  Position end = 2;
+  string material = 3; // "stone", "wood", "metal", etc.
+  double thickness = 4;
+  bool blocks_movement = 5;
+  bool blocks_line_of_sight = 6;
+
+  // Visual properties
+  string texture_id = 7;
+  map<string, string> properties = 8;
+}
+
+// Door or passage connecting areas
+message Door {
+  string id = 1;
+  Position position = 2;
+  string type = 3; // "door", "archway", "secret_door", etc.
+  string state = 4; // "open", "closed", "locked", "stuck"
+
+  // Connection information
+  string leads_to_room = 5; // Room ID this door connects to
+  Position leads_to_position = 6;
+
+  // Door properties
+  bool is_secret = 7;
+  bool requires_key = 8;
+  string key_id = 9;
+  int32 difficulty_class = 10; // DC for opening if locked/stuck
+
+  // Visual properties
+  string sprite_id = 11;
+  map<string, string> properties = 12;
+}
+
+// Terrain features like pits, water, difficult terrain
+message TerrainFeature {
+  string id = 1;
+  string type = 2; // "pit", "water", "difficult_terrain", etc.
+  repeated Position area = 3; // Positions covered by this feature
+
+  // Gameplay effects
+  bool blocks_movement = 4;
+  bool blocks_line_of_sight = 5;
+  double movement_cost_multiplier = 6; // 2.0 for difficult terrain
+
+  // Feature properties
+  map<string, string> properties = 7;
+
+  // Visual representation
+  string texture_id = 8;
+  string color = 9;
+}
+
+// Connection between rooms
+message RoomConnection {
+  string id = 1;
+  string connected_room_id = 2;
+  string connection_type = 3; // "door", "passage", "stairs", etc.
+  Position this_room_position = 4;
+  Position other_room_position = 5;
+
+  // Connection properties
+  bool is_bidirectional = 6;
+  bool requires_action = 7; // Does using this connection require an action?
+  string required_action = 8; // "open_door", "climb", "jump", etc.
+
+  // Connection metadata
+  map<string, string> properties = 9;
+}
+
+// Complete room data with structure and entities
+message Room {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+
+  // Room structure and layout
+  RoomStructure structure = 4;
+
+  // Entities currently in the room
+  repeated Entity entities = 5;
+
+  // Room state
+  string state = 6; // "active", "inactive", "locked", etc.
+
+  // Session and ownership
+  string session_id = 7;
+  string owner_id = 8;
+
+  // Room metadata
+  int64 created_at = 9;
+  int64 updated_at = 10;
+  int64 last_accessed = 11;
+
+  // Room tags for organization
+  repeated string tags = 12;
+}
+
+// Error types for room operations
+message RoomError {
+  string code = 1; // "INVALID_CONFIG", "GENERATION_FAILED", etc.
+  string message = 2;
+  string field = 3; // Field that caused the error
+
+  // Error context
+  string room_id = 4;
+  Position position = 5; // Position related to error if applicable
+  string entity_id = 6; // Entity related to error if applicable
+}
+
+// Validation result for room operations
+message ValidationResult {
+  bool is_valid = 1;
+  repeated RoomError errors = 2;
+  repeated RoomError warnings = 3;
+}
+
+// Pagination support for room listings
+message PageInfo {
+  int32 page_size = 1;
+  string page_token = 2;
+  string next_page_token = 3;
+  int32 total_size = 4;
+}
+
+// Filter criteria for room queries
+message RoomFilter {
+  repeated string room_types = 1;
+  repeated string themes = 2;
+  repeated string states = 3;
+  string session_id = 4;
+  string owner_id = 5;
+  repeated string tags = 6;
+
+  // Dimensional filters
+  RoomDimensionFilter dimension_filter = 7;
+
+  // Time-based filters
+  int64 created_after = 8;
+  int64 created_before = 9;
+  int64 accessed_after = 10;
+}
+
+// Filter for room dimensions
+message RoomDimensionFilter {
+  double min_width = 1;
+  double max_width = 2;
+  double min_height = 3;
+  double max_height = 4;
+  repeated GridType grid_types = 5;
+}

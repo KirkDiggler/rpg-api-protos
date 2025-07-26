@@ -9,11 +9,11 @@ plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen/go
     opt:
-      - paths=source_relative
+      - paths=import
   - remote: buf.build/grpc/go
     out: gen/go
     opt:
-      - paths=source_relative
+      - paths=import
       - require_unimplemented_servers=false
   
   # TypeScript plugins - single plugin for both messages and Connect services

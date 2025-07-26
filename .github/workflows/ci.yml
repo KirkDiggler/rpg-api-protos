@@ -56,12 +56,7 @@ jobs:
         run: buf generate
       
       - name: Generate mocks
-        run: |
-          # Generate mocks for gRPC services
-          mkdir -p gen/go/clients/dnd5e/api/v1alpha1/mocks
-          mockgen -source=gen/go/clients/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/clients/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
-          mkdir -p gen/go/clients/api/v1alpha1/mocks
-          mockgen -source=gen/go/clients/api/v1alpha1/dice_grpc.pb.go -destination=gen/go/clients/api/v1alpha1/mocks/dice_service.go -package=mocks
+        run: make mocks
       
       - name: Verify Go generation
         run: |
@@ -112,10 +107,7 @@ jobs:
       - name: Generate all code
         run: |
           buf generate
-          mkdir -p gen/go/clients/dnd5e/api/v1alpha1/mocks
-          mockgen -source=gen/go/clients/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/clients/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
-          mkdir -p gen/go/clients/api/v1alpha1/mocks
-          mockgen -source=gen/go/clients/api/v1alpha1/dice_grpc.pb.go -destination=gen/go/clients/api/v1alpha1/mocks/dice_service.go -package=mocks
+          make mocks
       
       - name: Setup Go module
         run: |

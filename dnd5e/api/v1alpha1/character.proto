@@ -53,6 +53,13 @@ service CharacterService {
 
   // Spell listing by level
   rpc ListSpellsByLevel(ListSpellsByLevelRequest) returns (ListSpellsByLevelResponse);
+
+  // Equipment management
+  rpc GetCharacterInventory(GetCharacterInventoryRequest) returns (GetCharacterInventoryResponse);
+  rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
+  rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);
+  rpc AddToInventory(AddToInventoryRequest) returns (AddToInventoryResponse);
+  rpc RemoveFromInventory(RemoveFromInventoryRequest) returns (RemoveFromInventoryResponse);
 }
 
 // Ability scores for a character
@@ -131,6 +138,15 @@ message Character {
 
   // Metadata
   CharacterMetadata metadata = 18;
+
+  // Equipment slots (weapons, armor, etc.)
+  EquipmentSlots equipment_slots = 19;
+
+  // Inventory (unequipped items)
+  repeated InventoryItem inventory = 20;
+
+  // Carrying capacity and encumbrance
+  EncumbranceInfo encumbrance = 21;
 }
 
 // Ability modifiers calculated from scores
@@ -1016,6 +1032,54 @@ message GearData {
   repeated string properties = 2;
 }
 
+// Equipment slots for a character
+message EquipmentSlots {
+  // Combat equipment
+  InventoryItem main_hand = 1;
+  InventoryItem off_hand = 2;
+
+  // Armor slots
+  InventoryItem armor = 3;
+  InventoryItem helmet = 4;
+  InventoryItem boots = 5;
+  InventoryItem gloves = 6;
+  InventoryItem cloak = 7;
+
+  // Accessory slots
+  InventoryItem amulet = 8;
+  InventoryItem ring_1 = 9;
+  InventoryItem ring_2 = 10;
+  InventoryItem belt = 11;
+}
+
+// An item in inventory (equipped or not)
+message InventoryItem {
+  string item_id = 1; // Reference to Equipment.id
+  int32 quantity = 2; // For stackable items
+  bool is_attuned = 3; // For magic items requiring attunement
+  string custom_name = 4; // Optional custom name (e.g., "My Lucky Sword")
+
+  // Denormalized equipment data for quick access
+  Equipment equipment = 5;
+}
+
+// Encumbrance and carrying capacity
+message EncumbranceInfo {
+  int32 current_weight = 1; // Total weight carried (in tenths of pounds for 0.1-pound precision)
+  int32 carrying_capacity = 2; // Max weight before encumbered (in tenths of pounds for 0.1-pound precision)
+  int32 max_capacity = 3; // Max weight before immobilized (in tenths of pounds for 0.1-pound precision)
+  EncumbranceLevel level = 4; // Current encumbrance level
+}
+
+// Encumbrance levels
+enum EncumbranceLevel {
+  ENCUMBRANCE_LEVEL_UNSPECIFIED = 0;
+  ENCUMBRANCE_LEVEL_UNENCUMBERED = 1; // Under carrying capacity
+  ENCUMBRANCE_LEVEL_ENCUMBERED = 2; // Speed reduced by 10 feet
+  ENCUMBRANCE_LEVEL_HEAVILY_ENCUMBERED = 3; // Speed reduced by 20 feet, disadvantage on ability checks
+  ENCUMBRANCE_LEVEL_IMMOBILIZED = 4; // Cannot move
+}
+
 // Spell messages
 
 // Spell item
@@ -1115,4 +1179,94 @@ message ListSpellsByLevelResponse {
   repeated Spell spells = 1;
   string next_page_token = 2;
   int32 total_size = 3;
+}
+
+// Equipment management messages
+
+// Request to get character inventory
+message GetCharacterInventoryRequest {
+  string character_id = 1;
+}
+
+// Response with character inventory
+message GetCharacterInventoryResponse {
+  EquipmentSlots equipment_slots = 1;
+  repeated InventoryItem inventory = 2;
+  EncumbranceInfo encumbrance = 3;
+  int32 attunement_slots_used = 4;
+  int32 attunement_slots_max = 5; // Usually 3 for most characters
+}
+
+// Request to equip an item
+message EquipItemRequest {
+  string character_id = 1;
+  string item_id = 2; // Item from inventory to equip
+  EquipmentSlot slot = 3; // Which slot to equip to
+}
+
+// Equipment slot types
+enum EquipmentSlot {
+  EQUIPMENT_SLOT_UNSPECIFIED = 0;
+  EQUIPMENT_SLOT_MAIN_HAND = 1;
+  EQUIPMENT_SLOT_OFF_HAND = 2;
+  EQUIPMENT_SLOT_ARMOR = 3;
+  EQUIPMENT_SLOT_HELMET = 4;
+  EQUIPMENT_SLOT_BOOTS = 5;
+  EQUIPMENT_SLOT_GLOVES = 6;
+  EQUIPMENT_SLOT_CLOAK = 7;
+  EQUIPMENT_SLOT_AMULET = 8;
+  EQUIPMENT_SLOT_RING_1 = 9;
+  EQUIPMENT_SLOT_RING_2 = 10;
+  EQUIPMENT_SLOT_BELT = 11;
+}
+
+// Response from equipping an item
+message EquipItemResponse {
+  Character character = 1; // Updated character with new equipment
+  InventoryItem previously_equipped_item = 2; // Item that was displaced from the slot (if any)
+}
+
+// Request to unequip an item
+message UnequipItemRequest {
+  string character_id = 1;
+  EquipmentSlot slot = 2; // Which slot to unequip from
+}
+
+// Response from unequipping an item
+message UnequipItemResponse {
+  Character character = 1; // Updated character
+}
+
+// Request to add items to inventory
+message AddToInventoryRequest {
+  string character_id = 1;
+  repeated InventoryAddition items = 2;
+}
+
+// Item to add to inventory
+message InventoryAddition {
+  string item_id = 1; // Equipment.id reference
+  int32 quantity = 2; // How many to add
+}
+
+// Response from adding to inventory
+message AddToInventoryResponse {
+  Character character = 1; // Updated character
+  repeated string errors = 2; // Any items that couldn't be added
+}
+
+// Request to remove items from inventory
+message RemoveFromInventoryRequest {
+  string character_id = 1;
+  string item_id = 2; // Item to remove
+  oneof removal_amount {
+    int32 quantity = 3; // Specific quantity to remove
+    bool remove_all = 4; // Remove all of this item
+  }
+}
+
+// Response from removing from inventory
+message RemoveFromInventoryResponse {
+  Character character = 1; // Updated character
+  int32 quantity_removed = 2; // Actual quantity removed
 }

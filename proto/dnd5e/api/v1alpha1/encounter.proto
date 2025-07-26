@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha1;
+
+import "api/v1alpha1/room_common.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1";
+
+// Note: Using Position from api.v1alpha1.room_common
+
+// EntityPlacement represents where an entity is positioned
+message EntityPlacement {
+  // Unique identifier for the entity
+  string entity_id = 1;
+  // Type of entity (e.g., "character", "monster", "object")
+  string entity_type = 2;
+  // Position in the room
+  api.v1alpha1.Position position = 3;
+}
+
+// Room represents a spatial area where encounters take place
+message Room {
+  // Unique identifier for the room
+  string id = 1;
+  // Type of room (e.g., "dungeon", "tavern", "outdoor")
+  string type = 2;
+  // Width of the room in grid units
+  int32 width = 3;
+  // Height of the room in grid units
+  int32 height = 4;
+  // Grid system used in this room
+  api.v1alpha1.GridType grid_type = 5;
+  // Entities placed in the room
+  repeated EntityPlacement entities = 6;
+  // Custom metadata for the room
+  map<string, string> metadata = 7;
+}
+
+// DungeonStartRequest initiates a simple dungeon encounter
+message DungeonStartRequest {
+  // ID of the character entering the dungeon
+  string character_id = 1;
+}
+
+// DungeonStartResponse contains the generated encounter
+message DungeonStartResponse {
+  // Unique identifier for this encounter
+  string encounter_id = 1;
+  // The generated room
+  Room room = 2;
+  // Where the character starts in the room
+  EntityPlacement character_placement = 3;
+}
+
+// EncounterService manages D&D 5e encounters
+service EncounterService {
+  // DungeonStart generates a simple starting room for testing
+  rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
+}

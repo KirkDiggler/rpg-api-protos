@@ -4,8 +4,6 @@ package dnd5e.api.v1alpha1;
 
 import "api/v1alpha1/room_common.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1";
-
 // Note: Using Position from api.v1alpha1.room_common
 
 // EntityPlacement represents where an entity is positioned

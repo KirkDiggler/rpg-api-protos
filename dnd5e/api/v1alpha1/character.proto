@@ -1037,14 +1037,14 @@ message EquipmentSlots {
   // Combat equipment
   InventoryItem main_hand = 1;
   InventoryItem off_hand = 2;
-  
+
   // Armor slots
   InventoryItem armor = 3;
   InventoryItem helmet = 4;
   InventoryItem boots = 5;
   InventoryItem gloves = 6;
   InventoryItem cloak = 7;
-  
+
   // Accessory slots
   InventoryItem amulet = 8;
   InventoryItem ring_1 = 9;
@@ -1058,16 +1058,16 @@ message InventoryItem {
   int32 quantity = 2; // For stackable items
   bool is_attuned = 3; // For magic items requiring attunement
   string custom_name = 4; // Optional custom name (e.g., "My Lucky Sword")
-  
+
   // Denormalized equipment data for quick access
   Equipment equipment = 5;
 }
 
 // Encumbrance and carrying capacity
 message EncumbranceInfo {
-  int32 current_weight = 1; // Total weight carried (in pounds * 10 for precision)
-  int32 carrying_capacity = 2; // Max weight before encumbered (in pounds * 10)
-  int32 max_capacity = 3; // Max weight before immobilized (in pounds * 10)
+  int32 current_weight = 1; // Total weight carried (in tenths of pounds for 0.1-pound precision)
+  int32 carrying_capacity = 2; // Max weight before encumbered (in tenths of pounds for 0.1-pound precision)
+  int32 max_capacity = 3; // Max weight before immobilized (in tenths of pounds for 0.1-pound precision)
   EncumbranceLevel level = 4; // Current encumbrance level
 }
 
@@ -1223,7 +1223,7 @@ enum EquipmentSlot {
 // Response from equipping an item
 message EquipItemResponse {
   Character character = 1; // Updated character with new equipment
-  InventoryItem unequipped_item = 2; // Item that was unequipped (if any)
+  InventoryItem previously_equipped_item = 2; // Item that was displaced from the slot (if any)
 }
 
 // Request to unequip an item
@@ -1259,7 +1259,10 @@ message AddToInventoryResponse {
 message RemoveFromInventoryRequest {
   string character_id = 1;
   string item_id = 2; // Item to remove
-  int32 quantity = 3; // How many to remove (0 = all)
+  oneof removal_amount {
+    int32 quantity = 3; // Specific quantity to remove
+    bool remove_all = 4; // Remove all of this item
+  }
 }
 
 // Response from removing from inventory

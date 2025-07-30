@@ -4,7 +4,6 @@ package dnd5e.api.v1alpha1;
 
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
-import "google/protobuf/any.proto";
 
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
@@ -716,6 +715,12 @@ enum ChoiceCategory {
   CHOICE_CATEGORY_SPELLS = 7; // Spells known/prepared
   CHOICE_CATEGORY_FEATS = 8; // Feats
   CHOICE_CATEGORY_ABILITY_SCORES = 9; // Ability score improvements
+  CHOICE_CATEGORY_NAME = 10; // Character name
+  CHOICE_CATEGORY_FIGHTING_STYLE = 11; // Fighting style selection
+  CHOICE_CATEGORY_RACE = 12; // Race selection
+  CHOICE_CATEGORY_CLASS = 13; // Class selection
+  CHOICE_CATEGORY_BACKGROUND = 14; // Background selection
+  CHOICE_CATEGORY_CANTRIPS = 15; // Cantrips known
 }
 
 // Character size category
@@ -1122,7 +1127,52 @@ message ChoiceData {
   ChoiceCategory category = 1; // Type of choice (skills, languages, etc.)
   ChoiceSource source = 2; // Where this choice came from
   string choice_id = 3; // Specific choice identifier
-  google.protobuf.Any selection = 4; // Flexible choice data that can hold any type
+
+  // Type-safe selection using oneof pattern (matching toolkit refactoring)
+  oneof selection {
+    string name = 4;
+    SkillList skills = 5;
+    LanguageList languages = 6;
+    AbilityScores ability_scores = 7;
+    string fighting_style = 8;
+    EquipmentList equipment = 9;
+    RaceChoice race = 10;
+    ClassChoice class = 11;
+    Background background = 12;
+    SpellList spells = 13;
+    CantripList cantrips = 14;
+  }
+}
+
+// Wrapper messages for repeated fields in oneof
+message SkillList {
+  repeated Skill skills = 1;
+}
+
+message LanguageList {
+  repeated Language languages = 1;
+}
+
+message EquipmentList {
+  repeated string items = 1;
+}
+
+message SpellList {
+  repeated string spells = 1;
+}
+
+message CantripList {
+  repeated string cantrips = 1;
+}
+
+message RaceChoice {
+  Race race = 1;
+  Subrace subrace = 2; // Optional
+}
+
+message ClassChoice {
+  Class class = 1;
+  // Could add subclass later when implemented
 }
 
 // Tracks a choice made during character creation (deprecated - use ChoiceData)

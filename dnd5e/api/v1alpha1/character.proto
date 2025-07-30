@@ -4,6 +4,7 @@ package dnd5e.api.v1alpha1;
 
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
+import "google/protobuf/any.proto";
 
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
@@ -298,7 +299,7 @@ message CharacterDraftData {
   Alignment alignment = 10;
 
   // Store player choices instead of computed state
-  repeated ChoiceSelection choices = 11;
+  repeated ChoiceData choices = 11;
 
   // Track what steps are complete
   CreationProgress progress = 12;
@@ -373,7 +374,7 @@ message CharacterDraft {
   Alignment alignment = 10;
 
   // Store player choices
-  repeated ChoiceSelection choices = 11;
+  repeated ChoiceData choices = 11;
 
   // Track what steps are complete
   CreationProgress progress = 12;
@@ -647,7 +648,7 @@ message Choice {
   string id = 1; // Unique identifier for tracking
   string description = 2; // Human-readable description
   int32 choose_count = 3; // How many options to choose
-  ChoiceType choice_type = 4; // What kind of choice this is
+  ChoiceCategory choice_type = 4; // What kind of choice this is
 
   oneof option_set {
     ExplicitOptions explicit_options = 5; // List of specific options
@@ -703,17 +704,18 @@ message NestedChoice {
   Choice choice = 1; // Allows arbitrarily complex choices
 }
 
-// Type of choice being made
-enum ChoiceType {
-  CHOICE_TYPE_UNSPECIFIED = 0;
-  CHOICE_TYPE_EQUIPMENT = 1;
-  CHOICE_TYPE_SKILL = 2; // Skill proficiencies
-  CHOICE_TYPE_TOOL = 3; // Tool proficiencies
-  CHOICE_TYPE_LANGUAGE = 4; // Languages
-  CHOICE_TYPE_WEAPON_PROFICIENCY = 5; // Weapon proficiencies
-  CHOICE_TYPE_ARMOR_PROFICIENCY = 6; // Armor proficiencies
-  CHOICE_TYPE_SPELL = 7; // Spells known/prepared
-  CHOICE_TYPE_FEAT = 8; // Feats
+// Category of choice being made
+enum ChoiceCategory {
+  CHOICE_CATEGORY_UNSPECIFIED = 0;
+  CHOICE_CATEGORY_EQUIPMENT = 1;
+  CHOICE_CATEGORY_SKILLS = 2; // Skill proficiencies
+  CHOICE_CATEGORY_TOOLS = 3; // Tool proficiencies
+  CHOICE_CATEGORY_LANGUAGES = 4; // Languages
+  CHOICE_CATEGORY_WEAPON_PROFICIENCIES = 5; // Weapon proficiencies
+  CHOICE_CATEGORY_ARMOR_PROFICIENCIES = 6; // Armor proficiencies
+  CHOICE_CATEGORY_SPELLS = 7; // Spells known/prepared
+  CHOICE_CATEGORY_FEATS = 8; // Feats
+  CHOICE_CATEGORY_ABILITY_SCORES = 9; // Ability score improvements
 }
 
 // Character size category
@@ -1107,16 +1109,26 @@ message Spell {
 // Source of a choice during character creation
 enum ChoiceSource {
   CHOICE_SOURCE_UNSPECIFIED = 0;
-  CHOICE_SOURCE_RACE = 1;
-  CHOICE_SOURCE_SUBRACE = 2;
-  CHOICE_SOURCE_CLASS = 3;
-  CHOICE_SOURCE_BACKGROUND = 4;
+  CHOICE_SOURCE_PLAYER = 1; // Direct player choice
+  CHOICE_SOURCE_RACE = 2;
+  CHOICE_SOURCE_SUBRACE = 3;
+  CHOICE_SOURCE_CLASS = 4;
+  CHOICE_SOURCE_BACKGROUND = 5;
+  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
 }
 
-// Tracks a choice made during character creation
+// New unified choice data structure for the toolkit refactoring
+message ChoiceData {
+  ChoiceCategory category = 1; // Type of choice (skills, languages, etc.)
+  ChoiceSource source = 2;     // Where this choice came from
+  string choice_id = 3;        // Specific choice identifier
+  google.protobuf.Any selection = 4; // Flexible choice data that can hold any type
+}
+
+// Tracks a choice made during character creation (deprecated - use ChoiceData)
 message ChoiceSelection {
   string choice_id = 1; // ID from Choice in RaceInfo/ClassInfo
-  ChoiceType choice_type = 2; // EQUIPMENT, SKILL, etc.
+  ChoiceCategory choice_type = 2; // EQUIPMENT, SKILL, etc. (was ChoiceType)
   ChoiceSource source = 3; // Where this choice came from
   repeated string selected_keys = 4; // What was selected
 

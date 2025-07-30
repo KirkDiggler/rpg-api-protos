@@ -1127,7 +1127,7 @@ message ChoiceData {
   ChoiceCategory category = 1; // Type of choice (skills, languages, etc.)
   ChoiceSource source = 2; // Where this choice came from
   string choice_id = 3; // Specific choice identifier
-  
+
   // Type-safe selection using oneof pattern (matching toolkit refactoring)
   oneof selection {
     string name = 4;

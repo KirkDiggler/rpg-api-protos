@@ -1120,8 +1120,8 @@ enum ChoiceSource {
 // New unified choice data structure for the toolkit refactoring
 message ChoiceData {
   ChoiceCategory category = 1; // Type of choice (skills, languages, etc.)
-  ChoiceSource source = 2;     // Where this choice came from
-  string choice_id = 3;        // Specific choice identifier
+  ChoiceSource source = 2; // Where this choice came from
+  string choice_id = 3; // Specific choice identifier
   google.protobuf.Any selection = 4; // Flexible choice data that can hold any type
 }
 

@@ -387,6 +387,13 @@ message CharacterDraft {
 
   // Metadata
   DraftMetadata metadata = 16;
+
+  // Enum fields for v1alpha1 - these are the actual values stored
+  // The full info objects above can be left empty/null
+  Race race_id = 17;
+  Subrace subrace_id = 18;
+  Class class_id = 19;
+  Background background_id = 20;
 }
 
 // Request to create a draft

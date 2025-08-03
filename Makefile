@@ -67,16 +67,35 @@ package-ue-plugin: generate-cpp ## Package complete UE plugin
 	cp -r gen/cpp/* Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated/
 	# Copy generated sources to Private/Generated  
 	find gen/cpp -name "*.cc" -exec cp {} Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated/ \;
-	@echo "UE plugin structure created at Plugins/RPGAPIProtos/"
-	@echo "Note: gRPC runtime packaging and plugin manifest creation need to be implemented"
+	# Create plugin manifest and template files
+	$(MAKE) create-plugin-manifest
+	@echo "UE plugin packaged at Plugins/RPGAPIProtos/"
+
+create-plugin-manifest: ## Create UE plugin manifest and build files
+	@echo "Creating UE plugin manifest and template files..."
+	# Copy plugin manifest
+	cp templates/RPGAPIProtos.uplugin Plugins/RPGAPIProtos/
+	# Copy build configuration
+	cp templates/RPGAPIProtos.Build.cs Plugins/RPGAPIProtos/Source/RPGAPIProtos/
+	# Copy module files
+	cp templates/RPGAPIProtosModule.h Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/
+	cp templates/RPGAPIProtosModule.cpp Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/
+	# Copy convenience header
+	cp templates/RPGAPIClients.h Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/
+	@echo "Plugin template files created successfully"
 
 validate-ue-plugin: ## Validate generated plugin structure
 	@echo "Validating UE plugin structure..."
 	test -d Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated || (echo "Missing Public/Generated directory" && exit 1)
 	test -d Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated || (echo "Missing Private/Generated directory" && exit 1)
-	@echo "Header files:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated -name "*.pb.h" | wc -l
-	@echo "Source files:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated -name "*.pb.cc" | wc -l
-	@echo "Plugin structure validation completed"
+	test -f Plugins/RPGAPIProtos/RPGAPIProtos.uplugin || (echo "Missing plugin manifest" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/RPGAPIProtos.Build.cs || (echo "Missing Build.cs file" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/RPGAPIProtosModule.h || (echo "Missing module header" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/RPGAPIProtosModule.cpp || (echo "Missing module implementation" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/RPGAPIClients.h || (echo "Missing convenience header" && exit 1)
+	@echo "Generated files:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated -name "*.pb.h" | wc -l | xargs echo "  Headers:"
+	@echo "  Sources:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated -name "*.pb.cc" | wc -l
+	@echo "Plugin structure validation completed successfully"
 
 compile-cpp: ## Test C++ compilation of generated code
 	@echo "Testing C++ compilation..."

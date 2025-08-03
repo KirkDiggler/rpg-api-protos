@@ -24,13 +24,17 @@ This specification implements **C++ gRPC client generation** from rpg-api proto 
 
 ## Proto Services Coverage
 
-### Current rpg-api Services
+### Current rpg-api Services (Updated with latest main)
 
 | Service | Proto Package | Generated Client | UE Consumer |
 |---------|---------------|------------------|-------------|
 | **Character** | `dnd5e.api.v1alpha1.CharacterService` | `CharacterService::Stub` | `URPGCharacterAPIClient` |
-| **Dice** | `dnd5e.api.v1alpha1.DiceService` | `DiceService::Stub` | `URPGDiceAPIClient` |
-| **Session** | `sessionapi.v1alpha1.SessionService` | `SessionService::Stub` | `URPGSessionAPIClient` |
+| **Encounter** | `dnd5e.api.v1alpha1.EncounterService` | `EncounterService::Stub` | `URPGEncounterAPIClient` |
+| **Dice** | `api.v1alpha1.DiceService` | `DiceService::Stub` | `URPGDiceAPIClient` |
+| **Environment** | `api.v1alpha1.EnvironmentService` | `EnvironmentService::Stub` | `URPGEnvironmentAPIClient` |
+| **SelectionTable** | `api.v1alpha1.SelectionTableService` | `SelectionTableService::Stub` | `URPGSelectionTableAPIClient` |
+| **Spatial** | `api.v1alpha1.SpatialService` | `SpatialService::Stub` | `URPGSpatialAPIClient` |
+| **Spawn** | `api.v1alpha1.SpawnService` | `SpawnService::Stub` | `URPGSpawnAPIClient` |
 
 ### Future Services (Extensibility)
 
@@ -38,7 +42,7 @@ This specification implements **C++ gRPC client generation** from rpg-api proto 
 |---------|---------------|------------------|-------------|
 | **Equipment** | `dnd5e.api.v1alpha1.EquipmentService` | `EquipmentService::Stub` | `URPGEquipmentAPIClient` |
 | **Spell** | `dnd5e.api.v1alpha1.SpellService` | `SpellService::Stub` | `URPGSpellAPIClient` |
-| **Room** | `spatial.api.v1alpha1.RoomService` | `RoomService::Stub` | `URPGRoomAPIClient` |
+| **Session** | `sessionapi.v1alpha1.SessionService` | `SessionService::Stub` | `URPGSessionAPIClient` |
 | **Combat** | `combat.api.v1alpha1.CombatService` | `CombatService::Stub` | `URPGCombatAPIClient` |
 
 ## Generated Plugin Structure
@@ -318,23 +322,41 @@ public class gRPC : ModuleRules
 
 #include "CoreMinimal.h"
 
-// Generated gRPC service clients - following clients/ package structure
-#include "Generated/clients/dnd5e/api/v1alpha1/character.pb.h"
-#include "Generated/clients/dnd5e/api/v1alpha1/character.grpc.pb.h"
-#include "Generated/clients/dnd5e/api/v1alpha1/dice.pb.h"
-#include "Generated/clients/dnd5e/api/v1alpha1/dice.grpc.pb.h"
-#include "Generated/clients/sessionapi/v1alpha1/session.pb.h"
-#include "Generated/clients/sessionapi/v1alpha1/session.grpc.pb.h"
+// Generated gRPC service clients - D&D 5e services
+#include "Generated/dnd5e/api/v1alpha1/character.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/character.grpc.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/encounter.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/encounter.grpc.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/common.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/enums.pb.h"
+
+// Generated gRPC service clients - Core API services
+#include "Generated/api/v1alpha1/dice.pb.h"
+#include "Generated/api/v1alpha1/dice.grpc.pb.h"
+#include "Generated/api/v1alpha1/room_environments.pb.h"
+#include "Generated/api/v1alpha1/room_environments.grpc.pb.h"
+#include "Generated/api/v1alpha1/room_selectables.pb.h"
+#include "Generated/api/v1alpha1/room_selectables.grpc.pb.h"
+#include "Generated/api/v1alpha1/room_spatial.pb.h"
+#include "Generated/api/v1alpha1/room_spatial.grpc.pb.h"
+#include "Generated/api/v1alpha1/room_spawn.pb.h"
+#include "Generated/api/v1alpha1/room_spawn.grpc.pb.h"
+#include "Generated/api/v1alpha1/room_common.pb.h"
 
 // Future services (when proto packages are available)
 #ifdef HAS_EQUIPMENT_SERVICE
-#include "Generated/clients/dnd5e/api/v1alpha1/equipment.pb.h"
-#include "Generated/clients/dnd5e/api/v1alpha1/equipment.grpc.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/equipment.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/equipment.grpc.pb.h"
 #endif
 
 #ifdef HAS_SPELL_SERVICE
-#include "Generated/clients/dnd5e/api/v1alpha1/spell.pb.h"
-#include "Generated/clients/dnd5e/api/v1alpha1/spell.grpc.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/spell.pb.h"
+#include "Generated/dnd5e/api/v1alpha1/spell.grpc.pb.h"
+#endif
+
+#ifdef HAS_SESSION_SERVICE
+#include "Generated/sessionapi/v1alpha1/session.pb.h"
+#include "Generated/sessionapi/v1alpha1/session.grpc.pb.h"
 #endif
 
 // gRPC C++ headers
@@ -350,12 +372,16 @@ public class gRPC : ModuleRules
  * #include "RPGAPIClients.h"
  * 
  * auto Channel = RPGAPIProtos::CreateChannel("localhost:50051");
- * auto CharacterStub = clients::dnd5e::api::v1alpha1::CharacterService::NewStub(Channel);
+ * auto CharacterStub = dnd5e::api::v1alpha1::CharacterService::NewStub(Channel);
  * 
  * Generated namespaces follow package structure:
- * - clients::dnd5e::api::v1alpha1::CharacterService
- * - clients::dnd5e::api::v1alpha1::DiceService
- * - clients::sessionapi::v1alpha1::SessionService
+ * - dnd5e::api::v1alpha1::CharacterService
+ * - dnd5e::api::v1alpha1::EncounterService  
+ * - api::v1alpha1::DiceService
+ * - api::v1alpha1::EnvironmentService
+ * - api::v1alpha1::SelectionTableService
+ * - api::v1alpha1::SpatialService
+ * - api::v1alpha1::SpawnService
  */
 
 namespace RPGAPIProtos
@@ -373,16 +399,23 @@ namespace RPGAPIProtos
     }
     
     // Service namespace aliases for convenience
-    namespace Character = clients::dnd5e::api::v1alpha1;
-    namespace Dice = clients::dnd5e::api::v1alpha1;
-    namespace Session = clients::sessionapi::v1alpha1;
+    namespace Character = dnd5e::api::v1alpha1;
+    namespace Encounter = dnd5e::api::v1alpha1;
+    namespace Dice = api::v1alpha1;
+    namespace Environment = api::v1alpha1;
+    namespace SelectionTable = api::v1alpha1;
+    namespace Spatial = api::v1alpha1;
+    namespace Spawn = api::v1alpha1;
     
     // Future service aliases
 #ifdef HAS_EQUIPMENT_SERVICE
-    namespace Equipment = clients::dnd5e::api::v1alpha1;
+    namespace Equipment = dnd5e::api::v1alpha1;
 #endif
 #ifdef HAS_SPELL_SERVICE
-    namespace Spell = clients::dnd5e::api::v1alpha1;
+    namespace Spell = dnd5e::api::v1alpha1;
+#endif
+#ifdef HAS_SESSION_SERVICE
+    namespace Session = sessionapi::v1alpha1;
 #endif
 }
 ```
@@ -483,9 +516,17 @@ FString FRPGAPIProtosModule::GetModuleVersion()
 TArray<FString> FRPGAPIProtosModule::GetAvailableServices()
 {
     TArray<FString> Services;
+    
+    // D&D 5e services
     Services.Add(TEXT("CharacterService (dnd5e.api.v1alpha1)"));
-    Services.Add(TEXT("DiceService (dnd5e.api.v1alpha1)"));
-    Services.Add(TEXT("SessionService (sessionapi.v1alpha1)"));
+    Services.Add(TEXT("EncounterService (dnd5e.api.v1alpha1)"));
+    
+    // Core API services
+    Services.Add(TEXT("DiceService (api.v1alpha1)"));
+    Services.Add(TEXT("EnvironmentService (api.v1alpha1)"));
+    Services.Add(TEXT("SelectionTableService (api.v1alpha1)"));
+    Services.Add(TEXT("SpatialService (api.v1alpha1)"));
+    Services.Add(TEXT("SpawnService (api.v1alpha1)"));
     
     // Future services will be added here as they're generated
     
@@ -641,20 +682,45 @@ See the companion specifications in the UE project:
 
 ## Available Services
 
+### D&D 5e Services
+
 - **CharacterService** (`dnd5e.api.v1alpha1.CharacterService`)
   - Character draft creation and management
   - D&D 5e race, class, background data
   - Character validation and finalization
+  - Equipment and inventory management
 
-- **DiceService** (`dnd5e.api.v1alpha1.DiceService`)
+- **EncounterService** (`dnd5e.api.v1alpha1.EncounterService`)
+  - Combat encounter management
+  - Initiative tracking and turn order
+  - D&D 5e combat mechanics
+
+### Core API Services
+
+- **DiceService** (`api.v1alpha1.DiceService`)
   - Session-based dice rolling
   - Dice history and statistics
   - Support for complex dice expressions
 
-- **SessionService** (`sessionapi.v1alpha1.SessionService`)
-  - RPG session management
-  - Player join/leave functionality
-  - Session state tracking
+- **EnvironmentService** (`api.v1alpha1.EnvironmentService`)
+  - Room environment generation
+  - Wall patterns and room layouts
+  - Environmental features and conditions
+
+- **SelectionTableService** (`api.v1alpha1.SelectionTableService`)
+  - Weighted random selection tables
+  - Loot generation and treasure tables
+  - Procedural content selection
+
+- **SpatialService** (`api.v1alpha1.SpatialService`)
+  - Room spatial management
+  - Grid positioning and coordinates
+  - Multi-room orchestration
+
+- **SpawnService** (`api.v1alpha1.SpawnService`)
+  - Entity spawning and placement
+  - Monster and NPC generation
+  - Dynamic content population
 
 ## Troubleshooting
 

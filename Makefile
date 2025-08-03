@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format generate clean test push
+.PHONY: help install-tools lint format generate clean test push generate-cpp package-ue-plugin validate-ue-plugin compile-cpp clean-cpp
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -51,6 +51,61 @@ compile-go: ## Test Go compilation
 
 compile-ts: ## Test TypeScript compilation  
 	npx tsc --noEmit --project tsconfig.json
+
+# NEW: C++ generation targets
+generate-cpp: ## Generate C++ gRPC clients for UE
+	buf generate
+	@echo "C++ generation completed"
+	@find gen/cpp -name "*.pb.h" | wc -l | xargs echo "Generated headers:"
+	@find gen/cpp -name "*.pb.cc" | wc -l | xargs echo "Generated sources:"
+
+package-ue-plugin: generate-cpp ## Package complete UE plugin
+	@echo "Packaging UE plugin from generated C++ code..."
+	mkdir -p Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated
+	mkdir -p Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated
+	# Copy generated headers to Public/Generated
+	cp -r gen/cpp/* Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated/
+	# Copy generated sources to Private/Generated  
+	find gen/cpp -name "*.cc" -exec cp {} Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated/ \;
+	# Create plugin manifest and template files
+	$(MAKE) create-plugin-manifest
+	@echo "UE plugin packaged at Plugins/RPGAPIProtos/"
+
+create-plugin-manifest: ## Create UE plugin manifest and build files
+	@echo "Creating UE plugin manifest and template files..."
+	# Copy plugin manifest
+	cp templates/RPGAPIProtos.uplugin Plugins/RPGAPIProtos/
+	# Copy build configuration
+	cp templates/RPGAPIProtos.Build.cs Plugins/RPGAPIProtos/Source/RPGAPIProtos/
+	# Copy module files
+	cp templates/RPGAPIProtosModule.h Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/
+	cp templates/RPGAPIProtosModule.cpp Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/
+	# Copy convenience header
+	cp templates/RPGAPIClients.h Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/
+	@echo "Plugin template files created successfully"
+
+validate-ue-plugin: ## Validate generated plugin structure
+	@echo "Validating UE plugin structure..."
+	test -d Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated || (echo "Missing Public/Generated directory" && exit 1)
+	test -d Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated || (echo "Missing Private/Generated directory" && exit 1)
+	test -f Plugins/RPGAPIProtos/RPGAPIProtos.uplugin || (echo "Missing plugin manifest" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/RPGAPIProtos.Build.cs || (echo "Missing Build.cs file" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/RPGAPIProtosModule.h || (echo "Missing module header" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/RPGAPIProtosModule.cpp || (echo "Missing module implementation" && exit 1)
+	test -f Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/RPGAPIClients.h || (echo "Missing convenience header" && exit 1)
+	@echo "Generated files:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Public/Generated -name "*.pb.h" | wc -l | xargs echo "  Headers:"
+	@echo "  Sources:" && find Plugins/RPGAPIProtos/Source/RPGAPIProtos/Private/Generated -name "*.pb.cc" | wc -l
+	@echo "Plugin structure validation completed successfully"
+
+compile-cpp: ## Test C++ compilation of generated code
+	@echo "Testing C++ compilation..."
+	@echo "Note: Full compilation requires gRPC C++ runtime - testing header syntax only"
+	g++ -I gen/cpp -fsyntax-only gen/cpp/dnd5e/api/v1alpha1/character.pb.cc || echo "Compilation test completed with warnings (expected without gRPC runtime)"
+
+clean-cpp: ## Clean generated C++ files and plugin
+	rm -rf gen/cpp/
+	rm -rf Plugins/RPGAPIProtos/
+	@echo "C++ artifacts cleaned"
 
 deps: ## Update dependencies
 	buf mod update

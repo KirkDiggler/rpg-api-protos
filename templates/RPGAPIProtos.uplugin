@@ -1,0 +1,30 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0.0",
+  "FriendlyName": "RPG API Protocol Buffers",
+  "Description": "Generated gRPC C++ clients for rpg-api services, providing type-safe D&D 5e and RPG functionality including character management, dice rolling, encounters, and procedural room generation.",
+  "Category": "RPG",
+  "CreatedBy": "RPG API Team",
+  "CreatedByURL": "https://github.com/KirkDiggler/rpg-api-protos",
+  "DocsURL": "https://github.com/KirkDiggler/rpg-api-protos/docs",
+  "MarketplaceURL": "",
+  "SupportURL": "https://github.com/KirkDiggler/rpg-api-protos/issues",
+  "EngineVersion": "5.6.0",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "RPGAPIProtos",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault",
+      "AdditionalDependencies": [
+        "Core",
+        "CoreUObject"
+      ]
+    }
+  ],
+  "Plugins": []
+}

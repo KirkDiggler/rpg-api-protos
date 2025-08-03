@@ -21,3 +21,9 @@ plugins:
     out: gen/ts
     opt:
       - target=ts
+
+  # NEW: C++ plugins for UE generation
+  - remote: buf.build/protocolbuffers/cpp
+    out: gen/cpp
+  - remote: buf.build/grpc/cpp
+    out: gen/cpp

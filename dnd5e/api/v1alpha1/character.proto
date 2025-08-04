@@ -446,19 +446,19 @@ message UpdateRaceRequest {
   string draft_id = 1;
   Race race = 2;
   Subrace subrace = 3; // Optional, required for some races
-  repeated ChoiceSelection race_choices = 4; // Choices made for this race
+  repeated ChoiceData race_choices = 4; // Choices made for this race
 }
 
 message UpdateClassRequest {
   string draft_id = 1;
   Class class = 2;
-  repeated ChoiceSelection class_choices = 3; // Choices made for this class
+  repeated ChoiceData class_choices = 3; // Choices made for this class
 }
 
 message UpdateBackgroundRequest {
   string draft_id = 1;
   Background background = 2;
-  repeated ChoiceSelection background_choices = 3; // Choices made for this background
+  repeated ChoiceData background_choices = 3; // Choices made for this background
 }
 
 message UpdateAbilityScoresRequest {
@@ -1182,22 +1182,8 @@ message ClassChoice {
   // Could add subclass later when implemented
 }
 
-// Tracks a choice made during character creation (deprecated - use ChoiceData)
-message ChoiceSelection {
-  string choice_id = 1; // ID from Choice in RaceInfo/ClassInfo
-  ChoiceCategory choice_type = 2; // EQUIPMENT, SKILL, etc. (was ChoiceType)
-  ChoiceSource source = 3; // Where this choice came from
-  repeated string selected_keys = 4; // What was selected
-
-  // For ability score choices
-  repeated AbilityScoreChoice ability_score_choices = 5;
-}
-
-// Represents an ability score bonus selection
-message AbilityScoreChoice {
-  Ability ability = 1;
-  int32 bonus = 2;
-}
+// REMOVED: ChoiceSelection - replaced by ChoiceData
+// REMOVED: AbilityScoreChoice - no longer needed
 
 // Spell damage information
 message SpellDamage {

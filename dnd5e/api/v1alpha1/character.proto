@@ -62,6 +62,36 @@ service CharacterService {
   rpc RemoveFromInventory(RemoveFromInventoryRequest) returns (RemoveFromInventoryResponse);
 }
 
+// Character feature (class features, racial traits, etc)
+message CharacterFeature {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string source = 4; // "class", "race", "background", etc
+  int32 level = 5; // Level when gained (0 for racial/background)
+}
+
+// Class resource (rage uses, ki points, etc)
+message ClassResource {
+  string name = 1;
+  int32 current = 2;
+  int32 maximum = 3;
+  string recharge = 4; // "short_rest", "long_rest", etc
+}
+
+// Spell slots by level
+message SpellSlots {
+  int32 level_1 = 1;
+  int32 level_2 = 2;
+  int32 level_3 = 3;
+  int32 level_4 = 4;
+  int32 level_5 = 5;
+  int32 level_6 = 6;
+  int32 level_7 = 7;
+  int32 level_8 = 8;
+  int32 level_9 = 9;
+}
+
 // Ability scores for a character
 message AbilityScores {
   // Strength score (3-18 before racial modifiers)
@@ -147,6 +177,22 @@ message Character {
 
   // Carrying capacity and encumbrance
   EncumbranceInfo encumbrance = 21;
+
+  // Class features and choices
+  repeated CharacterFeature features = 22;
+  repeated string fighting_styles = 23;
+
+  // Racial traits
+  repeated CharacterFeature racial_traits = 24;
+
+  // Background feature
+  CharacterFeature background_feature = 25;
+
+  // Class resources (rage uses, ki points, etc)
+  map<string, ClassResource> class_resources = 26;
+
+  // Spell slots for casters
+  SpellSlots spell_slots = 27;
 }
 
 // Ability modifiers calculated from scores

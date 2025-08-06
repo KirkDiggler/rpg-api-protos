@@ -71,12 +71,40 @@ message CharacterFeature {
   int32 level = 5; // Level when gained (0 for racial/background)
 }
 
+// Types of class resources in D&D 5e
+enum ClassResourceType {
+  CLASS_RESOURCE_TYPE_UNSPECIFIED = 0;
+  CLASS_RESOURCE_TYPE_RAGE = 1;
+  CLASS_RESOURCE_TYPE_BARDIC_INSPIRATION = 2;
+  CLASS_RESOURCE_TYPE_CHANNEL_DIVINITY = 3;
+  CLASS_RESOURCE_TYPE_WILD_SHAPE = 4;
+  CLASS_RESOURCE_TYPE_SECOND_WIND = 5;
+  CLASS_RESOURCE_TYPE_ACTION_SURGE = 6;
+  CLASS_RESOURCE_TYPE_KI_POINTS = 7;
+  CLASS_RESOURCE_TYPE_DIVINE_SENSE = 8;
+  CLASS_RESOURCE_TYPE_LAY_ON_HANDS = 9;
+  CLASS_RESOURCE_TYPE_SORCERY_POINTS = 10;
+  CLASS_RESOURCE_TYPE_ARCANE_RECOVERY = 11;
+  CLASS_RESOURCE_TYPE_INDOMITABLE = 12;
+  CLASS_RESOURCE_TYPE_SUPERIORITY_DICE = 13;
+}
+
+// Recharge timing for resources
+enum RechargeType {
+  RECHARGE_TYPE_UNSPECIFIED = 0;
+  RECHARGE_TYPE_SHORT_REST = 1;
+  RECHARGE_TYPE_LONG_REST = 2;
+  RECHARGE_TYPE_DAWN = 3;
+  RECHARGE_TYPE_NONE = 4; // Never recharges (consumable)
+}
+
 // Class resource (rage uses, ki points, etc)
 message ClassResource {
-  string name = 1;
-  int32 current = 2;
-  int32 maximum = 3;
-  string recharge = 4; // "short_rest", "long_rest", etc
+  ClassResourceType type = 1;
+  string name = 2; // Display name
+  int32 current = 3;
+  int32 maximum = 4;
+  RechargeType recharge = 5;
 }
 
 // Spell slots by level
@@ -189,7 +217,7 @@ message Character {
   CharacterFeature background_feature = 25;
 
   // Class resources (rage uses, ki points, etc)
-  map<string, ClassResource> class_resources = 26;
+  repeated ClassResource class_resources = 26;
 
   // Spell slots for casters
   SpellSlots spell_slots = 27;

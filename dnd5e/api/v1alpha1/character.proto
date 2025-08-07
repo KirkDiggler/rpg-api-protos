@@ -62,6 +62,64 @@ service CharacterService {
   rpc RemoveFromInventory(RemoveFromInventoryRequest) returns (RemoveFromInventoryResponse);
 }
 
+// Character feature (class features, racial traits, etc)
+message CharacterFeature {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string source = 4; // "class", "race", "background", etc
+  int32 level = 5; // Level when gained (0 for racial/background)
+}
+
+// Types of class resources in D&D 5e
+enum ClassResourceType {
+  CLASS_RESOURCE_TYPE_UNSPECIFIED = 0;
+  CLASS_RESOURCE_TYPE_RAGE = 1;
+  CLASS_RESOURCE_TYPE_BARDIC_INSPIRATION = 2;
+  CLASS_RESOURCE_TYPE_CHANNEL_DIVINITY = 3;
+  CLASS_RESOURCE_TYPE_WILD_SHAPE = 4;
+  CLASS_RESOURCE_TYPE_SECOND_WIND = 5;
+  CLASS_RESOURCE_TYPE_ACTION_SURGE = 6;
+  CLASS_RESOURCE_TYPE_KI_POINTS = 7;
+  CLASS_RESOURCE_TYPE_DIVINE_SENSE = 8;
+  CLASS_RESOURCE_TYPE_LAY_ON_HANDS = 9;
+  CLASS_RESOURCE_TYPE_SORCERY_POINTS = 10;
+  CLASS_RESOURCE_TYPE_ARCANE_RECOVERY = 11;
+  CLASS_RESOURCE_TYPE_INDOMITABLE = 12;
+  CLASS_RESOURCE_TYPE_SUPERIORITY_DICE = 13;
+}
+
+// Recharge timing for resources
+enum RechargeType {
+  RECHARGE_TYPE_UNSPECIFIED = 0;
+  RECHARGE_TYPE_SHORT_REST = 1;
+  RECHARGE_TYPE_LONG_REST = 2;
+  RECHARGE_TYPE_DAWN = 3;
+  RECHARGE_TYPE_NONE = 4; // Never recharges (consumable)
+}
+
+// Class resource (rage uses, ki points, etc)
+message ClassResource {
+  ClassResourceType type = 1;
+  string name = 2; // Display name
+  int32 current = 3;
+  int32 maximum = 4;
+  RechargeType recharge = 5;
+}
+
+// Spell slots by level
+message SpellSlots {
+  int32 level_1 = 1;
+  int32 level_2 = 2;
+  int32 level_3 = 3;
+  int32 level_4 = 4;
+  int32 level_5 = 5;
+  int32 level_6 = 6;
+  int32 level_7 = 7;
+  int32 level_8 = 8;
+  int32 level_9 = 9;
+}
+
 // Ability scores for a character
 message AbilityScores {
   // Strength score (3-18 before racial modifiers)
@@ -147,6 +205,22 @@ message Character {
 
   // Carrying capacity and encumbrance
   EncumbranceInfo encumbrance = 21;
+
+  // Class features and choices
+  repeated CharacterFeature features = 22;
+  repeated string fighting_styles = 23;
+
+  // Racial traits
+  repeated CharacterFeature racial_traits = 24;
+
+  // Background feature
+  CharacterFeature background_feature = 25;
+
+  // Class resources (rage uses, ki points, etc)
+  repeated ClassResource class_resources = 26;
+
+  // Spell slots for casters
+  SpellSlots spell_slots = 27;
 }
 
 // Ability modifiers calculated from scores
@@ -446,19 +520,19 @@ message UpdateRaceRequest {
   string draft_id = 1;
   Race race = 2;
   Subrace subrace = 3; // Optional, required for some races
-  repeated ChoiceSelection race_choices = 4; // Choices made for this race
+  repeated ChoiceData race_choices = 4; // Choices made for this race
 }
 
 message UpdateClassRequest {
   string draft_id = 1;
   Class class = 2;
-  repeated ChoiceSelection class_choices = 3; // Choices made for this class
+  repeated ChoiceData class_choices = 3; // Choices made for this class
 }
 
 message UpdateBackgroundRequest {
   string draft_id = 1;
   Background background = 2;
-  repeated ChoiceSelection background_choices = 3; // Choices made for this background
+  repeated ChoiceData background_choices = 3; // Choices made for this background
 }
 
 message UpdateAbilityScoresRequest {
@@ -1182,22 +1256,8 @@ message ClassChoice {
   // Could add subclass later when implemented
 }
 
-// Tracks a choice made during character creation (deprecated - use ChoiceData)
-message ChoiceSelection {
-  string choice_id = 1; // ID from Choice in RaceInfo/ClassInfo
-  ChoiceCategory choice_type = 2; // EQUIPMENT, SKILL, etc. (was ChoiceType)
-  ChoiceSource source = 3; // Where this choice came from
-  repeated string selected_keys = 4; // What was selected
-
-  // For ability score choices
-  repeated AbilityScoreChoice ability_score_choices = 5;
-}
-
-// Represents an ability score bonus selection
-message AbilityScoreChoice {
-  Ability ability = 1;
-  int32 bonus = 2;
-}
+// REMOVED: ChoiceSelection - replaced by ChoiceData
+// REMOVED: AbilityScoreChoice - no longer needed
 
 // Spell damage information
 message SpellDamage {

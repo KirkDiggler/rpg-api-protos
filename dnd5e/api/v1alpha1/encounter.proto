@@ -232,6 +232,48 @@ message AttackResponse {
 }
 
 // ============================================================================
+// REAL-TIME STREAMING FOR MULTI-CLIENT SYNC
+// ============================================================================
+
+// StreamEncounterEventsRequest subscribes to encounter events via streaming
+message StreamEncounterEventsRequest {
+  string encounter_id = 1;
+  string client_id = 2; // Unique client identifier for connection tracking
+}
+
+// StreamEncounterEventsResponse is streamed to all connected clients
+message StreamEncounterEventsResponse {
+  string event_id = 1; // Unique event ID for deduplication
+  int64 timestamp = 2; // Server timestamp for ordering
+
+  oneof event {
+    CombatState combat_state_update = 10;
+    Room room_update = 11;
+    TurnChangeEvent turn_change = 12;
+    StreamedMovementEvent movement = 13;
+    AttackResult attack_made = 14;
+    StreamedDefeatEvent defeat = 15;
+  }
+}
+
+// StreamedMovementEvent for streaming position updates
+message StreamedMovementEvent {
+  string entity_id = 1;
+  .api.v1alpha1.Position from_position = 2;
+  .api.v1alpha1.Position to_position = 3;
+  int32 movement_cost = 4;
+  int32 movement_remaining = 5;
+}
+
+// StreamedDefeatEvent for streaming defeat notifications
+message StreamedDefeatEvent {
+  string entity_id = 1;
+  string defeated_by = 2;
+  int32 xp_awarded = 3;
+  bool combat_ended = 4;
+}
+
+// ============================================================================
 // SERVICE DEFINITION
 // ============================================================================
 
@@ -253,4 +295,7 @@ service EncounterService {
 
   // Phase 3.5: Basic Combat
   rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // Real-time Updates: Server streaming for multiple clients
+  rpc StreamEncounterEvents(StreamEncounterEventsRequest) returns (stream StreamEncounterEventsResponse);
 }

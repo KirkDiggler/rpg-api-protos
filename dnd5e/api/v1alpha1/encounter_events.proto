@@ -6,7 +6,9 @@ import "api/v1alpha1/room_common.proto";
 import "dnd5e/api/v1alpha1/encounter.proto";
 
 // ============================================================================
-// WEBSOCKET EVENT MESSAGES FOR REAL-TIME UPDATES
+// INTERNAL EVENT MESSAGES FOR GAME SERVICE EVENT BUS
+// These are used internally by rpg-api for event-driven architecture.
+// For client synchronization, use the StreamEncounterEvents RPC instead.
 // ============================================================================
 
 // EncounterEvent is the wrapper for all encounter-related events
@@ -120,25 +122,9 @@ message StateChangedEvent {
   Room room = 2;
 }
 
-// SubscribeToEncounterRequest subscribes to encounter events
-message SubscribeToEncounterRequest {
-  string encounter_id = 1;
-  repeated string event_types = 2; // Optional filter for specific event types
-}
-
-// SubscribeToEncounterResponse confirms subscription
-message SubscribeToEncounterResponse {
-  string subscription_id = 1;
-  CombatState current_state = 2; // Current state at time of subscription
-  Room current_room = 3;
-}
-
-// UnsubscribeFromEncounterRequest cancels a subscription
-message UnsubscribeFromEncounterRequest {
-  string subscription_id = 1;
-}
-
-// UnsubscribeFromEncounterResponse confirms unsubscription
-message UnsubscribeFromEncounterResponse {
-  bool success = 1;
+// InternalEventMetadata provides context for internal event processing
+message InternalEventMetadata {
+  string source_service = 1; // Service that generated the event
+  string correlation_id = 2; // For tracing related events
+  map<string, string> headers = 3; // Additional metadata
 }

@@ -66,8 +66,8 @@ message DungeonStartResponse {
 // InitiativeRoll represents a pre-rolled initiative value (optional)
 message InitiativeRoll {
   string entity_id = 1;
-  int32 roll = 2;       // d20 result
-  int32 modifier = 3;   // DEX modifier
+  int32 roll = 2; // d20 result
+  int32 modifier = 3; // DEX modifier
 }
 
 // StartCombatRequest initiates combat for an encounter
@@ -82,10 +82,10 @@ message StartCombatRequest {
 // InitiativeEntry represents one combatant in turn order
 message InitiativeEntry {
   string entity_id = 1;
-  string entity_type = 2;  // "character", "monster", "npc"
-  int32 initiative = 3;    // Total initiative value (roll + modifier)
-  int32 modifier = 4;      // DEX modifier used
-  bool has_acted = 5;      // Has this entity acted this round?
+  string entity_type = 2; // "character", "monster", "npc"
+  int32 initiative = 3; // Total initiative value (roll + modifier)
+  int32 modifier = 4; // DEX modifier used
+  bool has_acted = 5; // Has this entity acted this round?
 }
 
 // TurnState tracks resources available during a turn
@@ -104,7 +104,7 @@ message CombatState {
   string encounter_id = 1;
   int32 round = 2;
   repeated InitiativeEntry turn_order = 3;
-  int32 active_index = 4;  // Index in turn_order of current actor
+  int32 active_index = 4; // Index in turn_order of current actor
   TurnState current_turn = 5;
   bool combat_started = 6;
   bool combat_ended = 7;
@@ -157,8 +157,8 @@ message MoveCharacterResponse {
   bool success = 1;
   MovementError error = 2;
   int32 movement_remaining = 3;
-  Room updated_room = 4;  // Updated room with new positions
-  CombatState combat_state = 5;  // Updated combat state
+  Room updated_room = 4; // Updated room with new positions
+  CombatState combat_state = 5; // Updated combat state
 }
 
 // GetMovementOptionsRequest queries valid movement positions
@@ -171,7 +171,7 @@ message GetMovementOptionsRequest {
 message GetMovementOptionsResponse {
   repeated .api.v1alpha1.Position valid_positions = 1;
   int32 movement_remaining = 2;
-  map<string, int32> position_costs = 3;  // Position key -> movement cost
+  map<string, int32> position_costs = 3; // Position key -> movement cost
 }
 
 // ============================================================================
@@ -181,7 +181,7 @@ message GetMovementOptionsResponse {
 // EndTurnRequest ends the current entity's turn
 message EndTurnRequest {
   string encounter_id = 1;
-  string entity_id = 2;  // Must match current turn
+  string entity_id = 2; // Must match current turn
 }
 
 // TurnChangeEvent describes a turn transition
@@ -189,7 +189,7 @@ message TurnChangeEvent {
   string previous_entity_id = 1;
   string next_entity_id = 2;
   int32 round = 3;
-  bool new_round = 4;  // True if this starts a new round
+  bool new_round = 4; // True if this starts a new round
 }
 
 // EndTurnResponse returns the updated state after turn end
@@ -208,17 +208,17 @@ message AttackRequest {
   string encounter_id = 1;
   string attacker_id = 2;
   string target_id = 3;
-  string weapon_id = 4;  // Optional, uses default weapon if not specified
+  string weapon_id = 4; // Optional, uses default weapon if not specified
 }
 
 // AttackResult contains the outcome of an attack
 message AttackResult {
   bool hit = 1;
   int32 attack_roll = 2;
-  int32 attack_total = 3;  // roll + modifiers
+  int32 attack_total = 3; // roll + modifiers
   int32 target_ac = 4;
   int32 damage = 5;
-  string damage_type = 6;  // "slashing", "piercing", etc.
+  string damage_type = 6; // "slashing", "piercing", etc.
   bool critical = 7;
 }
 
@@ -228,7 +228,7 @@ message AttackResponse {
   string error = 2;
   AttackResult result = 3;
   CombatState combat_state = 4;
-  Room updated_room = 5;  // Updated if entities are defeated/removed
+  Room updated_room = 5; // Updated if entities are defeated/removed
 }
 
 // ============================================================================
@@ -239,18 +239,18 @@ message AttackResponse {
 service EncounterService {
   // DungeonStart generates a simple starting room for testing
   rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
-  
+
   // Phase 1: Combat State Management
   rpc StartCombat(StartCombatRequest) returns (StartCombatResponse);
   rpc GetCombatState(GetCombatStateRequest) returns (GetCombatStateResponse);
-  
+
   // Phase 2: Movement
   rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse);
   rpc GetMovementOptions(GetMovementOptionsRequest) returns (GetMovementOptionsResponse);
-  
+
   // Phase 3: Turn Management
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
-  
+
   // Phase 3.5: Basic Combat
   rpc Attack(AttackRequest) returns (AttackResponse);
 }

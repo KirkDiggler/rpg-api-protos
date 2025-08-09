@@ -12,9 +12,9 @@ import "dnd5e/api/v1alpha1/encounter.proto";
 // EncounterEvent is the wrapper for all encounter-related events
 message EncounterEvent {
   string encounter_id = 1;
-  string event_id = 2;  // Unique event ID for deduplication
-  int64 timestamp = 3;  // Unix timestamp in milliseconds
-  
+  string event_id = 2; // Unique event ID for deduplication
+  int64 timestamp = 3; // Unix timestamp in milliseconds
+
   // One of these will be set based on event type
   oneof event {
     CombatStartedEvent combat_started = 10;
@@ -28,7 +28,7 @@ message EncounterEvent {
     DamageTakenEvent damage_taken = 18;
     EntityDefeatedEvent entity_defeated = 19;
     CombatEndedEvent combat_ended = 20;
-    StateChangedEvent state_changed = 21;  // Generic state update
+    StateChangedEvent state_changed = 21; // Generic state update
   }
 }
 
@@ -96,22 +96,22 @@ message DamageTakenEvent {
 // EntityDefeatedEvent fires when an entity reaches 0 HP
 message EntityDefeatedEvent {
   string entity_id = 1;
-  string defeated_by = 2;  // Entity that dealt the killing blow
+  string defeated_by = 2; // Entity that dealt the killing blow
 }
 
 // CombatEndedEvent fires when combat concludes
 message CombatEndedEvent {
   enum EndReason {
     END_REASON_UNSPECIFIED = 0;
-    END_REASON_VICTORY = 1;     // All enemies defeated
-    END_REASON_DEFEAT = 2;      // All players defeated
-    END_REASON_FLED = 3;        // Players fled
-    END_REASON_NEGOTIATED = 4;  // Peaceful resolution
-    END_REASON_TIMEOUT = 5;     // Combat timed out
+    END_REASON_VICTORY = 1; // All enemies defeated
+    END_REASON_DEFEAT = 2; // All players defeated
+    END_REASON_FLED = 3; // Players fled
+    END_REASON_NEGOTIATED = 4; // Peaceful resolution
+    END_REASON_TIMEOUT = 5; // Combat timed out
   }
   EndReason reason = 1;
-  repeated string victor_ids = 2;  // IDs of victorious entities
-  repeated string defeated_ids = 3;  // IDs of defeated entities
+  repeated string victor_ids = 2; // IDs of victorious entities
+  repeated string defeated_ids = 3; // IDs of defeated entities
 }
 
 // StateChangedEvent is a generic event for any state change
@@ -123,13 +123,13 @@ message StateChangedEvent {
 // SubscribeToEncounterRequest subscribes to encounter events
 message SubscribeToEncounterRequest {
   string encounter_id = 1;
-  repeated string event_types = 2;  // Optional filter for specific event types
+  repeated string event_types = 2; // Optional filter for specific event types
 }
 
 // SubscribeToEncounterResponse confirms subscription
 message SubscribeToEncounterResponse {
   string subscription_id = 1;
-  CombatState current_state = 2;  // Current state at time of subscription
+  CombatState current_state = 2; // Current state at time of subscription
   Room current_room = 3;
 }
 

@@ -51,33 +51,19 @@ message DungeonStartRequest {
   repeated string character_ids = 1;
 }
 
-// DungeonStartResponse contains the generated encounter
+// DungeonStartResponse contains the generated encounter with combat already started
 message DungeonStartResponse {
   // Unique identifier for this encounter
   string encounter_id = 1;
   // The generated room with all entities placed (including characters)
   Room room = 2;
+  // Combat state with initiative already rolled
+  CombatState combat_state = 3;
 }
 
 // ============================================================================
-// PHASE 1: COMBAT STATE MANAGEMENT
+// COMBAT STATE (automatically started by DungeonStart)
 // ============================================================================
-
-// InitiativeRoll represents a pre-rolled initiative value (optional)
-message InitiativeRoll {
-  string entity_id = 1;
-  int32 roll = 2; // d20 result
-  int32 modifier = 3; // DEX modifier
-}
-
-// StartCombatRequest initiates combat for an encounter
-message StartCombatRequest {
-  string encounter_id = 1;
-  // Optional pre-rolled initiative values. If not provided, system rolls.
-  repeated InitiativeRoll initiative_rolls = 2;
-  // Optional seed for deterministic initiative rolling
-  optional string seed = 3;
-}
 
 // InitiativeEntry represents one combatant in turn order
 message InitiativeEntry {
@@ -110,23 +96,19 @@ message CombatState {
   bool combat_ended = 7;
 }
 
-// StartCombatResponse returns the initial combat state
-message StartCombatResponse {
-  CombatState combat_state = 1;
-}
-
-// GetCombatStateRequest retrieves current combat state
+// GetCombatStateRequest retrieves current state (for reconnection/refresh)
 message GetCombatStateRequest {
   string encounter_id = 1;
 }
 
-// GetCombatStateResponse returns the current combat state
+// GetCombatStateResponse returns the current state
 message GetCombatStateResponse {
-  CombatState combat_state = 1;
+  Room room = 1;
+  CombatState combat_state = 2;
 }
 
 // ============================================================================
-// PHASE 2: MOVEMENT
+// MOVEMENT
 // ============================================================================
 
 // MoveCharacterRequest requests movement to a new position
@@ -161,21 +143,11 @@ message MoveCharacterResponse {
   CombatState combat_state = 5; // Updated combat state
 }
 
-// GetMovementOptionsRequest queries valid movement positions
-message GetMovementOptionsRequest {
-  string encounter_id = 1;
-  string entity_id = 2;
-}
-
-// GetMovementOptionsResponse returns valid movement targets
-message GetMovementOptionsResponse {
-  repeated .api.v1alpha1.Position valid_positions = 1;
-  int32 movement_remaining = 2;
-  map<string, int32> position_costs = 3; // Position key -> movement cost
-}
+// FUTURE: GetMovementOptions RPC for server-side movement validation
+// For now, client calculates valid moves locally
 
 // ============================================================================
-// PHASE 3: TURN MANAGEMENT
+// TURN MANAGEMENT
 // ============================================================================
 
 // EndTurnRequest ends the current entity's turn
@@ -200,7 +172,7 @@ message EndTurnResponse {
 }
 
 // ============================================================================
-// PHASE 3.5: BASIC COMBAT ACTIONS (for Week 3)
+// COMBAT ACTIONS
 // ============================================================================
 
 // AttackRequest represents a melee or ranged attack
@@ -232,24 +204,11 @@ message AttackResponse {
 }
 
 // ============================================================================
-// REAL-TIME STREAMING FOR MULTI-CLIENT SYNC
+// FUTURE: MULTIPLAYER STREAMING
 // ============================================================================
 
-// StreamEncounterEventsRequest subscribes to encounter state updates
-message StreamEncounterEventsRequest {
-  string encounter_id = 1;
-  string client_id = 2; // Unique client identifier for connection tracking
-}
-
-// StreamEncounterEventsResponse streams the full state to all connected clients
-// Sent whenever ANY change occurs - clients can diff to determine what changed
-message StreamEncounterEventsResponse {
-  string encounter_id = 1;
-  Room room = 2; // Complete room state with entity positions
-  CombatState combat_state = 3; // Complete combat state with turn order
-  int64 timestamp = 4; // Server timestamp for ordering
-  int32 sequence = 5; // Incrementing sequence number for detecting missed updates
-}
+// FUTURE: StreamEncounterEvents RPC for multi-client synchronization
+// For Phase 1 single-player demo, each action returns complete state
 
 // ============================================================================
 // SERVICE DEFINITION
@@ -257,23 +216,20 @@ message StreamEncounterEventsResponse {
 
 // EncounterService manages D&D 5e encounters
 service EncounterService {
-  // DungeonStart generates a simple starting room for testing
+  // DungeonStart generates room, places entities, and rolls initiative
   rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
 
-  // Phase 1: Combat State Management
-  rpc StartCombat(StartCombatRequest) returns (StartCombatResponse);
+  // GetCombatState retrieves current state (mainly for reconnection)
   rpc GetCombatState(GetCombatStateRequest) returns (GetCombatStateResponse);
 
-  // Phase 2: Movement
+  // Movement - client calculates valid moves, server validates
   rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse);
-  rpc GetMovementOptions(GetMovementOptionsRequest) returns (GetMovementOptionsResponse);
 
-  // Phase 3: Turn Management
+  // Turn Management
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
 
-  // Phase 3.5: Basic Combat
+  // Combat Actions
   rpc Attack(AttackRequest) returns (AttackResponse);
 
-  // Real-time Updates: Server streaming for multiple clients
-  rpc StreamEncounterEvents(StreamEncounterEventsRequest) returns (stream StreamEncounterEventsResponse);
+  // FUTURE: rpc StreamEncounterEvents for multiplayer
 }

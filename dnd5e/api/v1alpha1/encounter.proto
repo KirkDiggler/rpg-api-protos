@@ -7,6 +7,7 @@ import "api/v1alpha1/room_common.proto";
 // Note: Using Position from api.v1alpha1.room_common
 
 // EntityPlacement represents where an entity is positioned
+// Matches toolkit's EntityPlacement structure exactly
 message EntityPlacement {
   // Unique identifier for the entity
   string entity_id = 1;
@@ -14,9 +15,16 @@ message EntityPlacement {
   string entity_type = 2;
   // Position in the room
   .api.v1alpha1.Position position = 3;
+  // Size of the entity in grid units (default 1)
+  int32 size = 4;
+  // Whether this entity blocks movement through its space
+  bool blocks_movement = 5;
+  // Whether this entity blocks line of sight
+  bool blocks_line_of_sight = 6;
 }
 
 // Room represents a spatial area where encounters take place
+// Matches toolkit's RoomData structure exactly for direct field mapping
 message Room {
   // Unique identifier for the room
   string id = 1;
@@ -28,10 +36,13 @@ message Room {
   int32 height = 4;
   // Grid system used in this room
   .api.v1alpha1.GridType grid_type = 5;
-  // Entities placed in the room
-  repeated EntityPlacement entities = 6;
-  // Custom metadata for the room
-  map<string, string> metadata = 7;
+  // Hex orientation: true for pointy-top, false for flat-top
+  // Only used when grid_type is HEX, defaults to true (pointy-top) for D&D 5e compatibility
+  // Uses optional to distinguish between explicit false and unset (which defaults to true)
+  optional bool hex_orientation = 6;
+  // Entities placed in the room - map of entity ID to their placement data
+  // Matches toolkit's map[string]EntityPlacement structure
+  map<string, EntityPlacement> entities = 7;
 }
 
 // DungeonStartRequest initiates a simple dungeon encounter
@@ -40,16 +51,185 @@ message DungeonStartRequest {
   repeated string character_ids = 1;
 }
 
-// DungeonStartResponse contains the generated encounter
+// DungeonStartResponse contains the generated encounter with combat already started
 message DungeonStartResponse {
   // Unique identifier for this encounter
   string encounter_id = 1;
   // The generated room with all entities placed (including characters)
   Room room = 2;
+  // Combat state with initiative already rolled
+  CombatState combat_state = 3;
 }
+
+// ============================================================================
+// COMBAT STATE (automatically started by DungeonStart)
+// ============================================================================
+
+// InitiativeEntry represents one combatant in turn order
+message InitiativeEntry {
+  string entity_id = 1;
+  string entity_type = 2; // "character", "monster", "npc"
+  int32 initiative = 3; // Total initiative value (roll + modifier)
+  int32 modifier = 4; // DEX modifier used
+  bool has_acted = 5; // Has this entity acted this round?
+}
+
+// TurnState tracks resources available during a turn
+message TurnState {
+  string entity_id = 1;
+  int32 movement_used = 2;
+  int32 movement_max = 3;
+  bool action_used = 4;
+  bool bonus_action_used = 5;
+  bool reaction_available = 6;
+  .api.v1alpha1.Position position = 7;
+}
+
+// CombatState represents the complete state of combat
+message CombatState {
+  string encounter_id = 1;
+  int32 round = 2;
+  repeated InitiativeEntry turn_order = 3;
+  int32 active_index = 4; // Index in turn_order of current actor
+  TurnState current_turn = 5;
+  bool combat_started = 6;
+  bool combat_ended = 7;
+}
+
+// GetCombatStateRequest retrieves current state (for reconnection/refresh)
+message GetCombatStateRequest {
+  string encounter_id = 1;
+}
+
+// GetCombatStateResponse returns the current state
+message GetCombatStateResponse {
+  Room room = 1;
+  CombatState combat_state = 2;
+}
+
+// ============================================================================
+// MOVEMENT
+// ============================================================================
+
+// MoveCharacterRequest requests movement to a new position
+message MoveCharacterRequest {
+  string encounter_id = 1;
+  string entity_id = 2;
+  .api.v1alpha1.Position target_position = 3;
+}
+
+// MovementError provides detailed movement failure information
+message MovementError {
+  enum ErrorCode {
+    ERROR_CODE_UNSPECIFIED = 0;
+    ERROR_CODE_INVALID_POSITION = 1;
+    ERROR_CODE_INSUFFICIENT_MOVEMENT = 2;
+    ERROR_CODE_PATH_BLOCKED = 3;
+    ERROR_CODE_POSITION_OCCUPIED = 4;
+    ERROR_CODE_OUT_OF_BOUNDS = 5;
+    ERROR_CODE_NOT_YOUR_TURN = 6;
+  }
+  ErrorCode code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// MoveCharacterResponse returns movement result
+message MoveCharacterResponse {
+  bool success = 1;
+  MovementError error = 2;
+  int32 movement_remaining = 3;
+  Room updated_room = 4; // Updated room with new positions
+  CombatState combat_state = 5; // Updated combat state
+}
+
+// FUTURE: GetMovementOptions RPC for server-side movement validation
+// For now, client calculates valid moves locally
+
+// ============================================================================
+// TURN MANAGEMENT
+// ============================================================================
+
+// EndTurnRequest ends the current entity's turn
+message EndTurnRequest {
+  string encounter_id = 1;
+  string entity_id = 2; // Must match current turn
+}
+
+// TurnChangeEvent describes a turn transition
+message TurnChangeEvent {
+  string previous_entity_id = 1;
+  string next_entity_id = 2;
+  int32 round = 3;
+  bool new_round = 4; // True if this starts a new round
+}
+
+// EndTurnResponse returns the updated state after turn end
+message EndTurnResponse {
+  bool success = 1;
+  CombatState combat_state = 2;
+  TurnChangeEvent turn_change = 3;
+}
+
+// ============================================================================
+// COMBAT ACTIONS
+// ============================================================================
+
+// AttackRequest represents a melee or ranged attack
+message AttackRequest {
+  string encounter_id = 1;
+  string attacker_id = 2;
+  string target_id = 3;
+  string weapon_id = 4; // Optional, uses default weapon if not specified
+}
+
+// AttackResult contains the outcome of an attack
+message AttackResult {
+  bool hit = 1;
+  int32 attack_roll = 2;
+  int32 attack_total = 3; // roll + modifiers
+  int32 target_ac = 4;
+  int32 damage = 5;
+  string damage_type = 6; // "slashing", "piercing", etc.
+  bool critical = 7;
+}
+
+// AttackResponse returns the attack outcome
+message AttackResponse {
+  bool success = 1;
+  string error = 2;
+  AttackResult result = 3;
+  CombatState combat_state = 4;
+  Room updated_room = 5; // Updated if entities are defeated/removed
+}
+
+// ============================================================================
+// FUTURE: MULTIPLAYER STREAMING
+// ============================================================================
+
+// FUTURE: StreamEncounterEvents RPC for multi-client synchronization
+// For Phase 1 single-player demo, each action returns complete state
+
+// ============================================================================
+// SERVICE DEFINITION
+// ============================================================================
 
 // EncounterService manages D&D 5e encounters
 service EncounterService {
-  // DungeonStart generates a simple starting room for testing
+  // DungeonStart generates room, places entities, and rolls initiative
   rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
+
+  // GetCombatState retrieves current state (mainly for reconnection)
+  rpc GetCombatState(GetCombatStateRequest) returns (GetCombatStateResponse);
+
+  // Movement - client calculates valid moves, server validates
+  rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse);
+
+  // Turn Management
+  rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
+
+  // Combat Actions
+  rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // FUTURE: rpc StreamEncounterEvents for multiplayer
 }

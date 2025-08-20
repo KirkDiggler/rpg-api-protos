@@ -26,18 +26,12 @@ service SandboxRoomService {
   rpc MoveEntity(MoveEntityRequest) returns (MoveEntityResponse);
   rpc RemoveEntity(RemoveEntityRequest) returns (RemoveEntityResponse);
   rpc GetEntitiesInRoom(GetEntitiesInRoomRequest) returns (GetEntitiesInRoomResponse);
-
-  // Sandbox Lifecycle
-  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
-  rpc GetSandbox(GetSandboxRequest) returns (GetSandboxResponse);
-  rpc DeleteSandbox(DeleteSandboxRequest) returns (DeleteSandboxResponse);
 }
 
 // Room Generation - Procedural
 message GenerateRoomRequest {
-  string sandbox_id = 1;
-  GenerativeRoomConfig config = 2;
-  int64 seed = 3;
+  GenerativeRoomConfig config = 1;
+  int64 seed = 2;
 }
 
 message GenerateRoomResponse {
@@ -49,8 +43,7 @@ message GenerateRoomResponse {
 
 // Room Building - Static
 message BuildStaticRoomRequest {
-  string sandbox_id = 1;
-  StaticRoomConfig config = 2;
+  StaticRoomConfig config = 1;
 }
 
 message BuildStaticRoomResponse {
@@ -164,9 +157,8 @@ message GetRoomResponse {
 }
 
 message ListRoomsRequest {
-  string sandbox_id = 1;
-  int32 page_size = 2;
-  string page_token = 3;
+  int32 page_size = 1;
+  string page_token = 2;
 }
 
 message ListRoomsResponse {
@@ -180,36 +172,6 @@ message DeleteRoomRequest {
 }
 
 message DeleteRoomResponse {
-  bool success = 1;
-  string reason = 2;
-}
-
-// Sandbox Management
-message CreateSandboxRequest {
-  string entity_id = 1; // Following existing entity ownership pattern
-  string experiment_name = 2;
-  string description = 3;
-}
-
-message CreateSandboxResponse {
-  string sandbox_id = 1;
-  int64 created_at = 2;
-  int64 expires_at = 3; // TTL-based expiration
-}
-
-message GetSandboxRequest {
-  string sandbox_id = 1;
-}
-
-message GetSandboxResponse {
-  SandboxInfo sandbox = 1;
-}
-
-message DeleteSandboxRequest {
-  string sandbox_id = 1;
-}
-
-message DeleteSandboxResponse {
   bool success = 1;
   string reason = 2;
 }

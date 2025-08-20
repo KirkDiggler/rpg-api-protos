@@ -42,6 +42,9 @@ mocks: ## Generate mocks for gRPC services
 	mockgen -source=gen/go/api/v1alpha1/room_selectables_grpc.pb.go -destination=gen/go/api/v1alpha1/mocks/selection_table_service.go -package=mocks
 	mockgen -source=gen/go/api/v1alpha1/room_spatial_grpc.pb.go -destination=gen/go/api/v1alpha1/mocks/spatial_service.go -package=mocks
 	mockgen -source=gen/go/api/v1alpha1/room_spawn_grpc.pb.go -destination=gen/go/api/v1alpha1/mocks/spawn_service.go -package=mocks
+	# Sandbox services
+	mkdir -p gen/go/sandbox/api/v1alpha1/mocks
+	mockgen -source=gen/go/sandbox/api/v1alpha1/sandbox_room_grpc.pb.go -destination=gen/go/sandbox/api/v1alpha1/mocks/sandbox_room_service.go -package=mocks
 
 breaking: ## Check for breaking changes against main branch
 	buf breaking --against '.git#branch=main'

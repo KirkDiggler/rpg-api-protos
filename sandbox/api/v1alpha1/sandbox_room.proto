@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package sandbox.api.v1alpha1;
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/sandbox/api/v1alpha1";
+
+import "api/v1alpha1/room_common.proto";
+import "sandbox/api/v1alpha1/sandbox_common.proto";
+
+service SandboxRoomService {
+  // Room Creation & Management
+  rpc GenerateRoom(GenerateRoomRequest) returns (GenerateRoomResponse);
+  rpc BuildStaticRoom(BuildStaticRoomRequest) returns (BuildStaticRoomResponse);
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  rpc DeleteRoom(DeleteRoomRequest) returns (DeleteRoomResponse);
+  
+  // Spatial Queries
+  rpc CheckLineOfSight(CheckLineOfSightRequest) returns (CheckLineOfSightResponse);
+  rpc FindPath(FindPathRequest) returns (FindPathResponse);
+  rpc CalculateDistance(CalculateDistanceRequest) returns (CalculateDistanceResponse);
+  rpc GetPositionsInRange(GetPositionsInRangeRequest) returns (GetPositionsInRangeResponse);
+  
+  // Entity Management
+  rpc PlaceEntity(PlaceEntityRequest) returns (PlaceEntityResponse);
+  rpc MoveEntity(MoveEntityRequest) returns (MoveEntityResponse);
+  rpc RemoveEntity(RemoveEntityRequest) returns (RemoveEntityResponse);
+  rpc GetEntitiesInRoom(GetEntitiesInRoomRequest) returns (GetEntitiesInRoomResponse);
+  
+  // Sandbox Lifecycle  
+  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+  rpc GetSandbox(GetSandboxRequest) returns (GetSandboxResponse);
+  rpc DeleteSandbox(DeleteSandboxRequest) returns (DeleteSandboxResponse);
+}
+
+// Room Generation - Procedural
+message GenerateRoomRequest {
+  string sandbox_id = 1;
+  GenerativeRoomConfig config = 2;
+  int64 seed = 3;
+}
+
+message GenerateRoomResponse {
+  string room_id = 1;
+.api.v1alpha1.Room room = 2;
+  GenerationMetrics metrics = 3;
+  repeated string warnings = 4;
+}
+
+// Room Building - Static
+message BuildStaticRoomRequest {
+  string sandbox_id = 1;
+  StaticRoomConfig config = 2;
+}
+
+message BuildStaticRoomResponse {
+  string room_id = 1;
+.api.v1alpha1.Room room = 2;
+}
+
+// Spatial Query Messages
+message CheckLineOfSightRequest {
+  string room_id = 1;
+  .api.v1alpha1.Position from = 2;
+  .api.v1alpha1.Position to = 3;
+}
+
+message CheckLineOfSightResponse {
+  bool is_clear = 1;
+  repeated .api.v1alpha1.Position blocked_positions = 2;
+  repeated .api.v1alpha1.Position path_positions = 3;
+}
+
+message FindPathRequest {
+  string room_id = 1;
+  .api.v1alpha1.Position from = 2;
+  .api.v1alpha1.Position to = 3;
+  EntitySize entity_size = 4;  // For movement constraints
+}
+
+message FindPathResponse {
+  bool path_exists = 1;
+  repeated .api.v1alpha1.Position path = 2;
+  double total_distance = 3;
+}
+
+message CalculateDistanceRequest {
+  string room_id = 1;
+  .api.v1alpha1.Position from = 2;
+  .api.v1alpha1.Position to = 3;
+  DistanceType distance_type = 4;  // EUCLIDEAN, MANHATTAN, CHEBYSHEV
+}
+
+message CalculateDistanceResponse {
+  double distance = 1;
+  DistanceType distance_type = 2;
+}
+
+message GetPositionsInRangeRequest {
+  string room_id = 1;
+  .api.v1alpha1.Position center = 2;
+  double radius = 3;
+  bool include_occupied = 4;
+}
+
+message GetPositionsInRangeResponse {
+  repeated .api.v1alpha1.Position positions = 1;
+  repeated .api.v1alpha1.Position occupied_positions = 2;
+}
+
+// Entity Management Messages
+message PlaceEntityRequest {
+  string room_id = 1;
+  .api.v1alpha1.Entity entity = 2;
+  .api.v1alpha1.Position position = 3;
+}
+
+message PlaceEntityResponse {
+  bool success = 1;
+  string entity_id = 2;
+  string reason = 3;  // If placement failed
+}
+
+message MoveEntityRequest {
+  string room_id = 1;
+  string entity_id = 2;
+  .api.v1alpha1.Position new_position = 3;
+  bool validate_path = 4;  // Check if movement is valid
+}
+
+message MoveEntityResponse {
+  bool success = 1;
+  .api.v1alpha1.Position actual_position = 2;  // Final position after move
+  string reason = 3;  // If movement failed
+}
+
+message RemoveEntityRequest {
+  string room_id = 1;
+  string entity_id = 2;
+}
+
+message RemoveEntityResponse {
+  bool success = 1;
+  string reason = 2;  // If removal failed
+}
+
+message GetEntitiesInRoomRequest {
+  string room_id = 1;
+  string entity_type_filter = 2;  // Optional filter by type
+}
+
+message GetEntitiesInRoomResponse {
+  repeated .api.v1alpha1.Entity entities = 1;
+  map<string, .api.v1alpha1.Position> entity_positions = 2;
+}
+
+// Room Management Messages
+message GetRoomRequest {
+  string room_id = 1;
+}
+
+message GetRoomResponse {
+  .api.v1alpha1.Room room = 1;
+}
+
+message ListRoomsRequest {
+  string sandbox_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListRoomsResponse {
+  repeated .api.v1alpha1.Room rooms = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message DeleteRoomRequest {
+  string room_id = 1;
+}
+
+message DeleteRoomResponse {
+  bool success = 1;
+  string reason = 2;
+}
+
+// Sandbox Management
+message CreateSandboxRequest {
+  string entity_id = 1;      // Following existing entity ownership pattern
+  string experiment_name = 2;
+  string description = 3;
+}
+
+message CreateSandboxResponse {
+  string sandbox_id = 1;
+  int64 created_at = 2;
+  int64 expires_at = 3;      // TTL-based expiration
+}
+
+message GetSandboxRequest {
+  string sandbox_id = 1;
+}
+
+message GetSandboxResponse {
+  SandboxInfo sandbox = 1;
+}
+
+message DeleteSandboxRequest {
+  string sandbox_id = 1;
+}
+
+message DeleteSandboxResponse {
+  bool success = 1;
+  string reason = 2;
+}

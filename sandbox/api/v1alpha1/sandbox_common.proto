@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package sandbox.api.v1alpha1;
+
+import "api/v1alpha1/room_common.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/sandbox/api/v1alpha1";
+
+// Room Configuration - Procedural Generation
+message GenerativeRoomConfig {
+  // Basic Dimensions
+  int32 width = 1;
+  int32 height = 2;
+
+  // Room Shape (maps to toolkit shapes)
+  RoomShape shape = 3;
+  int32 rotation_degrees = 4; // 0, 90, 180, 270
+  bool random_rotation = 5;
+
+  // Wall Generation
+  WallPattern wall_pattern = 6;
+  float wall_density = 7; // 0.0-1.0, for random patterns
+  float destructible_ratio = 8; // 0.0-1.0, % of walls destructible
+  string wall_material = 9; // "stone", "wood", "metal", etc.
+
+  // Theme & Style
+  string theme = 10; // "dungeon", "cave", "forest", etc.
+
+  // Grid Type
+  .api.v1alpha1.GridType grid_type = 11; // SQUARE, HEX_POINTY, HEX_FLAT, GRIDLESS
+}
+
+// Room Configuration - Static Building
+message StaticRoomConfig {
+  // Basic Dimensions
+  int32 width = 1;
+  int32 height = 2;
+  RoomShape shape = 3;
+  .api.v1alpha1.GridType grid_type = 4;
+
+  // Explicit Wall Placement
+  repeated WallSegment walls = 5;
+  repeated Door doors = 6;
+  repeated TerrainFeature terrain_features = 7;
+
+  string theme = 8;
+}
+
+// Enums for Room Generation
+enum RoomShape {
+  ROOM_SHAPE_UNSPECIFIED = 0;
+  ROOM_SHAPE_RECTANGLE = 1;
+  ROOM_SHAPE_SQUARE = 2;
+  ROOM_SHAPE_L_SHAPE = 3;
+  ROOM_SHAPE_T_SHAPE = 4;
+  ROOM_SHAPE_CROSS = 5;
+  ROOM_SHAPE_OVAL = 6;
+}
+
+enum WallPattern {
+  WALL_PATTERN_UNSPECIFIED = 0;
+  WALL_PATTERN_EMPTY = 1; // No internal walls
+  WALL_PATTERN_RANDOM = 2; // Random walls based on density
+}
+
+enum DistanceType {
+  DISTANCE_TYPE_UNSPECIFIED = 0;
+  DISTANCE_TYPE_EUCLIDEAN = 1; // Straight line
+  DISTANCE_TYPE_MANHATTAN = 2; // Grid movement
+  DISTANCE_TYPE_CHEBYSHEV = 3; // D&D 5e diagonal
+}
+
+enum EntitySize {
+  ENTITY_SIZE_UNSPECIFIED = 0;
+  ENTITY_SIZE_TINY = 1; // 2.5ft (0.5 squares)
+  ENTITY_SIZE_SMALL = 2; // 5ft (1 square)
+  ENTITY_SIZE_MEDIUM = 3; // 5ft (1 square)
+  ENTITY_SIZE_LARGE = 4; // 10ft (2x2 squares)
+  ENTITY_SIZE_HUGE = 5; // 15ft (3x3 squares)
+  ENTITY_SIZE_GARGANTUAN = 6; // 20ft+ (4x4+ squares)
+}
+
+message WallSegment {
+  .api.v1alpha1.Position start = 1;
+  .api.v1alpha1.Position end = 2;
+  WallType wall_type = 3;
+  WallProperties properties = 4;
+}
+
+message WallProperties {
+  int32 hit_points = 1;
+  string material = 2;
+  float thickness = 3;
+  float height = 4;
+  bool blocks_line_of_sight = 5;
+  bool blocks_movement = 6;
+  bool provides_cover = 7;
+}
+
+enum WallType {
+  WALL_TYPE_UNSPECIFIED = 0;
+  WALL_TYPE_INDESTRUCTIBLE = 1;
+  WALL_TYPE_DESTRUCTIBLE = 2;
+}
+
+message Door {
+  .api.v1alpha1.Position position = 1;
+  DoorOrientation orientation = 2;
+  DoorState state = 3;
+}
+
+enum DoorOrientation {
+  DOOR_ORIENTATION_UNSPECIFIED = 0;
+  DOOR_ORIENTATION_HORIZONTAL = 1;
+  DOOR_ORIENTATION_VERTICAL = 2;
+}
+
+enum DoorState {
+  DOOR_STATE_UNSPECIFIED = 0;
+  DOOR_STATE_CLOSED = 1;
+  DOOR_STATE_OPEN = 2;
+  DOOR_STATE_LOCKED = 3;
+}
+
+message TerrainFeature {
+  .api.v1alpha1.Position position = 1;
+  string feature_type = 2; // "pillar", "pit", "water", etc.
+  map<string, string> properties = 3;
+}
+
+message GenerationMetrics {
+  int64 generation_time_ms = 1;
+  int32 walls_created = 2;
+  int32 doors_created = 3;
+  int32 terrain_features_created = 4;
+  repeated string toolkit_modules_used = 5;
+  string generation_method = 6; // "procedural" or "static"
+}
+
+message SandboxInfo {
+  string sandbox_id = 1;
+  string entity_id = 2;
+  string experiment_name = 3;
+  string description = 4;
+  int64 created_at = 5;
+  int64 expires_at = 6;
+  int32 rooms_generated = 7;
+}

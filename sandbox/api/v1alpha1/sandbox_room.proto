@@ -1,10 +1,11 @@
 syntax = "proto3";
 
 package sandbox.api.v1alpha1;
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/sandbox/api/v1alpha1";
 
 import "api/v1alpha1/room_common.proto";
 import "sandbox/api/v1alpha1/sandbox_common.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/sandbox/api/v1alpha1";
 
 service SandboxRoomService {
   // Room Creation & Management
@@ -13,20 +14,20 @@ service SandboxRoomService {
   rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
   rpc DeleteRoom(DeleteRoomRequest) returns (DeleteRoomResponse);
-  
+
   // Spatial Queries
   rpc CheckLineOfSight(CheckLineOfSightRequest) returns (CheckLineOfSightResponse);
   rpc FindPath(FindPathRequest) returns (FindPathResponse);
   rpc CalculateDistance(CalculateDistanceRequest) returns (CalculateDistanceResponse);
   rpc GetPositionsInRange(GetPositionsInRangeRequest) returns (GetPositionsInRangeResponse);
-  
+
   // Entity Management
   rpc PlaceEntity(PlaceEntityRequest) returns (PlaceEntityResponse);
   rpc MoveEntity(MoveEntityRequest) returns (MoveEntityResponse);
   rpc RemoveEntity(RemoveEntityRequest) returns (RemoveEntityResponse);
   rpc GetEntitiesInRoom(GetEntitiesInRoomRequest) returns (GetEntitiesInRoomResponse);
-  
-  // Sandbox Lifecycle  
+
+  // Sandbox Lifecycle
   rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
   rpc GetSandbox(GetSandboxRequest) returns (GetSandboxResponse);
   rpc DeleteSandbox(DeleteSandboxRequest) returns (DeleteSandboxResponse);
@@ -41,7 +42,7 @@ message GenerateRoomRequest {
 
 message GenerateRoomResponse {
   string room_id = 1;
-.api.v1alpha1.Room room = 2;
+  .api.v1alpha1.Room room = 2;
   GenerationMetrics metrics = 3;
   repeated string warnings = 4;
 }
@@ -54,7 +55,7 @@ message BuildStaticRoomRequest {
 
 message BuildStaticRoomResponse {
   string room_id = 1;
-.api.v1alpha1.Room room = 2;
+  .api.v1alpha1.Room room = 2;
 }
 
 // Spatial Query Messages
@@ -74,7 +75,7 @@ message FindPathRequest {
   string room_id = 1;
   .api.v1alpha1.Position from = 2;
   .api.v1alpha1.Position to = 3;
-  EntitySize entity_size = 4;  // For movement constraints
+  EntitySize entity_size = 4; // For movement constraints
 }
 
 message FindPathResponse {
@@ -87,7 +88,7 @@ message CalculateDistanceRequest {
   string room_id = 1;
   .api.v1alpha1.Position from = 2;
   .api.v1alpha1.Position to = 3;
-  DistanceType distance_type = 4;  // EUCLIDEAN, MANHATTAN, CHEBYSHEV
+  DistanceType distance_type = 4; // EUCLIDEAN, MANHATTAN, CHEBYSHEV
 }
 
 message CalculateDistanceResponse {
@@ -117,20 +118,20 @@ message PlaceEntityRequest {
 message PlaceEntityResponse {
   bool success = 1;
   string entity_id = 2;
-  string reason = 3;  // If placement failed
+  string reason = 3; // If placement failed
 }
 
 message MoveEntityRequest {
   string room_id = 1;
   string entity_id = 2;
   .api.v1alpha1.Position new_position = 3;
-  bool validate_path = 4;  // Check if movement is valid
+  bool validate_path = 4; // Check if movement is valid
 }
 
 message MoveEntityResponse {
   bool success = 1;
-  .api.v1alpha1.Position actual_position = 2;  // Final position after move
-  string reason = 3;  // If movement failed
+  .api.v1alpha1.Position actual_position = 2; // Final position after move
+  string reason = 3; // If movement failed
 }
 
 message RemoveEntityRequest {
@@ -140,12 +141,12 @@ message RemoveEntityRequest {
 
 message RemoveEntityResponse {
   bool success = 1;
-  string reason = 2;  // If removal failed
+  string reason = 2; // If removal failed
 }
 
 message GetEntitiesInRoomRequest {
   string room_id = 1;
-  string entity_type_filter = 2;  // Optional filter by type
+  string entity_type_filter = 2; // Optional filter by type
 }
 
 message GetEntitiesInRoomResponse {
@@ -185,7 +186,7 @@ message DeleteRoomResponse {
 
 // Sandbox Management
 message CreateSandboxRequest {
-  string entity_id = 1;      // Following existing entity ownership pattern
+  string entity_id = 1; // Following existing entity ownership pattern
   string experiment_name = 2;
   string description = 3;
 }
@@ -193,7 +194,7 @@ message CreateSandboxRequest {
 message CreateSandboxResponse {
   string sandbox_id = 1;
   int64 created_at = 2;
-  int64 expires_at = 3;      // TTL-based expiration
+  int64 expires_at = 3; // TTL-based expiration
 }
 
 message GetSandboxRequest {

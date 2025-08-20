@@ -136,13 +136,3 @@ message GenerationMetrics {
   repeated string toolkit_modules_used = 5;
   string generation_method = 6; // "procedural" or "static"
 }
-
-message SandboxInfo {
-  string sandbox_id = 1;
-  string entity_id = 2;
-  string experiment_name = 3;
-  string description = 4;
-  int64 created_at = 5;
-  int64 expires_at = 6;
-  int32 rooms_generated = 7;
-}

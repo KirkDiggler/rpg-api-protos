@@ -128,6 +128,7 @@ enum ValidationSource {
   VALIDATION_SOURCE_NAME = 5;
   VALIDATION_SOURCE_ALIGNMENT = 6;
   VALIDATION_SOURCE_LEVEL = 7;
+  VALIDATION_SOURCE_SUBRACE = 8; // Validation from subrace selection
 }
 
 // Fields that can have validation issues (matches toolkit constants)
@@ -147,4 +148,6 @@ enum ValidationField {
   VALIDATION_FIELD_CLASS = 12;
   VALIDATION_FIELD_BACKGROUND = 13;
   VALIDATION_FIELD_DRACONIC_ANCESTRY = 14;
+  VALIDATION_FIELD_SUBRACE = 15; // Subrace selection
+  VALIDATION_FIELD_TRAITS = 16; // Generic racial/class traits
 }

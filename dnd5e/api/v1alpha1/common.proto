@@ -92,17 +92,18 @@ message ValidationResult {
   enum Severity {
     SEVERITY_UNSPECIFIED = 0;
     SEVERITY_ERROR = 1;        // Critical issues that prevent character use
-    SEVERITY_INCOMPLETE = 2;    // Missing required choices (OK for drafts)
-    SEVERITY_WARNING = 3;       // Non-blocking issues like duplicates
+    SEVERITY_INCOMPLETE = 2;   // Missing required choices (OK for drafts)
+    SEVERITY_WARNING = 3;      // Non-blocking issues like duplicates
   }
 
   // Individual validation issue
   message Issue {
     Severity severity = 1;
-    string source = 2;          // e.g., "race", "class", "background"
-    string field = 3;           // e.g., "skills", "languages", "equipment"
-    string message = 4;         // Human-readable description
-    repeated string details = 5; // Additional context (e.g., conflicting choices)
+    ValidationSource source = 2;      // Where the issue originates
+    ValidationField field = 3;        // What field has the issue
+    string message = 4;                // Human-readable description
+    repeated string details = 5;       // Additional context (e.g., conflicting choices)
+    string source_detail = 6;          // Optional: specific source ID (e.g., "fighter", "elf")
   }
 
   // Whether the character/draft is valid for its current state
@@ -115,4 +116,35 @@ message ValidationResult {
   int32 error_count = 3;
   int32 incomplete_count = 4;
   int32 warning_count = 5;
+}
+
+// Sources of validation issues (matches toolkit constants)
+enum ValidationSource {
+  VALIDATION_SOURCE_UNSPECIFIED = 0;
+  VALIDATION_SOURCE_RACE = 1;
+  VALIDATION_SOURCE_CLASS = 2;
+  VALIDATION_SOURCE_BACKGROUND = 3;
+  VALIDATION_SOURCE_ABILITY_SCORES = 4;
+  VALIDATION_SOURCE_NAME = 5;
+  VALIDATION_SOURCE_ALIGNMENT = 6;
+  VALIDATION_SOURCE_LEVEL = 7;
+}
+
+// Fields that can have validation issues (matches toolkit constants)
+enum ValidationField {
+  VALIDATION_FIELD_UNSPECIFIED = 0;
+  VALIDATION_FIELD_SKILLS = 1;
+  VALIDATION_FIELD_LANGUAGES = 2;
+  VALIDATION_FIELD_EQUIPMENT = 3;
+  VALIDATION_FIELD_SPELLS = 4;
+  VALIDATION_FIELD_CANTRIPS = 5;
+  VALIDATION_FIELD_TOOLS = 6;
+  VALIDATION_FIELD_EXPERTISE = 7;
+  VALIDATION_FIELD_FIGHTING_STYLE = 8;
+  VALIDATION_FIELD_ABILITY_SCORES = 9;
+  VALIDATION_FIELD_NAME = 10;
+  VALIDATION_FIELD_RACE = 11;
+  VALIDATION_FIELD_CLASS = 12;
+  VALIDATION_FIELD_BACKGROUND = 13;
+  VALIDATION_FIELD_DRACONIC_ANCESTRY = 14;
 }

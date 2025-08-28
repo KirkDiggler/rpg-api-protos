@@ -468,6 +468,10 @@ message CharacterDraft {
   Subrace subrace_id = 18;
   Class class_id = 19;
   Background background_id = 20;
+  
+  // Current validation state of the draft
+  // This is calculated on-demand, not stored
+  ValidationResult validation = 21;
 }
 
 // Request to create a draft
@@ -481,7 +485,7 @@ message CreateDraftRequest {
 
 message CreateDraftResponse {
   CharacterDraft draft = 1;
-  ValidationResult validation = 2;
+  // Validation is now on draft.validation
 }
 
 // Request to get a draft
@@ -491,6 +495,7 @@ message GetDraftRequest {
 
 message GetDraftResponse {
   CharacterDraft draft = 1;
+  // Validation is now on draft.validation
 }
 
 // Request to update a draft
@@ -506,12 +511,10 @@ message UpdateDraftRequest {
 
 message UpdateDraftResponse {
   CharacterDraft draft = 1;
-
-  // Any validation warnings (not errors)
-  repeated ValidationWarning warnings = 2;
-
-  // Full validation result with 3-tier system
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  
+  // Deprecated: Use draft.validation instead
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 // Section-based update requests
@@ -560,38 +563,38 @@ message UpdateSkillsRequest {
 // Section-based update responses
 message UpdateNameResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateRaceResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateClassResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateBackgroundResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateAbilityScoresResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateSkillsResponse {
   CharacterDraft draft = 1;
-  repeated ValidationWarning warnings = 2;
-  ValidationResult validation = 3;
+  // Validation is now on draft.validation
+  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 enum WarningType {
@@ -620,17 +623,19 @@ message ValidateDraftRequest {
 }
 
 message ValidateDraftResponse {
-  bool is_complete = 1;
-  bool is_valid = 2;
-
-  repeated ValidationError errors = 3;
-  repeated ValidationWarning warnings = 4;
-
-  // What's still needed
-  repeated CreationStep missing_steps = 5;
-
   // Full validation result with 3-tier system
-  ValidationResult validation = 6;
+  ValidationResult validation = 1;
+  
+  // Quick access fields for compatibility
+  bool is_complete = 2;
+  bool is_valid = 3;
+  
+  // What's still needed
+  repeated CreationStep missing_steps = 4;
+
+  // Deprecated: Use validation field instead
+  repeated ValidationError errors = 5 [deprecated = true];
+  repeated ValidationWarning warnings = 6 [deprecated = true];
 }
 
 // Request to get a preview of the character
@@ -639,11 +644,12 @@ message GetDraftPreviewRequest {
 }
 
 message GetDraftPreviewResponse {
-  CharacterDraft draft = 1; // The draft with choices
+  CharacterDraft draft = 1; // The draft with choices (includes validation)
   Character preview = 2; // Computed character state
-  repeated ValidationWarning warnings = 3;
-  repeated ValidationError errors = 4;
-  ValidationResult validation = 5;
+  
+  // Deprecated: Use draft.validation instead
+  repeated ValidationWarning warnings = 3 [deprecated = true];
+  repeated ValidationError errors = 4 [deprecated = true];
 }
 
 // Request to finalize draft
@@ -656,9 +662,10 @@ message FinalizeDraftResponse {
 
   // Draft is automatically deleted after finalization
   bool draft_deleted = 2;
-
+  
   // Final validation result (should have no errors for successful finalization)
-  ValidationResult validation = 3;
+  // Optional since character is already created successfully
+  ValidationResult final_validation = 3;
 }
 
 // Request to delete draft

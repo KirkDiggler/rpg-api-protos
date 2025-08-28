@@ -468,7 +468,7 @@ message CharacterDraft {
   Subrace subrace_id = 18;
   Class class_id = 19;
   Background background_id = 20;
-  
+
   // Current validation state of the draft
   // This is calculated on-demand, not stored
   ValidationResult validation = 21;
@@ -512,7 +512,7 @@ message UpdateDraftRequest {
 message UpdateDraftResponse {
   CharacterDraft draft = 1;
   // Validation is now on draft.validation
-  
+
   // Deprecated: Use draft.validation instead
   repeated ValidationWarning warnings = 2 [deprecated = true];
 }
@@ -625,11 +625,11 @@ message ValidateDraftRequest {
 message ValidateDraftResponse {
   // Full validation result with 3-tier system
   ValidationResult validation = 1;
-  
+
   // Quick access fields for compatibility
   bool is_complete = 2;
   bool is_valid = 3;
-  
+
   // What's still needed
   repeated CreationStep missing_steps = 4;
 
@@ -646,7 +646,7 @@ message GetDraftPreviewRequest {
 message GetDraftPreviewResponse {
   CharacterDraft draft = 1; // The draft with choices (includes validation)
   Character preview = 2; // Computed character state
-  
+
   // Deprecated: Use draft.validation instead
   repeated ValidationWarning warnings = 3 [deprecated = true];
   repeated ValidationError errors = 4 [deprecated = true];
@@ -662,7 +662,7 @@ message FinalizeDraftResponse {
 
   // Draft is automatically deleted after finalization
   bool draft_deleted = 2;
-  
+
   // Final validation result (should have no errors for successful finalization)
   // Optional since character is already created successfully
   ValidationResult final_validation = 3;

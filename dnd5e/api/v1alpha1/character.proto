@@ -826,6 +826,9 @@ enum ChoiceCategory {
   CHOICE_CATEGORY_CLASS = 13; // Class selection
   CHOICE_CATEGORY_BACKGROUND = 14; // Background selection
   CHOICE_CATEGORY_CANTRIPS = 15; // Cantrips known
+  CHOICE_CATEGORY_EXPERTISE = 16; // Expertise (double proficiency) choices
+  CHOICE_CATEGORY_SUBRACE = 17; // Subrace selection (e.g., High Elf, Mountain Dwarf)
+  CHOICE_CATEGORY_TRAITS = 18; // Racial or class traits (e.g., Draconic Ancestry)
 }
 
 // Character size category

@@ -1249,6 +1249,9 @@ message ChoiceData {
     Background background = 12;
     SpellList spells = 13;
     CantripList cantrips = 14;
+    ExpertiseList expertise = 15;
+    TraitList traits = 16;
+    ToolProficiencyList tool_proficiencies = 17;
   }
 }
 
@@ -1271,6 +1274,18 @@ message SpellList {
 
 message CantripList {
   repeated string cantrips = 1;
+}
+
+message ExpertiseList {
+  repeated string skills = 1; // Skill names that get expertise (double proficiency)
+}
+
+message TraitList {
+  repeated string traits = 1; // Racial or class trait selections (e.g., "draconic_ancestry_red", "fighting_style_defense")
+}
+
+message ToolProficiencyList {
+  repeated string tools = 1; // Tool proficiency selections (e.g., "thieves_tools", "smiths_tools")
 }
 
 message RaceChoice {

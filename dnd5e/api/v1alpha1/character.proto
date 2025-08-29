@@ -906,7 +906,7 @@ message SubclassInfo {
   // Additional choices required by this subclass
   repeated Choice additional_choices = 8;
 
-  // Features specific to this subclass (at level 1)
+  // Features specific to this subclass
   repeated FeatureInfo features = 9;
 }
 

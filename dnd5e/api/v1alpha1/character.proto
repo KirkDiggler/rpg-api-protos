@@ -874,8 +874,8 @@ message ClassInfo {
 
   // All choices (equipment, proficiencies, etc.)
   repeated Choice choices = 15;
-  
-  // we group the class info by class to allow subclasses to be in the list
+
+  // We group the class info by class to allow subclasses to be in the list
   Class group = 16;
 }
 

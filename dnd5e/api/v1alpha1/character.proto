@@ -877,10 +877,10 @@ message ClassInfo {
 
   // Deprecated: Use subclasses field instead - group was used to group subclasses under base class
   Class group = 16 [deprecated = true];
-  
+
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)
   repeated SubclassInfo subclasses = 17;
-  
+
   // What type of subclass this class has (e.g., "Divine Domain", "Sorcerous Origin")
   string subclass_type = 18;
 }
@@ -891,21 +891,21 @@ message SubclassInfo {
   string id = 1;
   string name = 2;
   string description = 3;
-  
+
   // Level when this subclass becomes available
   int32 level = 4;
-  
+
   // What this subclass adds to the base class
   // Note: These are ADDITIONS to the base class, not the complete set
-  
+
   // Additional proficiencies granted by this subclass
   repeated string armor_proficiencies = 5;
   repeated string weapon_proficiencies = 6;
   repeated string tool_proficiencies = 7;
-  
+
   // Additional choices required by this subclass
   repeated Choice additional_choices = 8;
-  
+
   // Features specific to this subclass (at level 1)
   repeated FeatureInfo features = 9;
 }

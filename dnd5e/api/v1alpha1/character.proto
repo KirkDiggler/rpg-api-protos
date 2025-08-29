@@ -386,6 +386,8 @@ message CharacterDraftData {
 
   // Metadata
   DraftMetadata metadata = 16;
+
+  Subclass subclass = 17;
 }
 
 // Tracks which parts of character creation are complete
@@ -534,6 +536,7 @@ message UpdateClassRequest {
   string draft_id = 1;
   Class class = 2;
   repeated ChoiceData class_choices = 3; // Choices made for this class
+  Subclass subclass = 4;
 }
 
 message UpdateBackgroundRequest {

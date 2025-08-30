@@ -848,7 +848,7 @@ enum Size {
 // Detailed class information for selection UI
 message ClassInfo {
   // Basic identification
-  string id = 1;
+  string id = 1 [deprecated = true];
   string name = 2;
   string description = 3;
 
@@ -886,6 +886,8 @@ message ClassInfo {
 
   // What type of subclass this class has (e.g., "Divine Domain", "Sorcerous Origin")
   string subclass_type = 18 [deprecated = true];
+
+  Class class = 19;
 }
 
 // Information about a subclass option

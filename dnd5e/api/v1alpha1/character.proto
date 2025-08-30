@@ -885,13 +885,13 @@ message ClassInfo {
   repeated SubclassInfo subclasses = 17;
 
   // What type of subclass this class has (e.g., "Divine Domain", "Sorcerous Origin")
-  string subclass_type = 18;
+  string subclass_type = 18 [deprecated = true];
 }
 
 // Information about a subclass option
 message SubclassInfo {
   // Basic identification
-  string id = 1;
+  string id = 1 [deprecated = true];
   string name = 2;
   string description = 3;
 
@@ -911,6 +911,8 @@ message SubclassInfo {
 
   // Features specific to this subclass
   repeated FeatureInfo features = 9;
+
+  Subclass subclass = 10;
 }
 
 // Deprecated: Use FeatureInfo instead for richer feature data

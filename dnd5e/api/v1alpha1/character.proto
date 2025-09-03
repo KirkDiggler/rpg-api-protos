@@ -461,26 +461,32 @@ message CharacterDraft {
   // Session if part of one
   string session_id = 3;
 
-  // Identity fields
+  // Core identity fields - stored as enums matching the toolkit
   string name = 4;
+  Race race = 5;
+  Subrace subrace = 6;
+  Class class = 7;
+  Subclass subclass = 8;
+  Background background = 9;
 
-  // The actual draft data from the toolkit
-  // This is the source of truth for the draft
-  // The other fields are for UI convenience
-  CharacterDraftData draft_data = 5;
+  // Base ability scores (before racial modifiers)
+  AbilityScores base_ability_scores = 10;
 
-  // Expanded info for UI display (optional, populated when needed)
-  RaceInfo race_info = 6;
-  SubraceInfo subrace_info = 7;
-  ClassInfo class_info = 8;
-  BackgroundInfo background_info = 9;
+  // Player choices stored for validation
+  repeated ChoiceData choices = 11;
 
   // Track what steps are complete
-  CreationProgress progress = 10;
+  CreationProgress progress = 12;
 
-  // Current validation state of the draft
-  // This is calculated on-demand, not stored
-  ValidationResult validation = 11;
+  // Current validation state (calculated on-demand)
+  ValidationResult validation = 13;
+
+  // Optional expanded info for UI display
+  // These can be populated when needed for richer UI experience
+  RaceInfo race_info = 14;
+  SubraceInfo subrace_info = 15;
+  ClassInfo class_info = 16;
+  BackgroundInfo background_info = 17;
 }
 
 // Request to create a draft

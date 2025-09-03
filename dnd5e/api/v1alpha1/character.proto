@@ -48,6 +48,12 @@ service CharacterService {
   // Dice rolling for character creation
   rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
 
+  // Get requirements for character creation choices
+  rpc GetRequirements(GetRequirementsRequest) returns (GetRequirementsResponse);
+
+  // Submit character creation choices
+  rpc SubmitChoices(SubmitChoicesRequest) returns (SubmitChoicesResponse);
+
   // Equipment listing by type
   rpc ListEquipmentByType(ListEquipmentByTypeRequest) returns (ListEquipmentByTypeResponse);
 
@@ -1119,6 +1125,31 @@ message RollAbilityScoresResponse {
   int64 expires_at = 2;
 }
 
+// Request to get character creation requirements
+message GetRequirementsRequest {
+  string draft_id = 1;
+  Class class = 2; // Optional: get requirements for a specific class
+  Race race = 3; // Optional: get requirements for a specific race
+}
+
+// Response with character creation requirements
+message GetRequirementsResponse {
+  CharacterRequirements requirements = 1;
+}
+
+// Request to submit character creation choices
+message SubmitChoicesRequest {
+  string draft_id = 1;
+  repeated ChoiceSubmission submissions = 2;
+}
+
+// Response from submitting choices
+message SubmitChoicesResponse {
+  CharacterDraft draft = 1;
+  ValidationResult validation = 2;
+  CharacterRequirements remaining_requirements = 3;
+}
+
 // Roll assignment mapping for ability scores
 message RollAssignments {
   string strength_roll_id = 1;
@@ -1341,6 +1372,138 @@ message ClassChoice {
 
 // REMOVED: ChoiceSelection - replaced by ChoiceData
 // REMOVED: AbilityScoreChoice - no longer needed
+
+// ============================================================================
+// New messages for toolkit integration with type-safe enums
+// ============================================================================
+
+// Equipment choice for character creation
+message EquipmentChoice {
+  string choice_id = 1; // e.g., "fighter-armor-a"
+  string description = 2; // Human-readable description
+
+  // Options for this choice
+  repeated EquipmentOption options = 3;
+}
+
+// Single equipment option within a choice
+message EquipmentOption {
+  string option_id = 1; // e.g., "leather-longbow"
+  string description = 2;
+
+  // Equipment items granted by this option
+  repeated EquipmentSelection items = 3;
+}
+
+// A specific equipment item with quantity
+message EquipmentSelection {
+  oneof equipment {
+    Weapon weapon = 1;
+    Armor armor = 2;
+    Tool tool = 3;
+    string other_equipment_id = 4; // For non-weapon/armor/tool items
+  }
+  int32 quantity = 5; // Default 1
+}
+
+// Submission for a choice made by the player
+message ChoiceSubmission {
+  ChoiceCategory category = 1;
+  ChoiceSource source = 2;
+  string choice_id = 3; // Which choice this is for
+  string option_id = 4; // Which option was selected (for equipment)
+
+  // Values selected (skills, languages, equipment, etc.)
+  oneof values {
+    SkillSelection skills = 5;
+    LanguageSelection languages = 6;
+    EquipmentSelection equipment = 7;
+    FightingStyleSelection fighting_style = 8;
+    ToolSelection tools = 9;
+    WeaponProficiencySelection weapon_proficiencies = 10;
+    ArmorProficiencySelection armor_proficiencies = 11;
+  }
+}
+
+// Skill selection
+message SkillSelection {
+  repeated Skill skills = 1;
+}
+
+// Language selection
+message LanguageSelection {
+  repeated Language languages = 1;
+}
+
+// Fighting style selection
+message FightingStyleSelection {
+  FightingStyle style = 1;
+}
+
+// Tool proficiency selection
+message ToolSelection {
+  repeated Tool tools = 1;
+}
+
+// Weapon proficiency selection
+message WeaponProficiencySelection {
+  repeated Weapon weapons = 1;
+  repeated EquipmentType categories = 2; // For "all martial weapons" etc.
+}
+
+// Armor proficiency selection
+message ArmorProficiencySelection {
+  repeated Armor armors = 1;
+  repeated EquipmentType categories = 2; // For "all light armor" etc.
+}
+
+// Requirements for character choices
+message CharacterRequirements {
+  // All choices that need to be made
+  repeated RequiredChoice choices = 1;
+
+  // Validation state
+  bool all_choices_made = 2;
+  repeated string missing_choices = 3;
+}
+
+// A single required choice
+message RequiredChoice {
+  string choice_id = 1;
+  ChoiceCategory category = 2;
+  ChoiceSource source = 3;
+  string description = 4;
+  int32 count = 5; // How many to choose
+
+  // Available options based on category
+  oneof options {
+    SkillOptions skill_options = 6;
+    LanguageOptions language_options = 7;
+    EquipmentChoice equipment_options = 8;
+    FightingStyleOptions fighting_style_options = 9;
+    ToolOptions tool_options = 10;
+  }
+}
+
+// Available skill options
+message SkillOptions {
+  repeated Skill available = 1;
+}
+
+// Available language options
+message LanguageOptions {
+  repeated Language available = 1;
+}
+
+// Available fighting style options
+message FightingStyleOptions {
+  repeated FightingStyle available = 1;
+}
+
+// Available tool options
+message ToolOptions {
+  repeated Tool available = 1;
+}
 
 // Spell damage information
 message SpellDamage {

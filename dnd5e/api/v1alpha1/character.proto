@@ -47,10 +47,10 @@ service CharacterService {
 
   // Dice rolling for character creation
   rpc RollAbilityScores(RollAbilityScoresRequest) returns (RollAbilityScoresResponse);
-  
+
   // Get requirements for character creation choices
   rpc GetRequirements(GetRequirementsRequest) returns (GetRequirementsResponse);
-  
+
   // Submit character creation choices
   rpc SubmitChoices(SubmitChoicesRequest) returns (SubmitChoicesResponse);
 
@@ -1381,7 +1381,7 @@ message ClassChoice {
 message EquipmentChoice {
   string choice_id = 1; // e.g., "fighter-armor-a"
   string description = 2; // Human-readable description
-  
+
   // Options for this choice
   repeated EquipmentOption options = 3;
 }
@@ -1390,7 +1390,7 @@ message EquipmentChoice {
 message EquipmentOption {
   string option_id = 1; // e.g., "leather-longbow"
   string description = 2;
-  
+
   // Equipment items granted by this option
   repeated EquipmentSelection items = 3;
 }
@@ -1412,7 +1412,7 @@ message ChoiceSubmission {
   ChoiceSource source = 2;
   string choice_id = 3; // Which choice this is for
   string option_id = 4; // Which option was selected (for equipment)
-  
+
   // Values selected (skills, languages, equipment, etc.)
   oneof values {
     SkillSelection skills = 5;
@@ -1461,7 +1461,7 @@ message ArmorProficiencySelection {
 message CharacterRequirements {
   // All choices that need to be made
   repeated RequiredChoice choices = 1;
-  
+
   // Validation state
   bool all_choices_made = 2;
   repeated string missing_choices = 3;
@@ -1474,7 +1474,7 @@ message RequiredChoice {
   ChoiceSource source = 3;
   string description = 4;
   int32 count = 5; // How many to choose
-  
+
   // Available options based on category
   oneof options {
     SkillOptions skill_options = 6;

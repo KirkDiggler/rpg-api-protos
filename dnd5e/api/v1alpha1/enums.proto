@@ -237,7 +237,7 @@ enum EquipmentType {
 // D&D 5e weapons - maps to toolkit WeaponID constants
 enum Weapon {
   WEAPON_UNSPECIFIED = 0;
-  
+
   // Simple Melee Weapons
   WEAPON_CLUB = 1;
   WEAPON_DAGGER = 2;
@@ -249,13 +249,13 @@ enum Weapon {
   WEAPON_QUARTERSTAFF = 8;
   WEAPON_SICKLE = 9;
   WEAPON_SPEAR = 10;
-  
+
   // Simple Ranged Weapons
   WEAPON_LIGHT_CROSSBOW = 11;
   WEAPON_DART = 12;
   WEAPON_SHORTBOW = 13;
   WEAPON_SLING = 14;
-  
+
   // Martial Melee Weapons
   WEAPON_BATTLEAXE = 15;
   WEAPON_FLAIL = 16;
@@ -275,18 +275,18 @@ enum Weapon {
   WEAPON_WAR_PICK = 30;
   WEAPON_WARHAMMER = 31;
   WEAPON_WHIP = 32;
-  
+
   // Martial Ranged Weapons
   WEAPON_BLOWGUN = 33;
   WEAPON_HAND_CROSSBOW = 34;
   WEAPON_HEAVY_CROSSBOW = 35;
   WEAPON_LONGBOW = 36;
   WEAPON_NET = 37;
-  
+
   // Ammunition
   WEAPON_ARROWS_20 = 38;
   WEAPON_BOLTS_20 = 39;
-  
+
   // Category placeholders for choice requirements
   WEAPON_ANY_SIMPLE = 40;
   WEAPON_ANY_MARTIAL = 41;
@@ -296,25 +296,25 @@ enum Weapon {
 // D&D 5e armor - maps to toolkit ArmorID constants
 enum Armor {
   ARMOR_UNSPECIFIED = 0;
-  
+
   // Light Armor
   ARMOR_PADDED = 1;
   ARMOR_LEATHER = 2;
   ARMOR_STUDDED_LEATHER = 3;
-  
+
   // Medium Armor
   ARMOR_HIDE = 4;
   ARMOR_CHAIN_SHIRT = 5;
   ARMOR_SCALE_MAIL = 6;
   ARMOR_BREASTPLATE = 7;
   ARMOR_HALF_PLATE = 8;
-  
+
   // Heavy Armor
   ARMOR_RING_MAIL = 9;
   ARMOR_CHAIN_MAIL = 10;
   ARMOR_SPLINT = 11;
   ARMOR_PLATE = 12;
-  
+
   // Shield
   ARMOR_SHIELD = 13;
 }
@@ -322,18 +322,18 @@ enum Armor {
 // D&D 5e fighting styles - maps to toolkit FightingStyle constants
 enum FightingStyle {
   FIGHTING_STYLE_UNSPECIFIED = 0;
-  FIGHTING_STYLE_ARCHERY = 1;              // +2 to attack rolls with ranged weapons
-  FIGHTING_STYLE_DEFENSE = 2;              // +1 to AC while wearing armor
-  FIGHTING_STYLE_DUELING = 3;              // +2 damage with one-handed weapons
+  FIGHTING_STYLE_ARCHERY = 1; // +2 to attack rolls with ranged weapons
+  FIGHTING_STYLE_DEFENSE = 2; // +1 to AC while wearing armor
+  FIGHTING_STYLE_DUELING = 3; // +2 damage with one-handed weapons
   FIGHTING_STYLE_GREAT_WEAPON_FIGHTING = 4; // Reroll 1s and 2s on damage with two-handed
-  FIGHTING_STYLE_PROTECTION = 5;           // Impose disadvantage on attacks against allies
-  FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 6;  // Add ability modifier to off-hand damage
+  FIGHTING_STYLE_PROTECTION = 5; // Impose disadvantage on attacks against allies
+  FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 6; // Add ability modifier to off-hand damage
 }
 
 // D&D 5e tools - maps to toolkit ToolID constants
 enum Tool {
   TOOL_UNSPECIFIED = 0;
-  
+
   // Artisan's Tools
   TOOL_ALCHEMIST_SUPPLIES = 1;
   TOOL_BREWER_SUPPLIES = 2;
@@ -352,13 +352,13 @@ enum Tool {
   TOOL_TINKER_TOOLS = 15;
   TOOL_WEAVER_TOOLS = 16;
   TOOL_WOODCARVER_TOOLS = 17;
-  
+
   // Gaming Sets
   TOOL_DICE_SET = 18;
   TOOL_DRAGONCHESS_SET = 19;
   TOOL_PLAYING_CARD_SET = 20;
   TOOL_THREE_DRAGON_ANTE = 21;
-  
+
   // Musical Instruments
   TOOL_BAGPIPES = 22;
   TOOL_DRUM = 23;
@@ -370,7 +370,7 @@ enum Tool {
   TOOL_PAN_FLUTE = 29;
   TOOL_SHAWM = 30;
   TOOL_VIOL = 31;
-  
+
   // Other Tools
   TOOL_DISGUISE_KIT = 32;
   TOOL_FORGERY_KIT = 33;

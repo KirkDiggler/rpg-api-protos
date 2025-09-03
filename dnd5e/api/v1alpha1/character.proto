@@ -887,11 +887,8 @@ message ClassInfo {
   // All choices (skills, equipment, etc.)
   repeated Choice choices = 15;
 
-  // The class enum value
-  Class class_id = 16;
-
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)
-  repeated SubclassInfo subclasses = 17;
+  repeated SubclassInfo subclasses = 16;
 }
 
 // Information about a subclass option

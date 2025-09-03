@@ -406,23 +406,31 @@ message CharacterDraftData {
 
 // Tracks which parts of character creation are complete
 message CreationProgress {
+  // Core progress flags - these match the toolkit's 5-step Progress type
   bool has_name = 1;
   bool has_race = 2;
   bool has_class = 3;
   bool has_background = 4;
   bool has_ability_scores = 5;
-  bool has_skills = 6;
-  bool has_languages = 7;
 
-  // Overall completion percentage
+  // DEPRECATED: Skills are part of class/background choices, not a separate step
+  bool has_skills = 6 [deprecated = true];
+
+  // DEPRECATED: Languages are part of race/background choices, not a separate step
+  bool has_languages = 7 [deprecated = true];
+
+  // Overall completion percentage (0-100)
   int32 completion_percentage = 8;
 
-  // What step they're currently on
-  CreationStep current_step = 9;
+  // DEPRECATED: Character creation is non-linear, players can complete steps in any order
+  CreationStep current_step = 9 [deprecated = true];
 }
 
-// Steps in character creation
+// DEPRECATED: Character creation is non-linear - players can complete steps in any order
+// This enum assumed a wizard-style linear flow which doesn't match the flexible toolkit model
 enum CreationStep {
+  option deprecated = true;
+
   CREATION_STEP_UNSPECIFIED = 0;
   CREATION_STEP_NAME = 1;
   CREATION_STEP_RACE = 2;
@@ -711,10 +719,13 @@ message RaceInfo {
   // All choices (languages, proficiencies, etc.)
   repeated Choice choices = 11;
 
-  // DEPRECATED: These fields are not supported by the toolkit and will be removed
-  string age_description = 12 [deprecated = true];
-  string alignment_description = 13 [deprecated = true];
-  string size_description = 14 [deprecated = true];
+  // DEPRECATED: Optional flavor text fields - not provided by toolkit
+  // Can be populated from external sources (D&D 5e API, custom content, etc.)
+  string age_description = 12 [deprecated = true]; // e.g., "Elves can live to be 750 years old"
+  string alignment_description = 13 [deprecated = true]; // e.g., "Most dwarves are lawful"
+  string size_description = 14 [deprecated = true]; // e.g., "4-5 feet tall, 150 pounds"
+
+  // DEPRECATED: Use proficiency_grants instead
   repeated string proficiencies = 15 [deprecated = true];
 }
 

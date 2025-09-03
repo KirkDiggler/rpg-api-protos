@@ -260,6 +260,15 @@ message CombatStats {
   string hit_dice = 6;
 }
 
+// Proficiency grants structure to match toolkit approach
+message ProficiencyGrants {
+  repeated Armor armor = 1;
+  repeated Weapon weapons = 2;
+  repeated Tool tools = 3;
+  repeated Skill skills = 4;
+  repeated Language languages = 5;
+}
+
 // Character proficiencies
 message Proficiencies {
   // Skill proficiencies
@@ -268,14 +277,23 @@ message Proficiencies {
   // Saving throw proficiencies
   repeated Ability saving_throws = 2;
 
-  // Armor proficiencies (as strings for now)
-  repeated string armor = 3;
+  // Armor proficiencies - now using typed enums to match toolkit
+  repeated Armor armor = 3;
 
-  // Weapon proficiencies (as strings for now)
-  repeated string weapons = 4;
+  // Weapon proficiencies - now using typed enums to match toolkit
+  repeated Weapon weapons = 4;
 
-  // Tool proficiencies (as strings for now)
-  repeated string tools = 5;
+  // Tool proficiencies - now using typed enums to match toolkit
+  repeated Tool tools = 5;
+
+  // DEPRECATED: Use armor field instead - kept for backward compatibility
+  repeated string armor_strings = 6 [deprecated = true];
+
+  // DEPRECATED: Use weapons field instead - kept for backward compatibility
+  repeated string weapon_strings = 7 [deprecated = true];
+
+  // DEPRECATED: Use tools field instead - kept for backward compatibility
+  repeated string tool_strings = 8 [deprecated = true];
 }
 
 // Character metadata
@@ -357,7 +375,7 @@ message DeleteCharacterResponse {
   string message = 1;
 }
 
-// Character draft data for storage with optional fields
+// Character draft data for storage - matches toolkit's DraftData structure
 message CharacterDraftData {
   // Unique identifier
   string id = 1;
@@ -365,7 +383,7 @@ message CharacterDraftData {
   // Player creating this character
   string player_id = 2;
 
-  // Session if part of one
+  // Session if part of one (optional)
   string session_id = 3;
 
   // Identity fields - stored as enums
@@ -373,27 +391,17 @@ message CharacterDraftData {
   Race race = 5;
   Subrace subrace = 6;
   Class class = 7;
-  Background background = 8;
-  AbilityScores ability_scores = 9;
-  Alignment alignment = 10;
+  Subclass subclass = 8;
+  Background background = 9;
+
+  // Base ability scores (before racial modifiers)
+  AbilityScores base_ability_scores = 10;
 
   // Store player choices instead of computed state
   repeated ChoiceData choices = 11;
 
   // Track what steps are complete
   CreationProgress progress = 12;
-
-  // When this draft expires (e.g., 30 days)
-  int64 expires_at = 13;
-
-  // Timestamps
-  int64 created_at = 14;
-  int64 updated_at = 15;
-
-  // Metadata
-  DraftMetadata metadata = 16;
-
-  Subclass subclass = 17;
 }
 
 // Tracks which parts of character creation are complete
@@ -447,39 +455,24 @@ message CharacterDraft {
 
   // Identity fields
   string name = 4;
-  RaceInfo race = 5;
-  SubraceInfo subrace = 6;
-  ClassInfo class = 7;
-  BackgroundInfo background = 8;
-  AbilityScores ability_scores = 9;
-  Alignment alignment = 10;
 
-  // Store player choices
-  repeated ChoiceData choices = 11;
+  // The actual draft data from the toolkit
+  // This is the source of truth for the draft
+  // The other fields are for UI convenience
+  CharacterDraftData draft_data = 5;
+
+  // Expanded info for UI display (optional, populated when needed)
+  RaceInfo race_info = 6;
+  SubraceInfo subrace_info = 7;
+  ClassInfo class_info = 8;
+  BackgroundInfo background_info = 9;
 
   // Track what steps are complete
-  CreationProgress progress = 12;
-
-  // When this draft expires (e.g., 30 days)
-  int64 expires_at = 13;
-
-  // Timestamps
-  int64 created_at = 14;
-  int64 updated_at = 15;
-
-  // Metadata
-  DraftMetadata metadata = 16;
-
-  // Enum fields for v1alpha1 - these are the actual values stored
-  // The full info objects above can be left empty/null
-  Race race_id = 17;
-  Subrace subrace_id = 18;
-  Class class_id = 19;
-  Background background_id = 20;
+  CreationProgress progress = 10;
 
   // Current validation state of the draft
   // This is calculated on-demand, not stored
-  ValidationResult validation = 21;
+  ValidationResult validation = 11;
 }
 
 // Request to create a draft
@@ -493,7 +486,6 @@ message CreateDraftRequest {
 
 message CreateDraftResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
 }
 
 // Request to get a draft
@@ -690,8 +682,10 @@ message DeleteDraftResponse {
 
 // Detailed race information for selection UI
 message RaceInfo {
+  // The race enum value
+  Race race_id = 1;
+
   // Basic identification
-  string id = 1;
   string name = 2;
   string description = 3;
 
@@ -699,7 +693,7 @@ message RaceInfo {
   int32 speed = 4;
   Size size = 5;
 
-  // Ability score increases
+  // Ability score increases - map key is ability name ("strength", "dexterity", etc.)
   map<string, int32> ability_bonuses = 6;
 
   // Racial traits
@@ -708,30 +702,31 @@ message RaceInfo {
   // Available subraces
   repeated SubraceInfo subraces = 8;
 
-  // Starting proficiencies
-  repeated string proficiencies = 9;
+  // Starting proficiencies - structured to match toolkit types
+  ProficiencyGrants proficiency_grants = 9;
 
   // Starting languages
   repeated Language languages = 10;
 
-  // Additional flavor text
-  string age_description = 11;
-  string alignment_description = 12;
-
-  // Size description
-  string size_description = 13;
-
   // All choices (languages, proficiencies, etc.)
-  repeated Choice choices = 14;
+  repeated Choice choices = 11;
+
+  // DEPRECATED: These fields are not supported by the toolkit and will be removed
+  string age_description = 12 [deprecated = true];
+  string alignment_description = 13 [deprecated = true];
+  string size_description = 14 [deprecated = true];
+  repeated string proficiencies = 15 [deprecated = true];
 }
 
 // Subrace information
 message SubraceInfo {
-  string id = 1;
+  // The subrace enum value
+  Subrace subrace_id = 1;
+
   string name = 2;
   string description = 3;
 
-  // Additional ability bonuses from subrace
+  // Additional ability bonuses from subrace - map key is ability name
   map<string, int32> ability_bonuses = 4;
 
   // Additional traits from subrace
@@ -740,8 +735,11 @@ message SubraceInfo {
   // Additional languages from subrace
   repeated Language languages = 6;
 
-  // Additional proficiencies from subrace
-  repeated string proficiencies = 7;
+  // Additional proficiencies from subrace - structured to match toolkit types
+  ProficiencyGrants proficiency_grants = 7;
+
+  // DEPRECATED: Use proficiency_grants instead
+  repeated string proficiencies = 8 [deprecated = true];
 }
 
 // Racial trait description
@@ -853,27 +851,32 @@ enum Size {
 
 // Detailed class information for selection UI
 message ClassInfo {
+  // The class enum value
+  Class class_id = 1;
+
   // Basic identification
-  string id = 1 [deprecated = true];
   string name = 2;
   string description = 3;
 
   // Mechanical information
-  string hit_die = 4;
-  repeated string primary_abilities = 5;
+  int32 hit_die = 4; // e.g., 10 for d10
+  Ability primary_ability = 5; // Primary ability for the class
 
-  // Proficiencies
-  repeated string armor_proficiencies = 6;
-  repeated string weapon_proficiencies = 7;
-  repeated string tool_proficiencies = 8;
-  repeated string saving_throw_proficiencies = 9;
+  // Proficiencies - structured to match toolkit types
+  repeated Armor armor_proficiencies = 6;
+  repeated Weapon weapon_proficiencies = 7;
+  repeated Tool tool_proficiencies = 8;
+  repeated Ability saving_throw_proficiencies = 9;
+
+  // DEPRECATED: Use typed proficiency fields instead
+  repeated string proficiencies = 27 [deprecated = true];
 
   // Skill choices
   int32 skill_choices_count = 10;
-  repeated string available_skills = 11;
+  repeated Skill available_skills = 11;
 
-  // Starting equipment
-  repeated string starting_equipment = 12;
+  // Starting equipment choices
+  repeated Choice equipment_choices = 12;
 
   // Class features at level 1
   repeated FeatureInfo level_1_features = 13;
@@ -881,25 +884,22 @@ message ClassInfo {
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 14;
 
-  // All choices (equipment, proficiencies, etc.)
+  // All choices (skills, equipment, etc.)
   repeated Choice choices = 15;
 
-  // Deprecated: Use subclasses field instead - group was used to group subclasses under base class
-  Class group = 16 [deprecated = true];
+  // The class enum value
+  Class class_id = 16;
 
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)
   repeated SubclassInfo subclasses = 17;
-
-  // What type of subclass this class has (e.g., "Divine Domain", "Sorcerous Origin")
-  string subclass_type = 18 [deprecated = true];
-
-  Class class = 19;
 }
 
 // Information about a subclass option
 message SubclassInfo {
+  // The subclass enum value
+  Subclass subclass_id = 1;
+
   // Basic identification
-  string id = 1 [deprecated = true];
   string name = 2;
   string description = 3;
 
@@ -909,10 +909,10 @@ message SubclassInfo {
   // What this subclass adds to the base class
   // Note: These are ADDITIONS to the base class, not the complete set
 
-  // Additional proficiencies granted by this subclass
-  repeated string armor_proficiencies = 5;
-  repeated string weapon_proficiencies = 6;
-  repeated string tool_proficiencies = 7;
+  // Additional proficiencies granted by this subclass - structured to match toolkit types
+  repeated Armor armor_proficiencies = 5;
+  repeated Weapon weapon_proficiencies = 6;
+  repeated Tool tool_proficiencies = 7;
 
   // Additional choices required by this subclass
   repeated Choice additional_choices = 8;
@@ -920,7 +920,10 @@ message SubclassInfo {
   // Features specific to this subclass
   repeated FeatureInfo features = 9;
 
-  Subclass subclass = 10;
+  // DEPRECATED: Use typed proficiency fields instead
+  repeated string armor_proficiency_strings = 10 [deprecated = true];
+  repeated string weapon_proficiency_strings = 11 [deprecated = true];
+  repeated string tool_proficiency_strings = 12 [deprecated = true];
 }
 
 // Deprecated: Use FeatureInfo instead for richer feature data
@@ -945,14 +948,16 @@ message SpellcastingInfo {
 
 // Detailed background information for selection UI
 message BackgroundInfo {
+  // The background enum value
+  Background background_id = 1;
+
   // Basic identification
-  string id = 1;
   string name = 2;
   string description = 3;
 
-  // Mechanical benefits
-  repeated string skill_proficiencies = 4;
-  repeated string tool_proficiencies = 5;
+  // Mechanical benefits - structured to match toolkit types
+  repeated Skill skill_proficiencies = 4;
+  repeated Tool tool_proficiencies = 5;
   repeated Language languages = 6;
   int32 additional_languages = 7;
 
@@ -969,6 +974,10 @@ message BackgroundInfo {
   repeated string ideals = 13;
   repeated string bonds = 14;
   repeated string flaws = 15;
+
+  // DEPRECATED: Use typed proficiency fields instead
+  repeated string skill_proficiency_strings = 16 [deprecated = true];
+  repeated string tool_proficiency_strings = 17 [deprecated = true];
 }
 
 // Detailed feature information for class features, racial traits, etc.

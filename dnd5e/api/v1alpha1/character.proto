@@ -899,28 +899,18 @@ message ClassInfo {
   repeated Tool tool_proficiencies = 8;
   repeated Ability saving_throw_proficiencies = 9;
 
-  // DEPRECATED: Use typed proficiency fields instead
-  repeated string proficiencies = 27 [deprecated = true];
-
-  // DEPRECATED: Use choices field with SkillOptions instead
-  int32 skill_choices_count = 10 [deprecated = true];
-  repeated Skill available_skills = 11 [deprecated = true];
-
-  // DEPRECATED: Use choices field instead
-  repeated Choice equipment_choices = 12 [deprecated = true];
-
   // Class features at level 1
-  repeated FeatureInfo level_1_features = 13;
+  repeated FeatureInfo level_1_features = 10;
 
   // Spellcasting information (if applicable)
-  SpellcastingInfo spellcasting = 14;
+  SpellcastingInfo spellcasting = 11;
 
   // ALL requirements (choices) - skills, equipment, etc.
   // This is the ONE place for all choices
-  repeated Choice choices = 15;
+  repeated Choice choices = 12;
 
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)
-  repeated SubclassInfo subclasses = 16;
+  repeated SubclassInfo subclasses = 13;
 }
 
 // Information about a subclass option

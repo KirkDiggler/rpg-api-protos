@@ -500,7 +500,7 @@ enum DamageType {
 // D&D 5e racial and class traits
 enum Trait {
   TRAIT_UNSPECIFIED = 0;
-  
+
   // Common racial traits
   TRAIT_DARKVISION = 1;
   TRAIT_DWARVEN_RESILIENCE = 2;
@@ -529,7 +529,7 @@ enum Trait {
   TRAIT_RELENTLESS_ENDURANCE = 25;
   TRAIT_HELLISH_RESISTANCE = 26;
   TRAIT_INFERNAL_LEGACY = 27;
-  
+
   // Fighting styles (class traits)
   TRAIT_FIGHTING_STYLE_ARCHERY = 28;
   TRAIT_FIGHTING_STYLE_DEFENSE = 29;

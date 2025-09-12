@@ -806,14 +806,30 @@ message ChoiceOption {
 }
 
 message ItemReference {
-  string item_id = 1; // ID to query with
-  string name = 2; // Display name
+  // Type-safe item reference using oneof pattern
+  oneof item {
+    Weapon weapon = 1;
+    Armor armor = 2;
+    Tool tool = 3;
+    Pack pack = 4;
+    Ammunition ammunition = 5;
+    string other_item_id = 6; // For items not yet enumerated
+  }
+  string name = 7; // Display name
 }
 
 message CountedItemReference {
-  string item_id = 1;
-  string name = 2;
-  int32 quantity = 3; // e.g., 20 arrows
+  // Type-safe item reference using oneof pattern
+  oneof item {
+    Weapon weapon = 1;
+    Armor armor = 2;
+    Tool tool = 3;
+    Pack pack = 4;
+    Ammunition ammunition = 5;
+    string other_item_id = 6; // For items not yet enumerated
+  }
+  string name = 7; // Display name
+  int32 quantity = 8; // e.g., 20 arrows
 }
 
 message ItemBundle {
@@ -976,7 +992,7 @@ message BackgroundInfo {
   int32 additional_languages = 7;
 
   // Starting equipment
-  repeated string starting_equipment = 8;
+  repeated EquipmentSelection starting_equipment = 8;
   int32 starting_gold = 9;
 
   // Background feature
@@ -1219,7 +1235,7 @@ message WeaponData {
   WeaponCategory weapon_category = 1;
   string damage_dice = 2; // "1d6", "1d8", etc.
   DamageType damage_type = 3;
-  repeated string properties = 4; // "light", "finesse", etc.
+  repeated WeaponProperty properties = 4;
   string range = 5; // "melee", "ranged"
   int32 normal_range = 6; // range in feet for ranged weapons
   int32 long_range = 7; // long range in feet for ranged weapons

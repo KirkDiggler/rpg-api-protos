@@ -214,7 +214,7 @@ message Character {
 
   // Class features and choices
   repeated CharacterFeature features = 22;
-  repeated string fighting_styles = 23;
+  repeated FightingStyle fighting_styles = 23;
 
   // Racial traits
   repeated CharacterFeature racial_traits = 24;
@@ -1337,7 +1337,7 @@ message ChoiceData {
     SkillList skills = 5;
     LanguageList languages = 6;
     AbilityScores ability_scores = 7;
-    string fighting_style = 8;
+    FightingStyle fighting_style = 8;
     EquipmentList equipment = 9;
     RaceChoice race = 10;
     ClassChoice class = 11;
@@ -1360,7 +1360,7 @@ message LanguageList {
 }
 
 message EquipmentList {
-  repeated string items = 1;
+  repeated EquipmentSelection items = 1;
 }
 
 message SpellList {
@@ -1424,9 +1424,11 @@ message EquipmentSelection {
     Weapon weapon = 1;
     Armor armor = 2;
     Tool tool = 3;
-    string other_equipment_id = 4; // For non-weapon/armor/tool items
+    Pack pack = 4;
+    Ammunition ammunition = 5;
+    string other_equipment_id = 6; // For items not yet enumerated
   }
-  int32 quantity = 5; // Default 1
+  int32 quantity = 7; // Default 1
 }
 
 // Submission for a choice made by the player

@@ -381,3 +381,24 @@ enum Tool {
   TOOL_VEHICLES_LAND = 38;
   TOOL_VEHICLES_WATER = 39;
 }
+
+// D&D 5e equipment packs - maps to toolkit PackID constants
+enum Pack {
+  PACK_UNSPECIFIED = 0;
+  PACK_BURGLARS = 1;
+  PACK_DIPLOMATS = 2;
+  PACK_DUNGEONEERS = 3;
+  PACK_ENTERTAINERS = 4;
+  PACK_EXPLORERS = 5;
+  PACK_PRIESTS = 6;
+  PACK_SCHOLARS = 7;
+}
+
+// D&D 5e ammunition types
+enum Ammunition {
+  AMMUNITION_UNSPECIFIED = 0;
+  AMMUNITION_ARROWS_20 = 1;
+  AMMUNITION_BOLTS_20 = 2;
+  AMMUNITION_BLOWGUN_NEEDLES_50 = 3;
+  AMMUNITION_SLING_BULLETS_20 = 4;
+}

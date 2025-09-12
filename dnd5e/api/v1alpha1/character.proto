@@ -794,7 +794,7 @@ message Choice {
 
 // Simple list of skills to choose from
 message SkillOptions {
-  repeated Skill available_skills = 1;
+  repeated Skill available = 1;
 }
 
 // Equipment bundles (e.g., "chain mail" OR "leather + longbow + arrows")
@@ -824,22 +824,22 @@ message EquipmentItem {
 
 // Simple list of languages to choose from
 message LanguageOptions {
-  repeated Language available_languages = 1;
+  repeated Language available = 1;
 }
 
 // Simple list of tools to choose from
 message ToolOptions {
-  repeated Tool available_tools = 1;
+  repeated Tool available = 1;
 }
 
 // Fighting styles available
 message FightingStyleOptions {
-  repeated FightingStyle available_styles = 1;
+  repeated FightingStyle available = 1;
 }
 
 // Spells to choose from
 message SpellOptions {
-  repeated Spell available_spells = 1;
+  repeated Spell available = 1;
   int32 spell_level = 2; // Optional: level of spells being chosen
 }
 
@@ -1492,26 +1492,6 @@ message RequiredChoice {
     FightingStyleOptions fighting_style_options = 9;
     ToolOptions tool_options = 10;
   }
-}
-
-// Available skill options
-message SkillOptions {
-  repeated Skill available = 1;
-}
-
-// Available language options
-message LanguageOptions {
-  repeated Language available = 1;
-}
-
-// Available fighting style options
-message FightingStyleOptions {
-  repeated FightingStyle available = 1;
-}
-
-// Available tool options
-message ToolOptions {
-  repeated Tool available = 1;
 }
 
 // Spell damage information

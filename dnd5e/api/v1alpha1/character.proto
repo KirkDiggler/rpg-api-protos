@@ -898,7 +898,7 @@ message ClassInfo {
   // Proficiency categories (e.g., "all light armor", "all martial weapons")
   repeated ArmorProficiencyCategory armor_proficiency_categories = 6;
   repeated WeaponProficiencyCategory weapon_proficiency_categories = 7;
-  
+
   // Specific proficiencies (for individual items like "longsword" or "thieves' tools")
   repeated Weapon specific_weapon_proficiencies = 28;
   repeated Tool tool_proficiencies = 8;

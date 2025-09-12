@@ -1201,7 +1201,7 @@ message Weight {
 message Equipment {
   string id = 1;
   string name = 2;
-  string category = 3; // "simple-weapon", "martial-weapon", etc.
+  EquipmentCategory category = 3;
   Cost cost = 4;
   Weight weight = 5;
   string description = 6;
@@ -1216,9 +1216,9 @@ message Equipment {
 
 // Weapon-specific data
 message WeaponData {
-  string weapon_category = 1; // "simple", "martial"
+  WeaponCategory weapon_category = 1;
   string damage_dice = 2; // "1d6", "1d8", etc.
-  string damage_type = 3; // "slashing", "piercing", etc.
+  DamageType damage_type = 3;
   repeated string properties = 4; // "light", "finesse", etc.
   string range = 5; // "melee", "ranged"
   int32 normal_range = 6; // range in feet for ranged weapons
@@ -1227,7 +1227,7 @@ message WeaponData {
 
 // Armor-specific data
 message ArmorData {
-  string armor_category = 1; // "light", "medium", "heavy", "shield"
+  ArmorCategory armor_category = 1;
   int32 base_ac = 2;
   bool dex_bonus = 3;
   bool has_dex_limit = 4; // Indicates if max_dex_bonus is applicable
@@ -1238,7 +1238,7 @@ message ArmorData {
 
 // General gear data
 message GearData {
-  string gear_category = 1; // "adventuring-gear", "tools", etc.
+  GearCategory gear_category = 1;
   repeated string properties = 2;
 }
 
@@ -1291,28 +1291,7 @@ enum EncumbranceLevel {
 }
 
 // Spell messages
-
-// Spell item
-message Spell {
-  string id = 1;
-  string name = 2;
-  int32 level = 3; // 0-9 (0 = cantrips)
-  string school = 4; // "evocation", "abjuration", etc.
-  repeated string classes = 5; // Classes that can cast this spell
-  string casting_time = 6; // "1 action", "1 bonus action", etc.
-  string range = 7; // "Touch", "30 feet", etc.
-  string duration = 8; // "Instantaneous", "1 minute", etc.
-  bool ritual = 9;
-  bool concentration = 10;
-  string components = 11; // "V, S, M", etc.
-  string description = 12;
-
-  // Spell damage information
-  SpellDamage damage = 13;
-
-  // Area of effect
-  AreaOfEffect area_of_effect = 14;
-}
+// TODO: Add SpellData message when spell details are implemented in toolkit
 
 // Source of a choice during character creation
 enum ChoiceSource {
@@ -1364,23 +1343,23 @@ message EquipmentList {
 }
 
 message SpellList {
-  repeated string spells = 1;
+  repeated Spell spells = 1;
 }
 
 message CantripList {
-  repeated string cantrips = 1;
+  repeated Spell cantrips = 1;
 }
 
 message ExpertiseList {
-  repeated string skills = 1; // Skill names that get expertise (double proficiency)
+  repeated Skill skills = 1; // Skills that get expertise (double proficiency)
 }
 
 message TraitList {
-  repeated string traits = 1; // Racial or class trait selections (e.g., "draconic_ancestry_red", "fighting_style_defense")
+  repeated Trait traits = 1; // Racial or class trait selections
 }
 
 message ToolProficiencyList {
-  repeated string tools = 1; // Tool proficiency selections (e.g., "thieves_tools", "smiths_tools")
+  repeated Tool tools = 1; // Tool proficiency selections
 }
 
 message RaceChoice {
@@ -1532,7 +1511,7 @@ message ToolOptions {
 
 // Spell damage information
 message SpellDamage {
-  string damage_type = 1;
+  DamageType damage_type = 1;
   repeated DamageAtSlotLevel damage_at_slot_level = 2; // List of damage dice by slot level
 }
 

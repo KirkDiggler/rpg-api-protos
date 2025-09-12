@@ -554,6 +554,33 @@ enum WeaponProperty {
   WEAPON_PROPERTY_SPECIAL = 10;
 }
 
+// D&D 5e armor proficiency categories
+enum ArmorProficiencyCategory {
+  ARMOR_PROFICIENCY_CATEGORY_UNSPECIFIED = 0;
+  ARMOR_PROFICIENCY_CATEGORY_LIGHT = 1;
+  ARMOR_PROFICIENCY_CATEGORY_MEDIUM = 2;
+  ARMOR_PROFICIENCY_CATEGORY_HEAVY = 3;
+  ARMOR_PROFICIENCY_CATEGORY_SHIELDS = 4;
+}
+
+// D&D 5e weapon proficiency categories
+enum WeaponProficiencyCategory {
+  WEAPON_PROFICIENCY_CATEGORY_UNSPECIFIED = 0;
+  WEAPON_PROFICIENCY_CATEGORY_SIMPLE = 1;
+  WEAPON_PROFICIENCY_CATEGORY_MARTIAL = 2;
+  // Specific weapons that might be granted individually
+  WEAPON_PROFICIENCY_CATEGORY_SPECIFIC = 3; // Indicates check the specific_weapons field
+}
+
+// D&D 5e tool proficiency categories
+enum ToolProficiencyCategory {
+  TOOL_PROFICIENCY_CATEGORY_UNSPECIFIED = 0;
+  TOOL_PROFICIENCY_CATEGORY_ARTISANS_TOOLS = 1; // Any artisan's tools
+  TOOL_PROFICIENCY_CATEGORY_GAMING_SET = 2; // Any gaming set
+  TOOL_PROFICIENCY_CATEGORY_MUSICAL_INSTRUMENT = 3; // Any musical instrument
+  TOOL_PROFICIENCY_CATEGORY_SPECIFIC = 4; // Specific tool (check tool_proficiencies field)
+}
+
 // D&D 5e weapon categories
 enum WeaponCategory {
   WEAPON_CATEGORY_UNSPECIFIED = 0;

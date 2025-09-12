@@ -895,9 +895,12 @@ message ClassInfo {
   int32 hit_die = 4; // e.g., 10 for d10
   Ability primary_ability = 5; // Primary ability for the class
 
-  // Proficiencies - structured to match toolkit types
-  repeated Armor armor_proficiencies = 6;
-  repeated Weapon weapon_proficiencies = 7;
+  // Proficiency categories (e.g., "all light armor", "all martial weapons")
+  repeated ArmorProficiencyCategory armor_proficiency_categories = 6;
+  repeated WeaponProficiencyCategory weapon_proficiency_categories = 7;
+  
+  // Specific proficiencies (for individual items like "longsword" or "thieves' tools")
+  repeated Weapon specific_weapon_proficiencies = 28;
   repeated Tool tool_proficiencies = 8;
   repeated Ability saving_throw_proficiencies = 9;
 

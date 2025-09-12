@@ -772,80 +772,75 @@ message RacialTrait {
 }
 
 // Unified choice for all types - equipment, proficiencies, languages, etc.
+// Choice represents any decision point in character creation
+// Matches the toolkit's Requirements pattern
 message Choice {
-  string id = 1; // Unique identifier for tracking
-  string description = 2; // Human-readable description
-  int32 choose_count = 3; // How many options to choose
-  ChoiceCategory choice_type = 4; // What kind of choice this is
+  string id = 1; // Unique identifier for tracking (e.g., "fighter-skills")
+  string description = 2; // Human-readable description (e.g., "Choose 2 skills")
+  int32 choose_count = 3; // How many to choose
+  ChoiceCategory choice_type = 4; // Category for validation
 
-  oneof option_set {
-    ExplicitOptions explicit_options = 5; // List of specific options
-    CategoryReference category_reference = 6; // Reference to expandable category
+  // Category-specific options - only one will be set based on choice_type
+  oneof options {
+    SkillOptions skill_options = 5;
+    EquipmentOptions equipment_options = 6;
+    LanguageOptions language_options = 7;
+    ToolOptions tool_options = 8;
+    FightingStyleOptions fighting_style_options = 9;
+    SpellOptions spell_options = 10;
+    // Add more as needed
   }
 }
 
-// Explicit list of options to choose from
-message ExplicitOptions {
-  repeated ChoiceOption options = 1;
+// Simple list of skills to choose from
+message SkillOptions {
+  repeated Skill available_skills = 1;
 }
 
-// Reference to a category that needs to be resolved/expanded
-message CategoryReference {
-  string category_id = 1; // e.g., "martial-weapons", "artisan-tools"
-  repeated string exclude_ids = 2; // Optional exclusions
+// Equipment bundles (e.g., "chain mail" OR "leather + longbow + arrows")
+message EquipmentOptions {
+  repeated EquipmentBundle bundles = 1;
 }
 
-// Individual option within a choice
-message ChoiceOption {
-  oneof option_type {
-    ItemReference item = 1; // Single item reference
-    CountedItemReference counted_item = 2; // Item with quantity
-    ItemBundle bundle = 3; // Multiple items as one option
-    NestedChoice nested_choice = 4; // For complex nested choices
+message EquipmentBundle {
+  string id = 1; // Bundle identifier
+  string label = 2; // Display name (e.g., "Chain mail")
+  repeated EquipmentItem items = 3; // Items in this bundle
+}
+
+message EquipmentItem {
+  string selection_id = 1; // Maps to toolkit's SelectionID (e.g., "chain-mail")
+  int32 quantity = 2; // How many (default 1)
+
+  // Optional type hint for known equipment types
+  oneof type_hint {
+    Weapon weapon = 3;
+    Armor armor = 4;
+    Tool tool = 5;
+    Pack pack = 6;
+    Ammunition ammunition = 7;
   }
 }
 
-message ItemReference {
-  // Type-safe item reference using oneof pattern
-  oneof item {
-    Weapon weapon = 1;
-    Armor armor = 2;
-    Tool tool = 3;
-    Pack pack = 4;
-    Ammunition ammunition = 5;
-    string other_item_id = 6; // For items not yet enumerated
-  }
-  string name = 7; // Display name
+// Simple list of languages to choose from
+message LanguageOptions {
+  repeated Language available_languages = 1;
 }
 
-message CountedItemReference {
-  // Type-safe item reference using oneof pattern
-  oneof item {
-    Weapon weapon = 1;
-    Armor armor = 2;
-    Tool tool = 3;
-    Pack pack = 4;
-    Ammunition ammunition = 5;
-    string other_item_id = 6; // For items not yet enumerated
-  }
-  string name = 7; // Display name
-  int32 quantity = 8; // e.g., 20 arrows
+// Simple list of tools to choose from
+message ToolOptions {
+  repeated Tool available_tools = 1;
 }
 
-message ItemBundle {
-  repeated BundleItem items = 1; // Items in the bundle (can be concrete or choices)
+// Fighting styles available
+message FightingStyleOptions {
+  repeated FightingStyle available_styles = 1;
 }
 
-// Represents a single item in a bundle, which can be either a concrete item or a choice
-message BundleItem {
-  oneof item_type {
-    CountedItemReference concrete_item = 1; // Concrete item like "leather armor"
-    NestedChoice choice_item = 2; // Choice like "a martial weapon"
-  }
-}
-
-message NestedChoice {
-  Choice choice = 1; // Allows arbitrarily complex choices
+// Spells to choose from
+message SpellOptions {
+  repeated Spell available_spells = 1;
+  int32 spell_level = 2; // Optional: level of spells being chosen
 }
 
 // Category of choice being made
@@ -907,12 +902,12 @@ message ClassInfo {
   // DEPRECATED: Use typed proficiency fields instead
   repeated string proficiencies = 27 [deprecated = true];
 
-  // Skill choices
-  int32 skill_choices_count = 10;
-  repeated Skill available_skills = 11;
+  // DEPRECATED: Use choices field with SkillOptions instead
+  int32 skill_choices_count = 10 [deprecated = true];
+  repeated Skill available_skills = 11 [deprecated = true];
 
-  // Starting equipment choices
-  repeated Choice equipment_choices = 12;
+  // DEPRECATED: Use choices field instead
+  repeated Choice equipment_choices = 12 [deprecated = true];
 
   // Class features at level 1
   repeated FeatureInfo level_1_features = 13;
@@ -920,7 +915,8 @@ message ClassInfo {
   // Spellcasting information (if applicable)
   SpellcastingInfo spellcasting = 14;
 
-  // All choices (skills, equipment, etc.)
+  // ALL requirements (choices) - skills, equipment, etc.
+  // This is the ONE place for all choices
   repeated Choice choices = 15;
 
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)

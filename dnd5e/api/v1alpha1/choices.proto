@@ -238,7 +238,5 @@ message ChoiceData {
     SpellSelection spells = 13;
     ToolSelection tools = 14;
     ExpertiseSelection expertise = 15;
-    repeated string traits = 16; // For racial traits
-    string method = 17; // For ability score generation method
   }
 }

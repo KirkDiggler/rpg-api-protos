@@ -6,6 +6,10 @@ import "dnd5e/api/v1alpha1/choices.proto";
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
 
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
+
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
 service CharacterService {
@@ -125,27 +129,6 @@ message SpellSlots {
   int32 level_7 = 7;
   int32 level_8 = 8;
   int32 level_9 = 9;
-}
-
-// Ability scores for a character
-message AbilityScores {
-  // Strength score (3-18 before racial modifiers)
-  int32 strength = 1;
-
-  // Dexterity score (3-18 before racial modifiers)
-  int32 dexterity = 2;
-
-  // Constitution score (3-18 before racial modifiers)
-  int32 constitution = 3;
-
-  // Intelligence score (3-18 before racial modifiers)
-  int32 intelligence = 4;
-
-  // Wisdom score (3-18 before racial modifiers)
-  int32 wisdom = 5;
-
-  // Charisma score (3-18 before racial modifiers)
-  int32 charisma = 6;
 }
 
 // A complete D&D 5e character
@@ -930,14 +913,6 @@ message SpellSelectionInfo {
   bool requires_replace = 5; // Whether spells can be replaced on level up
 }
 
-// Types of spell selection systems
-enum SpellSelectionType {
-  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
-  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
-  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
-  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
-}
-
 // Request to list races
 message ListRacesRequest {
   // Pagination
@@ -1205,17 +1180,6 @@ enum EncumbranceLevel {
 
 // Spell messages
 // TODO: Add SpellData message when spell details are implemented in toolkit
-
-// Source of a choice during character creation
-enum ChoiceSource {
-  CHOICE_SOURCE_UNSPECIFIED = 0;
-  CHOICE_SOURCE_PLAYER = 1; // Direct player choice
-  CHOICE_SOURCE_RACE = 2;
-  CHOICE_SOURCE_SUBRACE = 3;
-  CHOICE_SOURCE_CLASS = 4;
-  CHOICE_SOURCE_BACKGROUND = 5;
-  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
-}
 
 // Spell damage information
 message SpellDamage {

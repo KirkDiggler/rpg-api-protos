@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
+
 // D&D 5e character races
 enum Race {
   RACE_UNSPECIFIED = 0;
@@ -596,6 +600,15 @@ enum ArmorCategory {
   ARMOR_CATEGORY_MEDIUM = 2;
   ARMOR_CATEGORY_HEAVY = 3;
   ARMOR_CATEGORY_SHIELD = 4;
+}
+
+// D&D 5e tool categories - maps to toolkit ToolCategory
+enum ToolCategory {
+  TOOL_CATEGORY_UNSPECIFIED = 0;
+  TOOL_CATEGORY_ARTISAN = 1; // Artisan's tools
+  TOOL_CATEGORY_GAMING = 2; // Gaming sets
+  TOOL_CATEGORY_MUSICAL = 3; // Musical instruments
+  TOOL_CATEGORY_OTHER = 4; // Other tools (thieves' tools, etc.)
 }
 
 // D&D 5e equipment categories

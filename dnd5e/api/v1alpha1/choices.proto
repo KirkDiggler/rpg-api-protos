@@ -2,17 +2,36 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+import "dnd5e/api/v1alpha1/common.proto"; // For AbilityScores
+import "dnd5e/api/v1alpha1/enums.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
 option java_outer_classname = "ChoicesProto";
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
 
-import "dnd5e/api/v1alpha1/enums.proto";
-
 // ============================================================================
 // CHOICE REQUIREMENTS - What needs to be chosen
 // ============================================================================
 
+// Types of spell selection systems
+enum SpellSelectionType {
+  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
+  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
+  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
+  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
+}
+
+// Source of a choice during character creation
+enum ChoiceSource {
+  CHOICE_SOURCE_UNSPECIFIED = 0;
+  CHOICE_SOURCE_PLAYER = 1; // Direct player choice
+  CHOICE_SOURCE_RACE = 2;
+  CHOICE_SOURCE_SUBRACE = 3;
+  CHOICE_SOURCE_CLASS = 4;
+  CHOICE_SOURCE_BACKGROUND = 5;
+  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
+}
 
 // Category of choice being made
 enum ChoiceCategory {
@@ -44,7 +63,7 @@ message Choice {
   string description = 2; // Human-readable description
   int32 choose_count = 3; // How many to choose
   ChoiceCategory choice_type = 4; // Category for validation
-  
+
   // Category-specific options - only one will be set based on choice_type
   oneof options {
     SkillOptions skill_options = 5;
@@ -84,7 +103,7 @@ message EquipmentBundle {
 message EquipmentItem {
   string selection_id = 1; // Maps to toolkit's SelectionID (e.g., "chain-mail", "shield")
   int32 quantity = 2; // How many (default 1)
-  
+
   // Optional type hint for client convenience (can help with icon display, etc.)
   oneof type_hint {
     Weapon weapon = 3;
@@ -143,12 +162,12 @@ message ChoiceSubmission {
   ChoiceCategory category = 2; // Category of the choice
   ChoiceSource source = 3; // Where this choice came from
   string option_id = 4; // For equipment bundles, which bundle was selected
-  
+
   // The actual selection IDs - mirrors toolkit's Values []shared.SelectionID
   // For equipment category choices like "choose 2 martial weapons", this would contain
   // the IDs of the selected weapons (e.g., ["longsword", "battleaxe"])
   repeated string selection_ids = 5; // Generic selection IDs (can be equipment, spells, skills, etc.)
-  
+
   // DEPRECATED: Category-specific selections (maintained for backward compatibility)
   // The actual selection - only one will be set based on category
   oneof selection {
@@ -222,10 +241,10 @@ message ChoiceData {
   ChoiceSource source = 2;
   string choice_id = 3; // The Choice.id this relates to
   string option_id = 4; // For equipment bundles, which bundle was selected
-  
+
   // Generic selection IDs - preferred approach, mirrors toolkit's Submission.Values
   repeated string selection_ids = 5; // The IDs that were selected
-  
+
   // DEPRECATED: Category-specific selection data (maintained for backward compatibility)
   oneof selection {
     string name = 6; // For character name

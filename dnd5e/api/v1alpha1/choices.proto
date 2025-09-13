@@ -1,0 +1,261 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha1;
+
+import "dnd5e/api/v1alpha1/common.proto"; // For AbilityScores
+import "dnd5e/api/v1alpha1/enums.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_outer_classname = "ChoicesProto";
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
+
+// ============================================================================
+// CHOICE REQUIREMENTS - What needs to be chosen
+// ============================================================================
+
+// Types of spell selection systems
+enum SpellSelectionType {
+  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
+  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
+  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
+  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
+}
+
+// Source of a choice during character creation
+enum ChoiceSource {
+  CHOICE_SOURCE_UNSPECIFIED = 0;
+  CHOICE_SOURCE_PLAYER = 1; // Direct player choice
+  CHOICE_SOURCE_RACE = 2;
+  CHOICE_SOURCE_SUBRACE = 3;
+  CHOICE_SOURCE_CLASS = 4;
+  CHOICE_SOURCE_BACKGROUND = 5;
+  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
+}
+
+// Category of choice being made
+enum ChoiceCategory {
+  CHOICE_CATEGORY_UNSPECIFIED = 0;
+  CHOICE_CATEGORY_EQUIPMENT = 1;
+  CHOICE_CATEGORY_SKILLS = 2; // Skill proficiencies
+  CHOICE_CATEGORY_TOOLS = 3; // Tool proficiencies
+  CHOICE_CATEGORY_LANGUAGES = 4; // Languages
+  CHOICE_CATEGORY_WEAPON_PROFICIENCIES = 5; // Weapon proficiencies
+  CHOICE_CATEGORY_ARMOR_PROFICIENCIES = 6; // Armor proficiencies
+  CHOICE_CATEGORY_SPELLS = 7; // Spells known/prepared
+  CHOICE_CATEGORY_FEATS = 8; // Feats
+  CHOICE_CATEGORY_ABILITY_SCORES = 9; // Ability score improvements
+  CHOICE_CATEGORY_NAME = 10; // Character name
+  CHOICE_CATEGORY_FIGHTING_STYLE = 11; // Fighting style selection
+  CHOICE_CATEGORY_RACE = 12; // Race selection
+  CHOICE_CATEGORY_CLASS = 13; // Class selection
+  CHOICE_CATEGORY_BACKGROUND = 14; // Background selection
+  CHOICE_CATEGORY_CANTRIPS = 15; // Cantrips known
+  CHOICE_CATEGORY_EXPERTISE = 16; // Expertise (double proficiency) choices
+  CHOICE_CATEGORY_SUBRACE = 17; // Subrace selection (e.g., High Elf, Mountain Dwarf)
+  CHOICE_CATEGORY_TRAITS = 18; // Racial or class traits (e.g., Draconic Ancestry)
+}
+
+// Choice represents any decision point in character creation
+// This is the ONE way to represent all choices - maps to toolkit's Requirements
+message Choice {
+  string id = 1; // Unique identifier (e.g., "fighter-skills", "fighter-armor")
+  string description = 2; // Human-readable description
+  int32 choose_count = 3; // How many to choose
+  ChoiceCategory choice_type = 4; // Category for validation
+
+  // Category-specific options - only one will be set based on choice_type
+  oneof options {
+    SkillOptions skill_options = 5;
+    EquipmentOptions equipment_options = 6;
+    LanguageOptions language_options = 7;
+    ToolOptions tool_options = 8;
+    FightingStyleOptions fighting_style_options = 9;
+    SpellOptions spell_options = 10;
+    ExpertiseOptions expertise_options = 11;
+    // Add more as needed for other choice types
+  }
+}
+
+// ============================================================================
+// OPTION TYPES - What can be chosen
+// ============================================================================
+
+// Skills that can be chosen
+message SkillOptions {
+  repeated Skill available = 1; // Available skills to choose from
+}
+
+// Equipment bundles (e.g., "chain mail" OR "leather + longbow + arrows")
+message EquipmentOptions {
+  repeated EquipmentBundle bundles = 1;
+}
+
+// Single equipment bundle option
+message EquipmentBundle {
+  string id = 1; // Bundle identifier (e.g., "fighter-armor-a")
+  string label = 2; // Display name (e.g., "Chain mail")
+  repeated EquipmentItem items = 3; // Concrete items in this bundle
+  repeated EquipmentCategoryChoice category_choices = 4; // Category-based selections
+}
+
+// Concrete equipment item
+message EquipmentItem {
+  string selection_id = 1; // Maps to toolkit's SelectionID (e.g., "chain-mail", "shield")
+  int32 quantity = 2; // How many (default 1)
+
+  // Optional type hint for client convenience (can help with icon display, etc.)
+  oneof type_hint {
+    Weapon weapon = 3;
+    Armor armor = 4;
+    Tool tool = 5;
+    Pack pack = 6;
+    Ammunition ammunition = 7;
+  }
+}
+
+// Category-based equipment selection (e.g., "choose 2 martial weapons")
+message EquipmentCategoryChoice {
+  int32 choose = 1; // How many to choose (e.g., 1 or 2)
+  repeated WeaponCategory weapon_categories = 2; // Weapon categories to choose from
+  repeated ArmorCategory armor_categories = 3; // Armor categories to choose from
+  repeated ToolCategory tool_categories = 4; // Tool categories to choose from
+  string label = 5; // Description (e.g., "Choose two martial weapons")
+}
+
+// Languages that can be chosen
+message LanguageOptions {
+  repeated Language available = 1; // nil in toolkit means "any language"
+}
+
+// Tools that can be chosen
+message ToolOptions {
+  repeated Tool available = 1;
+}
+
+// Fighting styles that can be chosen
+message FightingStyleOptions {
+  repeated FightingStyle available = 1;
+}
+
+// Spells that can be chosen
+message SpellOptions {
+  repeated Spell available = 1;
+  int32 spell_level = 2; // Optional: level of spells being chosen
+  SpellSelectionType selection_type = 3; // How spells are selected (learned, prepared, etc.)
+}
+
+// Skills/tools that can gain expertise
+message ExpertiseOptions {
+  repeated Skill available_skills = 1;
+  repeated Tool available_tools = 2;
+}
+
+// ============================================================================
+// CHOICE SUBMISSIONS - What was actually chosen
+// ============================================================================
+
+// Represents a submitted choice (what the player actually selected)
+// Maps closely to toolkit's Submission struct
+message ChoiceSubmission {
+  string choice_id = 1; // Which choice this is for (matches Choice.id)
+  ChoiceCategory category = 2; // Category of the choice
+  ChoiceSource source = 3; // Where this choice came from
+  string option_id = 4; // For equipment bundles, which bundle was selected
+
+  // The actual selection IDs - mirrors toolkit's Values []shared.SelectionID
+  // For equipment category choices like "choose 2 martial weapons", this would contain
+  // the IDs of the selected weapons (e.g., ["longsword", "battleaxe"])
+  repeated string selection_ids = 5; // Generic selection IDs (can be equipment, spells, skills, etc.)
+
+  // DEPRECATED: Category-specific selections (maintained for backward compatibility)
+  // The actual selection - only one will be set based on category
+  oneof selection {
+    SkillSelection skills = 6;
+    EquipmentSelection equipment = 7;
+    LanguageSelection languages = 8;
+    ToolSelection tools = 9;
+    FightingStyleSelection fighting_style = 10;
+    SpellSelection spells = 11;
+    ExpertiseSelection expertise = 12;
+  }
+}
+
+// Selected skills
+message SkillSelection {
+  repeated Skill skills = 1;
+}
+
+// Selected equipment - supports multiple items from category choices
+message EquipmentSelection {
+  repeated EquipmentSelectionItem items = 1; // Multiple items can be selected
+}
+
+// A specific equipment item with quantity
+message EquipmentSelectionItem {
+  oneof equipment {
+    Weapon weapon = 1;
+    Armor armor = 2;
+    Tool tool = 3;
+    Pack pack = 4;
+    Ammunition ammunition = 5;
+    string other_equipment_id = 6; // For items not yet enumerated
+  }
+  int32 quantity = 7; // Default 1
+}
+
+// Selected languages
+message LanguageSelection {
+  repeated Language languages = 1;
+}
+
+// Selected tools
+message ToolSelection {
+  repeated Tool tools = 1;
+}
+
+// Selected fighting style
+message FightingStyleSelection {
+  FightingStyle style = 1; // Usually just one
+}
+
+// Selected spells
+message SpellSelection {
+  repeated Spell spells = 1;
+}
+
+// Selected expertise
+message ExpertiseSelection {
+  repeated Skill skills = 1;
+  repeated Tool tools = 2;
+}
+
+// ============================================================================
+// CHOICE TRACKING - For character data
+// ============================================================================
+
+// Tracks a choice that was made during character creation
+// Stored with the character to remember what choices were made
+message ChoiceData {
+  ChoiceCategory category = 1;
+  ChoiceSource source = 2;
+  string choice_id = 3; // The Choice.id this relates to
+  string option_id = 4; // For equipment bundles, which bundle was selected
+
+  // Generic selection IDs - preferred approach, mirrors toolkit's Submission.Values
+  repeated string selection_ids = 5; // The IDs that were selected
+
+  // DEPRECATED: Category-specific selection data (maintained for backward compatibility)
+  oneof selection {
+    string name = 6; // For character name
+    SkillSelection skills = 7;
+    LanguageSelection languages = 8;
+    AbilityScores ability_scores = 9;
+    FightingStyleSelection fighting_style = 10;
+    EquipmentSelection equipment = 11;
+    Background background = 12;
+    SpellSelection spells = 13;
+    ToolSelection tools = 14;
+    ExpertiseSelection expertise = 15;
+  }
+}

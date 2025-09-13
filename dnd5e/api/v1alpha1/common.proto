@@ -2,6 +2,31 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
+
+// Ability scores for a character
+message AbilityScores {
+  // Strength score (3-18 before racial modifiers)
+  int32 strength = 1;
+
+  // Dexterity score (3-18 before racial modifiers)
+  int32 dexterity = 2;
+
+  // Constitution score (3-18 before racial modifiers)
+  int32 constitution = 3;
+
+  // Intelligence score (3-18 before racial modifiers)
+  int32 intelligence = 4;
+
+  // Wisdom score (3-18 before racial modifiers)
+  int32 wisdom = 5;
+
+  // Charisma score (3-18 before racial modifiers)
+  int32 charisma = 6;
+}
+
 // Common error details for D&D 5e validation
 message ValidationError {
   // Field that failed validation

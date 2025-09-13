@@ -2,8 +2,13 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+import "dnd5e/api/v1alpha1/choices.proto";
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
 
 // Service for D&D 5e character creation and management
 // Supports both wizard-style step-by-step creation and free-form editing
@@ -124,27 +129,6 @@ message SpellSlots {
   int32 level_7 = 7;
   int32 level_8 = 8;
   int32 level_9 = 9;
-}
-
-// Ability scores for a character
-message AbilityScores {
-  // Strength score (3-18 before racial modifiers)
-  int32 strength = 1;
-
-  // Dexterity score (3-18 before racial modifiers)
-  int32 dexterity = 2;
-
-  // Constitution score (3-18 before racial modifiers)
-  int32 constitution = 3;
-
-  // Intelligence score (3-18 before racial modifiers)
-  int32 intelligence = 4;
-
-  // Wisdom score (3-18 before racial modifiers)
-  int32 wisdom = 5;
-
-  // Charisma score (3-18 before racial modifiers)
-  int32 charisma = 6;
 }
 
 // A complete D&D 5e character
@@ -771,100 +755,7 @@ message RacialTrait {
   repeated string options = 4;
 }
 
-// Unified choice for all types - equipment, proficiencies, languages, etc.
-// Choice represents any decision point in character creation
-// Matches the toolkit's Requirements pattern
-message Choice {
-  string id = 1; // Unique identifier for tracking (e.g., "fighter-skills")
-  string description = 2; // Human-readable description (e.g., "Choose 2 skills")
-  int32 choose_count = 3; // How many to choose
-  ChoiceCategory choice_type = 4; // Category for validation
-
-  // Category-specific options - only one will be set based on choice_type
-  oneof options {
-    SkillOptions skill_options = 5;
-    EquipmentOptions equipment_options = 6;
-    LanguageOptions language_options = 7;
-    ToolOptions tool_options = 8;
-    FightingStyleOptions fighting_style_options = 9;
-    SpellOptions spell_options = 10;
-    // Add more as needed
-  }
-}
-
-// Simple list of skills to choose from
-message SkillOptions {
-  repeated Skill available = 1;
-}
-
-// Equipment bundles (e.g., "chain mail" OR "leather + longbow + arrows")
-message EquipmentOptions {
-  repeated EquipmentBundle bundles = 1;
-}
-
-message EquipmentBundle {
-  string id = 1; // Bundle identifier
-  string label = 2; // Display name (e.g., "Chain mail")
-  repeated EquipmentItem items = 3; // Items in this bundle
-}
-
-message EquipmentItem {
-  string selection_id = 1; // Maps to toolkit's SelectionID (e.g., "chain-mail")
-  int32 quantity = 2; // How many (default 1)
-
-  // Optional type hint for known equipment types
-  oneof type_hint {
-    Weapon weapon = 3;
-    Armor armor = 4;
-    Tool tool = 5;
-    Pack pack = 6;
-    Ammunition ammunition = 7;
-  }
-}
-
-// Simple list of languages to choose from
-message LanguageOptions {
-  repeated Language available = 1;
-}
-
-// Simple list of tools to choose from
-message ToolOptions {
-  repeated Tool available = 1;
-}
-
-// Fighting styles available
-message FightingStyleOptions {
-  repeated FightingStyle available = 1;
-}
-
-// Spells to choose from
-message SpellOptions {
-  repeated Spell available = 1;
-  int32 spell_level = 2; // Optional: level of spells being chosen
-}
-
-// Category of choice being made
-enum ChoiceCategory {
-  CHOICE_CATEGORY_UNSPECIFIED = 0;
-  CHOICE_CATEGORY_EQUIPMENT = 1;
-  CHOICE_CATEGORY_SKILLS = 2; // Skill proficiencies
-  CHOICE_CATEGORY_TOOLS = 3; // Tool proficiencies
-  CHOICE_CATEGORY_LANGUAGES = 4; // Languages
-  CHOICE_CATEGORY_WEAPON_PROFICIENCIES = 5; // Weapon proficiencies
-  CHOICE_CATEGORY_ARMOR_PROFICIENCIES = 6; // Armor proficiencies
-  CHOICE_CATEGORY_SPELLS = 7; // Spells known/prepared
-  CHOICE_CATEGORY_FEATS = 8; // Feats
-  CHOICE_CATEGORY_ABILITY_SCORES = 9; // Ability score improvements
-  CHOICE_CATEGORY_NAME = 10; // Character name
-  CHOICE_CATEGORY_FIGHTING_STYLE = 11; // Fighting style selection
-  CHOICE_CATEGORY_RACE = 12; // Race selection
-  CHOICE_CATEGORY_CLASS = 13; // Class selection
-  CHOICE_CATEGORY_BACKGROUND = 14; // Background selection
-  CHOICE_CATEGORY_CANTRIPS = 15; // Cantrips known
-  CHOICE_CATEGORY_EXPERTISE = 16; // Expertise (double proficiency) choices
-  CHOICE_CATEGORY_SUBRACE = 17; // Subrace selection (e.g., High Elf, Mountain Dwarf)
-  CHOICE_CATEGORY_TRAITS = 18; // Racial or class traits (e.g., Draconic Ancestry)
-}
+// Choice-related messages have been moved to choices.proto
 
 // Character size category
 enum Size {
@@ -1022,14 +913,6 @@ message SpellSelectionInfo {
   bool requires_replace = 5; // Whether spells can be replaced on level up
 }
 
-// Types of spell selection systems
-enum SpellSelectionType {
-  SPELL_SELECTION_TYPE_UNSPECIFIED = 0;
-  SPELL_SELECTION_TYPE_SPELLBOOK = 1; // Wizard spellbook system
-  SPELL_SELECTION_TYPE_KNOWN = 2; // Fixed known spells (sorcerer, warlock)
-  SPELL_SELECTION_TYPE_PREPARED = 3; // Prepared spells (cleric, druid)
-}
-
 // Request to list races
 message ListRacesRequest {
   // Pagination
@@ -1162,7 +1045,7 @@ message GetRequirementsRequest {
 
 // Response with character creation requirements
 message GetRequirementsResponse {
-  CharacterRequirements requirements = 1;
+  repeated Choice requirements = 1; // From choices.proto
 }
 
 // Request to submit character creation choices
@@ -1175,7 +1058,7 @@ message SubmitChoicesRequest {
 message SubmitChoicesResponse {
   CharacterDraft draft = 1;
   ValidationResult validation = 2;
-  CharacterRequirements remaining_requirements = 3;
+  repeated Choice remaining_requirements = 3; // From choices.proto
 }
 
 // Roll assignment mapping for ability scores
@@ -1297,202 +1180,6 @@ enum EncumbranceLevel {
 
 // Spell messages
 // TODO: Add SpellData message when spell details are implemented in toolkit
-
-// Source of a choice during character creation
-enum ChoiceSource {
-  CHOICE_SOURCE_UNSPECIFIED = 0;
-  CHOICE_SOURCE_PLAYER = 1; // Direct player choice
-  CHOICE_SOURCE_RACE = 2;
-  CHOICE_SOURCE_SUBRACE = 3;
-  CHOICE_SOURCE_CLASS = 4;
-  CHOICE_SOURCE_BACKGROUND = 5;
-  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
-}
-
-// New unified choice data structure for the toolkit refactoring
-message ChoiceData {
-  ChoiceCategory category = 1; // Type of choice (skills, languages, etc.)
-  ChoiceSource source = 2; // Where this choice came from
-  string choice_id = 3; // Specific choice identifier
-
-  // Type-safe selection using oneof pattern (matching toolkit refactoring)
-  oneof selection {
-    string name = 4;
-    SkillList skills = 5;
-    LanguageList languages = 6;
-    AbilityScores ability_scores = 7;
-    FightingStyle fighting_style = 8;
-    EquipmentList equipment = 9;
-    RaceChoice race = 10;
-    ClassChoice class = 11;
-    Background background = 12;
-    SpellList spells = 13;
-    CantripList cantrips = 14;
-    ExpertiseList expertise = 15;
-    TraitList traits = 16;
-    ToolProficiencyList tool_proficiencies = 17;
-  }
-}
-
-// Wrapper messages for repeated fields in oneof
-message SkillList {
-  repeated Skill skills = 1;
-}
-
-message LanguageList {
-  repeated Language languages = 1;
-}
-
-message EquipmentList {
-  repeated EquipmentSelection items = 1;
-}
-
-message SpellList {
-  repeated Spell spells = 1;
-}
-
-message CantripList {
-  repeated Spell cantrips = 1;
-}
-
-message ExpertiseList {
-  repeated Skill skills = 1; // Skills that get expertise (double proficiency)
-}
-
-message TraitList {
-  repeated Trait traits = 1; // Racial or class trait selections
-}
-
-message ToolProficiencyList {
-  repeated Tool tools = 1; // Tool proficiency selections
-}
-
-message RaceChoice {
-  Race race = 1;
-  Subrace subrace = 2; // Optional
-}
-
-message ClassChoice {
-  Class class = 1;
-  // Could add subclass later when implemented
-}
-
-// REMOVED: ChoiceSelection - replaced by ChoiceData
-// REMOVED: AbilityScoreChoice - no longer needed
-
-// ============================================================================
-// New messages for toolkit integration with type-safe enums
-// ============================================================================
-
-// Equipment choice for character creation
-message EquipmentChoice {
-  string choice_id = 1; // e.g., "fighter-armor-a"
-  string description = 2; // Human-readable description
-
-  // Options for this choice
-  repeated EquipmentOption options = 3;
-}
-
-// Single equipment option within a choice
-message EquipmentOption {
-  string option_id = 1; // e.g., "leather-longbow"
-  string description = 2;
-
-  // Equipment items granted by this option
-  repeated EquipmentSelection items = 3;
-}
-
-// A specific equipment item with quantity
-message EquipmentSelection {
-  oneof equipment {
-    Weapon weapon = 1;
-    Armor armor = 2;
-    Tool tool = 3;
-    Pack pack = 4;
-    Ammunition ammunition = 5;
-    string other_equipment_id = 6; // For items not yet enumerated
-  }
-  int32 quantity = 7; // Default 1
-}
-
-// Submission for a choice made by the player
-message ChoiceSubmission {
-  ChoiceCategory category = 1;
-  ChoiceSource source = 2;
-  string choice_id = 3; // Which choice this is for
-  string option_id = 4; // Which option was selected (for equipment)
-
-  // Values selected (skills, languages, equipment, etc.)
-  oneof values {
-    SkillSelection skills = 5;
-    LanguageSelection languages = 6;
-    EquipmentSelection equipment = 7;
-    FightingStyleSelection fighting_style = 8;
-    ToolSelection tools = 9;
-    WeaponProficiencySelection weapon_proficiencies = 10;
-    ArmorProficiencySelection armor_proficiencies = 11;
-  }
-}
-
-// Skill selection
-message SkillSelection {
-  repeated Skill skills = 1;
-}
-
-// Language selection
-message LanguageSelection {
-  repeated Language languages = 1;
-}
-
-// Fighting style selection
-message FightingStyleSelection {
-  FightingStyle style = 1;
-}
-
-// Tool proficiency selection
-message ToolSelection {
-  repeated Tool tools = 1;
-}
-
-// Weapon proficiency selection
-message WeaponProficiencySelection {
-  repeated Weapon weapons = 1;
-  repeated EquipmentType categories = 2; // For "all martial weapons" etc.
-}
-
-// Armor proficiency selection
-message ArmorProficiencySelection {
-  repeated Armor armors = 1;
-  repeated EquipmentType categories = 2; // For "all light armor" etc.
-}
-
-// Requirements for character choices
-message CharacterRequirements {
-  // All choices that need to be made
-  repeated RequiredChoice choices = 1;
-
-  // Validation state
-  bool all_choices_made = 2;
-  repeated string missing_choices = 3;
-}
-
-// A single required choice
-message RequiredChoice {
-  string choice_id = 1;
-  ChoiceCategory category = 2;
-  ChoiceSource source = 3;
-  string description = 4;
-  int32 count = 5; // How many to choose
-
-  // Available options based on category
-  oneof options {
-    SkillOptions skill_options = 6;
-    LanguageOptions language_options = 7;
-    EquipmentChoice equipment_options = 8;
-    FightingStyleOptions fighting_style_options = 9;
-    ToolOptions tool_options = 10;
-  }
-}
 
 // Spell damage information
 message SpellDamage {

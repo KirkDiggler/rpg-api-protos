@@ -577,9 +577,6 @@ message ValidateDraftResponse {
   // Quick access fields for compatibility
   bool is_complete = 2;
   bool is_valid = 3;
-
-  // What's still needed
-  repeated CreationStep missing_steps = 4;
 }
 
 // Request to get a preview of the character

@@ -269,15 +269,6 @@ message Proficiencies {
 
   // Tool proficiencies - now using typed enums to match toolkit
   repeated Tool tools = 5;
-
-  // DEPRECATED: Use armor field instead - kept for backward compatibility
-  repeated string armor_strings = 6 [deprecated = true];
-
-  // DEPRECATED: Use weapons field instead - kept for backward compatibility
-  repeated string weapon_strings = 7 [deprecated = true];
-
-  // DEPRECATED: Use tools field instead - kept for backward compatibility
-  repeated string tool_strings = 8 [deprecated = true];
 }
 
 // Character metadata
@@ -396,34 +387,8 @@ message CreationProgress {
   bool has_class = 3;
   bool has_background = 4;
   bool has_ability_scores = 5;
-
-  // DEPRECATED: Skills are part of class/background choices, not a separate step
-  bool has_skills = 6 [deprecated = true];
-
-  // DEPRECATED: Languages are part of race/background choices, not a separate step
-  bool has_languages = 7 [deprecated = true];
-
   // Overall completion percentage (0-100)
-  int32 completion_percentage = 8;
-
-  // DEPRECATED: Character creation is non-linear, players can complete steps in any order
-  CreationStep current_step = 9 [deprecated = true];
-}
-
-// DEPRECATED: Character creation is non-linear - players can complete steps in any order
-// This enum assumed a wizard-style linear flow which doesn't match the flexible toolkit model
-enum CreationStep {
-  option deprecated = true;
-
-  CREATION_STEP_UNSPECIFIED = 0;
-  CREATION_STEP_NAME = 1;
-  CREATION_STEP_RACE = 2;
-  CREATION_STEP_CLASS = 3;
-  CREATION_STEP_BACKGROUND = 4;
-  CREATION_STEP_ABILITY_SCORES = 5;
-  CREATION_STEP_SKILLS = 6;
-  CREATION_STEP_LANGUAGES = 7;
-  CREATION_STEP_REVIEW = 8;
+  int32 completion_percentage = 6;
 }
 
 // Draft metadata
@@ -509,10 +474,6 @@ message UpdateDraftRequest {
 
 message UpdateDraftResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-
-  // Deprecated: Use draft.validation instead
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 // Section-based update requests
@@ -562,38 +523,26 @@ message UpdateSkillsRequest {
 // Section-based update responses
 message UpdateNameResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateRaceResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateClassResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateBackgroundResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateAbilityScoresResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 message UpdateSkillsResponse {
   CharacterDraft draft = 1;
-  // Validation is now on draft.validation
-  repeated ValidationWarning warnings = 2 [deprecated = true];
 }
 
 enum WarningType {
@@ -631,10 +580,6 @@ message ValidateDraftResponse {
 
   // What's still needed
   repeated CreationStep missing_steps = 4;
-
-  // Deprecated: Use validation field instead
-  repeated ValidationError errors = 5 [deprecated = true];
-  repeated ValidationWarning warnings = 6 [deprecated = true];
 }
 
 // Request to get a preview of the character
@@ -645,10 +590,6 @@ message GetDraftPreviewRequest {
 message GetDraftPreviewResponse {
   CharacterDraft draft = 1; // The draft with choices (includes validation)
   Character preview = 2; // Computed character state
-
-  // Deprecated: Use draft.validation instead
-  repeated ValidationWarning warnings = 3 [deprecated = true];
-  repeated ValidationError errors = 4 [deprecated = true];
 }
 
 // Request to finalize draft
@@ -708,15 +649,6 @@ message RaceInfo {
 
   // All choices (languages, proficiencies, etc.)
   repeated Choice choices = 11;
-
-  // DEPRECATED: Optional flavor text fields - not provided by toolkit
-  // Can be populated from external sources (D&D 5e API, custom content, etc.)
-  string age_description = 12 [deprecated = true]; // e.g., "Elves can live to be 750 years old"
-  string alignment_description = 13 [deprecated = true]; // e.g., "Most dwarves are lawful"
-  string size_description = 14 [deprecated = true]; // e.g., "4-5 feet tall, 150 pounds"
-
-  // DEPRECATED: Use proficiency_grants instead
-  repeated string proficiencies = 15 [deprecated = true];
 }
 
 // Subrace information
@@ -738,9 +670,6 @@ message SubraceInfo {
 
   // Additional proficiencies from subrace - structured to match toolkit types
   ProficiencyGrants proficiency_grants = 7;
-
-  // DEPRECATED: Use proficiency_grants instead
-  repeated string proficiencies = 8 [deprecated = true];
 }
 
 // Racial trait description
@@ -786,22 +715,22 @@ message ClassInfo {
   repeated WeaponProficiencyCategory weapon_proficiency_categories = 7;
 
   // Specific proficiencies (for individual items like "longsword" or "thieves' tools")
-  repeated Weapon specific_weapon_proficiencies = 28;
-  repeated Tool tool_proficiencies = 8;
-  repeated Ability saving_throw_proficiencies = 9;
+  repeated Weapon specific_weapon_proficiencies = 8;
+  repeated Tool tool_proficiencies = 9;
+  repeated Ability saving_throw_proficiencies = 10;
 
   // Class features at level 1
-  repeated FeatureInfo level_1_features = 10;
+  repeated FeatureInfo level_1_features = 11;
 
   // Spellcasting information (if applicable)
-  SpellcastingInfo spellcasting = 11;
+  SpellcastingInfo spellcasting = 12;
 
   // ALL requirements (choices) - skills, equipment, etc.
   // This is the ONE place for all choices
-  repeated Choice choices = 12;
+  repeated Choice choices = 13;
 
   // Subclass options for this class (only populated for base classes like Cleric, not for subclasses)
-  repeated SubclassInfo subclasses = 13;
+  repeated SubclassInfo subclasses = 14;
 }
 
 // Information about a subclass option
@@ -829,22 +758,7 @@ message SubclassInfo {
 
   // Features specific to this subclass
   repeated FeatureInfo features = 9;
-
-  // DEPRECATED: Use typed proficiency fields instead
-  repeated string armor_proficiency_strings = 10 [deprecated = true];
-  repeated string weapon_proficiency_strings = 11 [deprecated = true];
-  repeated string tool_proficiency_strings = 12 [deprecated = true];
 }
-
-// Deprecated: Use FeatureInfo instead for richer feature data
-// message ClassFeature {
-//   string name = 1;
-//   string description = 2;
-//   int32 level = 3;
-//   // Whether this feature has choices
-//   bool has_choices = 4;
-//   repeated string choices = 5;
-// }
 
 // Spellcasting information
 message SpellcastingInfo {
@@ -884,10 +798,6 @@ message BackgroundInfo {
   repeated string ideals = 13;
   repeated string bonds = 14;
   repeated string flaws = 15;
-
-  // DEPRECATED: Use typed proficiency fields instead
-  repeated string skill_proficiency_strings = 16 [deprecated = true];
-  repeated string tool_proficiency_strings = 17 [deprecated = true];
 }
 
 // Detailed feature information for class features, racial traits, etc.

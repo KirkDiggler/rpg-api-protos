@@ -242,20 +242,16 @@ message ChoiceData {
   string choice_id = 3; // The Choice.id this relates to
   string option_id = 4; // For equipment bundles, which bundle was selected
 
-  // Generic selection IDs - preferred approach, mirrors toolkit's Submission.Values
-  repeated string selection_ids = 5; // The IDs that were selected
-
-  // DEPRECATED: Category-specific selection data (maintained for backward compatibility)
   oneof selection {
-    string name = 6; // For character name
-    SkillSelection skills = 7;
-    LanguageSelection languages = 8;
-    AbilityScores ability_scores = 9;
-    FightingStyleSelection fighting_style = 10;
-    EquipmentSelection equipment = 11;
-    Background background = 12;
-    SpellSelection spells = 13;
-    ToolSelection tools = 14;
-    ExpertiseSelection expertise = 15;
+    string name = 5; // For character name
+    SkillSelection skills = 6;
+    LanguageSelection languages = 7;
+    AbilityScores ability_scores = 8;
+    FightingStyleSelection fighting_style = 9;
+    EquipmentSelection equipment = 10;
+    Background background = 11;
+    SpellSelection spells = 12;
+    ToolSelection tools = 13;
+    ExpertiseSelection expertise = 14;
   }
 }

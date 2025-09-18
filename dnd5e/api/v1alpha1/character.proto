@@ -767,6 +767,19 @@ message SpellcastingInfo {
   int32 spell_slots_level_1 = 6;
 }
 
+// Information about a spell
+message SpellInfo {
+  // The spell enum value
+  Spell spell_id = 1;
+
+  // Display information
+  string name = 2;
+  string description = 3;
+
+  // Spell level (0 for cantrips, 1-9 for leveled spells)
+  int32 level = 4;
+}
+
 // Detailed background information for selection UI
 message BackgroundInfo {
   // The background enum value
@@ -1134,7 +1147,7 @@ message ListSpellsByLevelRequest {
 
 // Response with spell list
 message ListSpellsByLevelResponse {
-  repeated Spell spells = 1;
+  repeated SpellInfo spells = 1;
   string next_page_token = 2;
   int32 total_size = 3;
 }

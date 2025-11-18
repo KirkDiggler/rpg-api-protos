@@ -120,7 +120,7 @@ message GetCombatStateResponse {
 message MoveCharacterRequest {
   string encounter_id = 1;
   string entity_id = 2;
-  repeated .api.v1alpha1.Position path = 3;  // Each step in order
+  repeated .api.v1alpha1.Position path = 3; // Each step in order
 }
 
 // MovementError provides detailed movement failure information

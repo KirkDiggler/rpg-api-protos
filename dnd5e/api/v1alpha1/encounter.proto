@@ -115,11 +115,12 @@ message GetCombatStateResponse {
 // MOVEMENT
 // ============================================================================
 
-// MoveCharacterRequest requests movement to a new position
+// MoveCharacterRequest requests movement along a path
+// The server validates each step for traps, AoO, obstacles, etc.
 message MoveCharacterRequest {
   string encounter_id = 1;
   string entity_id = 2;
-  .api.v1alpha1.Position target_position = 3;
+  repeated .api.v1alpha1.Position path = 3;  // Each step in order
 }
 
 // MovementError provides detailed movement failure information
@@ -142,9 +143,16 @@ message MovementError {
 message MoveCharacterResponse {
   bool success = 1;
   MovementError error = 2;
-  int32 movement_remaining = 3;
-  Room updated_room = 4; // Updated room with new positions
-  CombatState combat_state = 5; // Updated combat state
+
+  // Where movement ended (may differ from requested path if interrupted)
+  .api.v1alpha1.Position final_position = 3;
+  int32 movement_remaining = 4;
+
+  // Simple string describing why movement stopped
+  // Examples: "completed", "trap triggered", "blocked by wall"
+  string stop_reason = 5;
+
+  Room updated_room = 6; // Updated room with new positions and state
 }
 
 // FUTURE: GetMovementOptions RPC for server-side movement validation

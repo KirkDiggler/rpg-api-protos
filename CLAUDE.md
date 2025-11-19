@@ -29,6 +29,30 @@ git checkout generated  # NEVER do this for proto edits
 
 ## Proto Development Guidelines
 
+### ALWAYS Run buf format
+**Before committing any proto changes**, you MUST run:
+```bash
+buf format -w
+```
+
+This ensures:
+- Consistent formatting across all protos
+- CI checks will pass
+- Clean diffs in PRs (no formatting noise)
+
+Add to your workflow:
+```bash
+# Edit proto files
+vim dnd5e/api/v1alpha1/encounter.proto
+
+# Format before committing
+buf format -w
+
+# Then commit
+git add .
+git commit -m "feat: add new message"
+```
+
 ### Use Existing Common Types
 When creating new protos, check `api/v1alpha1/room_common.proto` for reusable types:
 - `Position` - 2D/3D coordinates

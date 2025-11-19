@@ -195,6 +195,36 @@ message AttackRequest {
   string weapon_id = 4; // Optional, uses default weapon if not specified
 }
 
+// ============================================================================
+// DAMAGE BREAKDOWN
+// ============================================================================
+
+// RerollEvent tracks a single die reroll (Great Weapon Fighting, Halfling Lucky, etc.)
+message RerollEvent {
+  int32 die_index = 1; // Which die was rerolled (0-based index in original_dice_rolls)
+  int32 before = 2; // Value before reroll
+  int32 after = 3; // Value after reroll
+  string reason = 4; // Feature that caused reroll (e.g., "great_weapon_fighting")
+}
+
+// DamageComponent represents damage from a single source
+message DamageComponent {
+  string source = 1; // Type of damage source ("weapon", "ability", "rage", etc.)
+  repeated int32 original_dice_rolls = 2; // Dice values as first rolled
+  repeated int32 final_dice_rolls = 3; // Dice values after all rerolls
+  repeated RerollEvent rerolls = 4; // History of rerolls
+  int32 flat_bonus = 5; // Flat modifier (0 if none)
+  string damage_type = 6; // "slashing", "fire", "radiant", etc.
+  bool is_critical = 7; // Was this component doubled for crit?
+}
+
+// DamageBreakdown provides complete damage breakdown by source
+message DamageBreakdown {
+  repeated DamageComponent components = 1; // All damage sources
+  string ability_used = 2; // "STR" or "DEX"
+  int32 total_damage = 3; // Sum of all components
+}
+
 // AttackResult contains the outcome of an attack
 message AttackResult {
   bool hit = 1;
@@ -204,6 +234,7 @@ message AttackResult {
   int32 damage = 5;
   string damage_type = 6; // "slashing", "piercing", etc.
   bool critical = 7;
+  DamageBreakdown damage_breakdown = 8; // Detailed damage breakdown (optional)
 }
 
 // AttackResponse returns the attack outcome

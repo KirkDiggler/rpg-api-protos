@@ -211,6 +211,9 @@ message Character {
 
   // Spell slots for casters
   SpellSlots spell_slots = 27;
+
+  // Active conditions (raging, blessed, poisoned, etc.)
+  repeated Condition active_conditions = 28;
 }
 
 // Ability modifiers calculated from scores

@@ -3,6 +3,7 @@ syntax = "proto3";
 package dnd5e.api.v1alpha1;
 
 import "api/v1alpha1/room_common.proto";
+import "dnd5e/api/v1alpha1/character.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
@@ -247,6 +248,25 @@ message AttackResponse {
 }
 
 // ============================================================================
+// FEATURE ACTIVATION
+// ============================================================================
+
+// ActivateFeatureRequest activates a combat feature (e.g., Rage, Second Wind)
+message ActivateFeatureRequest {
+  string encounter_id = 1;
+  string character_id = 2;
+  string feature_id = 3; // e.g., "rage", "second_wind"
+}
+
+// ActivateFeatureResponse returns the result of feature activation
+message ActivateFeatureResponse {
+  bool success = 1;
+  string message = 2;
+  Character updated_character = 3;
+  CombatState updated_combat_state = 4;
+}
+
+// ============================================================================
 // FUTURE: MULTIPLAYER STREAMING
 // ============================================================================
 
@@ -273,6 +293,9 @@ service EncounterService {
 
   // Combat Actions
   rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // Feature Activation
+  rpc ActivateFeature(ActivateFeatureRequest) returns (ActivateFeatureResponse);
 
   // FUTURE: rpc StreamEncounterEvents for multiplayer
 }

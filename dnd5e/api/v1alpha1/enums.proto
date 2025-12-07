@@ -641,3 +641,32 @@ enum GearCategory {
   GEAR_CATEGORY_MOUNT = 7;
   GEAR_CATEGORY_CONTAINER = 8;
 }
+
+// ConditionId identifies active conditions that can modify damage
+// Maps to toolkit's DamageSourceType constants
+enum ConditionId {
+  CONDITION_ID_UNSPECIFIED = 0;
+  CONDITION_ID_RAGING = 1;
+  CONDITION_ID_BRUTAL_CRITICAL = 2;
+  CONDITION_ID_FIGHTING_STYLE_DUELING = 3;
+  CONDITION_ID_FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 4;
+  CONDITION_ID_SNEAK_ATTACK = 5;
+  CONDITION_ID_DIVINE_SMITE = 6;
+}
+
+// FeatureId identifies class/racial features that directly deal damage when activated
+// These are features where the feature itself is the damage source, not a weapon or spell
+enum FeatureId {
+  FEATURE_ID_UNSPECIFIED = 0;
+  // Racial features
+  FEATURE_ID_BREATH_WEAPON = 1; // Dragonborn breath weapon
+  FEATURE_ID_HELLISH_REBUKE = 2; // Tiefling racial (spell-like)
+  // Cleric Channel Divinity
+  FEATURE_ID_RADIANCE_OF_DAWN = 3; // Light Cleric
+  FEATURE_ID_WRATH_OF_THE_STORM = 4; // Tempest Cleric
+  FEATURE_ID_DESTRUCTIVE_WRATH = 5; // Tempest Cleric (max damage)
+  // Monk features
+  FEATURE_ID_DEFLECT_MISSILES = 6; // When thrown back at attacker
+  // Druid features
+  FEATURE_ID_STARRY_FORM_ARCHER = 7; // Stars Druid bonus action attack
+}

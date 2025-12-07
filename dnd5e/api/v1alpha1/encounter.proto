@@ -4,6 +4,7 @@ package dnd5e.api.v1alpha1;
 
 import "api/v1alpha1/room_common.proto";
 import "dnd5e/api/v1alpha1/character.proto";
+import "dnd5e/api/v1alpha1/common.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
@@ -210,13 +211,17 @@ message RerollEvent {
 
 // DamageComponent represents damage from a single source
 message DamageComponent {
-  string source = 1; // Type of damage source ("weapon", "ability", "rage", etc.)
+  // DEPRECATED: Use source_ref instead
+  string source = 1 [deprecated = true]; // Type of damage source ("weapon", "ability", "rage", etc.)
   repeated int32 original_dice_rolls = 2; // Dice values as first rolled
   repeated int32 final_dice_rolls = 3; // Dice values after all rerolls
   repeated RerollEvent rerolls = 4; // History of rerolls
   int32 flat_bonus = 5; // Flat modifier (0 if none)
   string damage_type = 6; // "slashing", "fire", "radiant", etc.
   bool is_critical = 7; // Was this component doubled for crit?
+
+  // Type-safe source reference
+  SourceRef source_ref = 8;
 }
 
 // DamageBreakdown provides complete damage breakdown by source

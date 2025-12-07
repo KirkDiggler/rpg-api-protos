@@ -641,3 +641,15 @@ enum GearCategory {
   GEAR_CATEGORY_MOUNT = 7;
   GEAR_CATEGORY_CONTAINER = 8;
 }
+
+// ConditionId identifies active conditions that can modify damage
+// Maps to toolkit's DamageSourceType constants
+enum ConditionId {
+  CONDITION_ID_UNSPECIFIED = 0;
+  CONDITION_ID_RAGING = 1;
+  CONDITION_ID_BRUTAL_CRITICAL = 2;
+  CONDITION_ID_FIGHTING_STYLE_DUELING = 3;
+  CONDITION_ID_FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 4;
+  CONDITION_ID_SNEAK_ATTACK = 5;
+  CONDITION_ID_DIVINE_SMITE = 6;
+}

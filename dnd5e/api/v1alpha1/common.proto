@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+import "dnd5e/api/v1alpha1/enums.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
@@ -175,4 +177,19 @@ enum ValidationField {
   VALIDATION_FIELD_DRACONIC_ANCESTRY = 14;
   VALIDATION_FIELD_SUBRACE = 15; // Subrace selection
   VALIDATION_FIELD_TRAITS = 16; // Generic racial/class traits
+}
+
+// SourceRef identifies the source of damage, effects, or other game mechanics.
+// Uses oneof to support different source categories while reusing existing enums.
+message SourceRef {
+  oneof source {
+    // Damage from a weapon
+    Weapon weapon = 1;
+
+    // Damage from ability modifier (STR, DEX, etc.)
+    Ability ability = 2;
+
+    // Damage from an active condition
+    ConditionId condition = 3;
+  }
 }

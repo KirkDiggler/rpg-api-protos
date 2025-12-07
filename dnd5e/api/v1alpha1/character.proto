@@ -264,14 +264,23 @@ message Proficiencies {
   // Saving throw proficiencies
   repeated Ability saving_throws = 2;
 
-  // Armor proficiencies - now using typed enums to match toolkit
-  repeated Armor armor = 3;
+  // Armor proficiency categories (light, medium, heavy, shields)
+  repeated ArmorProficiencyCategory armor_categories = 6;
 
-  // Weapon proficiencies - now using typed enums to match toolkit
-  repeated Weapon weapons = 4;
+  // Weapon proficiency categories (simple, martial)
+  repeated WeaponProficiencyCategory weapon_categories = 7;
 
-  // Tool proficiencies - now using typed enums to match toolkit
+  // Specific weapon proficiencies (for individual weapons like longsword)
+  repeated Weapon specific_weapons = 8;
+
+  // Tool proficiencies
   repeated Tool tools = 5;
+
+  // Deprecated: Use armor_categories instead
+  repeated Armor armor = 3 [deprecated = true];
+
+  // Deprecated: Use weapon_categories and specific_weapons instead
+  repeated Weapon weapons = 4 [deprecated = true];
 }
 
 // Character metadata

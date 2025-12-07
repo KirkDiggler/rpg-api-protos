@@ -189,7 +189,13 @@ message SourceRef {
     // Damage from ability modifier (STR, DEX, etc.)
     Ability ability = 2;
 
-    // Damage from an active condition
+    // Damage from an active condition (rage bonus, sneak attack dice, etc.)
     ConditionId condition = 3;
+
+    // Damage from a class/racial feature (breath weapon, radiance of dawn, etc.)
+    FeatureId feature = 4;
+
+    // Damage from a spell (fireball, magic missile, etc.)
+    Spell spell = 5;
   }
 }

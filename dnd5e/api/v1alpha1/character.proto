@@ -1195,7 +1195,9 @@ enum EquipmentSlot {
   EQUIPMENT_SLOT_ARMOR = 3;
   EQUIPMENT_SLOT_HELMET = 4;
   EQUIPMENT_SLOT_BOOTS = 5;
-  EQUIPMENT_SLOT_GLOVES = 6;
+  // Deprecated: Gloves slot is not used in current game mechanics.
+  // Will be removed in a future version.
+  EQUIPMENT_SLOT_GLOVES = 6 [deprecated = true];
   EQUIPMENT_SLOT_CLOAK = 7;
   EQUIPMENT_SLOT_AMULET = 8;
   EQUIPMENT_SLOT_RING_1 = 9;

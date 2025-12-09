@@ -670,3 +670,16 @@ enum FeatureId {
   // Druid features
   FEATURE_ID_STARRY_FORM_ARCHER = 7; // Stars Druid bonus action attack
 }
+
+// MonsterActionType categorizes monster actions for behavior decisions
+// Maps to toolkit's monster.ActionType constants
+enum MonsterActionType {
+  MONSTER_ACTION_TYPE_UNSPECIFIED = 0;
+  MONSTER_ACTION_TYPE_MELEE_ATTACK = 1;
+  MONSTER_ACTION_TYPE_RANGED_ATTACK = 2;
+  MONSTER_ACTION_TYPE_SPELL = 3;
+  MONSTER_ACTION_TYPE_HEAL = 4;
+  MONSTER_ACTION_TYPE_MOVEMENT = 5;
+  MONSTER_ACTION_TYPE_STEALTH = 6;
+  MONSTER_ACTION_TYPE_DEFEND = 7;
+}

@@ -5,6 +5,7 @@ package dnd5e.api.v1alpha1;
 import "api/v1alpha1/room_common.proto";
 import "dnd5e/api/v1alpha1/character.proto";
 import "dnd5e/api/v1alpha1/common.proto";
+import "dnd5e/api/v1alpha1/enums.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
@@ -65,6 +66,9 @@ message DungeonStartResponse {
   Room room = 2;
   // Combat state with initiative already rolled
   CombatState combat_state = 3;
+
+  // If monsters won initiative and acted before first player
+  repeated MonsterTurnResult monster_turns = 4;
 }
 
 // ============================================================================
@@ -183,6 +187,12 @@ message EndTurnResponse {
   bool success = 1;
   CombatState combat_state = 2;
   TurnChangeEvent turn_change = 3;
+
+  // Monster turns that occurred after player ended turn
+  repeated MonsterTurnResult monster_turns = 4;
+
+  // Set if combat ended (victory or TPK)
+  optional EncounterResult encounter_result = 5;
 }
 
 // ============================================================================
@@ -250,6 +260,51 @@ message AttackResponse {
   AttackResult result = 3;
   CombatState combat_state = 4;
   Room updated_room = 5; // Updated if entities are defeated/removed
+}
+
+// ============================================================================
+// MONSTER TURN RESULTS
+// ============================================================================
+
+// EncounterEndReason indicates why combat ended
+enum EncounterEndReason {
+  ENCOUNTER_END_REASON_UNSPECIFIED = 0;
+  ENCOUNTER_END_REASON_VICTORY = 1; // All monsters defeated
+  ENCOUNTER_END_REASON_DEFEAT = 2; // All players defeated (TPK)
+}
+
+// EncounterResult signals that combat has ended
+message EncounterResult {
+  EncounterEndReason reason = 1;
+}
+
+// HealResult contains the outcome of a healing action
+message HealResult {
+  int32 amount_healed = 1; // HP restored
+  int32 new_hp = 2; // Current HP after healing
+  int32 max_hp = 3; // Maximum HP (for context)
+}
+
+// MonsterExecutedAction records a single action taken by a monster
+message MonsterExecutedAction {
+  string action_id = 1; // Which action was used
+  MonsterActionType action_type = 2; // Category (melee_attack, heal, etc.)
+  string target_id = 3; // Who was targeted (if applicable)
+  bool success = 4; // Did the action succeed?
+
+  // Action-specific details
+  oneof details {
+    AttackResult attack_result = 5; // Reuse existing AttackResult
+    HealResult heal_result = 6;
+  }
+}
+
+// MonsterTurnResult encapsulates everything a monster did on its turn
+message MonsterTurnResult {
+  string monster_id = 1;
+  string monster_name = 2; // Self-contained for streaming
+  repeated MonsterExecutedAction actions = 3; // All actions taken
+  repeated .api.v1alpha1.Position movement_path = 4; // Positions traversed
 }
 
 // ============================================================================

@@ -394,6 +394,7 @@ message StartCombatRequest {
 // StartCombatResponse returns the initial combat state
 message StartCombatResponse {
   CombatState combat_state = 1;
+  Room room = 2; // Room with entity positions for rendering
 }
 
 // LeaveEncounterRequest removes a player from the encounter

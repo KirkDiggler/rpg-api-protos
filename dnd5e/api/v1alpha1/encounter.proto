@@ -273,6 +273,15 @@ enum EncounterEndReason {
   ENCOUNTER_END_REASON_DEFEAT = 2; // All players defeated (TPK)
 }
 
+// EncounterState represents the lifecycle state of an encounter
+enum EncounterState {
+  ENCOUNTER_STATE_UNSPECIFIED = 0;
+  ENCOUNTER_STATE_WAITING = 1; // Lobby, waiting for players to join
+  ENCOUNTER_STATE_ACTIVE = 2; // Combat in progress
+  ENCOUNTER_STATE_PAUSED = 3; // Paused due to player disconnect
+  ENCOUNTER_STATE_COMPLETED = 4; // Finished (victory or defeat)
+}
+
 // EncounterResult signals that combat has ended
 message EncounterResult {
   EncounterEndReason reason = 1;
@@ -327,11 +336,219 @@ message ActivateFeatureResponse {
 }
 
 // ============================================================================
-// FUTURE: MULTIPLAYER STREAMING
+// MULTIPLAYER LOBBY MANAGEMENT
 // ============================================================================
 
-// FUTURE: StreamEncounterEvents RPC for multi-client synchronization
-// For Phase 1 single-player demo, each action returns complete state
+// PartyMember represents a player and their character in the encounter
+message PartyMember {
+  string player_id = 1;
+  Character character = 2;
+  bool is_host = 3;
+  bool is_ready = 4;
+  bool is_connected = 5;
+}
+
+// CreateEncounterRequest creates a new multiplayer encounter (lobby)
+message CreateEncounterRequest {
+  repeated string character_ids = 1; // Host's character(s)
+}
+
+// CreateEncounterResponse returns the created encounter with join code
+message CreateEncounterResponse {
+  string encounter_id = 1;
+  string join_code = 2; // 6-char code for others to join (e.g., "ABC123")
+  Room room = 3; // Generated room
+}
+
+// JoinEncounterRequest joins an existing encounter via join code
+message JoinEncounterRequest {
+  string join_code = 1;
+  repeated string character_ids = 2; // Joining player's character(s)
+}
+
+// JoinEncounterResponse returns the current encounter state
+message JoinEncounterResponse {
+  string encounter_id = 1;
+  Room room = 2;
+  repeated PartyMember party = 3; // Everyone currently in lobby
+  EncounterState state = 4;
+}
+
+// SetReadyRequest marks a player as ready to start combat
+message SetReadyRequest {
+  string encounter_id = 1;
+  string player_id = 2;
+  bool is_ready = 3;
+}
+
+// SetReadyResponse confirms the ready status change
+message SetReadyResponse {
+  bool success = 1;
+}
+
+// StartCombatRequest initiates combat (host only, all players must be ready)
+message StartCombatRequest {
+  string encounter_id = 1;
+}
+
+// StartCombatResponse returns the initial combat state
+message StartCombatResponse {
+  CombatState combat_state = 1;
+}
+
+// LeaveEncounterRequest removes a player from the encounter
+message LeaveEncounterRequest {
+  string encounter_id = 1;
+  string player_id = 2;
+}
+
+// LeaveEncounterResponse confirms the player left
+message LeaveEncounterResponse {
+  bool success = 1;
+}
+
+// ============================================================================
+// EVENT STREAMING
+// ============================================================================
+
+// StreamEncounterEventsRequest subscribes to real-time encounter events
+message StreamEncounterEventsRequest {
+  string encounter_id = 1;
+  string player_id = 2; // Who's subscribing
+}
+
+// EncounterEvent is the main event wrapper sent via stream
+message EncounterEvent {
+  string event_id = 1; // Unique ID for deduplication
+  int64 timestamp = 2; // Server timestamp
+
+  oneof event {
+    // Lobby events
+    PlayerJoinedEvent player_joined = 10;
+    PlayerLeftEvent player_left = 11;
+    PlayerReadyEvent player_ready = 12;
+    CombatStartedEvent combat_started = 13;
+
+    // Combat events
+    MovementCompletedEvent movement_completed = 20;
+    AttackResolvedEvent attack_resolved = 21;
+    FeatureActivatedEvent feature_activated = 22;
+    TurnEndedEvent turn_ended = 23;
+    MonsterTurnCompletedEvent monster_turn_completed = 24;
+    CombatEndedEvent combat_ended = 25;
+
+    // Connection events
+    PlayerDisconnectedEvent player_disconnected = 30;
+    PlayerReconnectedEvent player_reconnected = 31;
+    CombatPausedEvent combat_paused = 32;
+    CombatResumedEvent combat_resumed = 33;
+  }
+}
+
+// ============================================================================
+// LOBBY EVENTS
+// ============================================================================
+
+// PlayerJoinedEvent is sent when a player joins the encounter
+message PlayerJoinedEvent {
+  PartyMember member = 1;
+}
+
+// PlayerLeftEvent is sent when a player leaves the encounter
+message PlayerLeftEvent {
+  string player_id = 1;
+  string character_id = 2;
+}
+
+// PlayerReadyEvent is sent when a player changes their ready status
+message PlayerReadyEvent {
+  string player_id = 1;
+  bool is_ready = 2;
+}
+
+// CombatStartedEvent is sent when the host starts combat
+message CombatStartedEvent {
+  CombatState combat_state = 1;
+  Room room = 2; // Final room with all entity placements
+  repeated PartyMember party = 3; // Full party state at combat start
+}
+
+// ============================================================================
+// COMBAT EVENTS
+// ============================================================================
+
+// MovementCompletedEvent is sent when an entity finishes moving
+message MovementCompletedEvent {
+  string entity_id = 1;
+  repeated .api.v1alpha1.Position path = 2; // Full path taken for client animation
+  .api.v1alpha1.Position final_position = 3;
+  int32 movement_remaining = 4;
+  string stop_reason = 5; // "completed", "trap triggered", etc.
+  Room updated_room = 6;
+}
+
+// AttackResolvedEvent is sent when an attack is resolved
+message AttackResolvedEvent {
+  string attacker_id = 1;
+  string target_id = 2;
+  AttackResult result = 3;
+  Character updated_attacker = 4; // If attacker state changed
+  Character updated_target = 5; // New HP, conditions, etc.
+  Room updated_room = 6; // If entity was defeated/removed
+}
+
+// FeatureActivatedEvent is sent when a character activates a feature
+message FeatureActivatedEvent {
+  string character_id = 1;
+  string feature_id = 2;
+  string message = 3; // e.g., "Thorin enters a rage!"
+  Character updated_character = 4;
+}
+
+// TurnEndedEvent is sent when a turn ends and a new turn begins
+message TurnEndedEvent {
+  TurnChangeEvent turn_change = 1;
+  CombatState combat_state = 2;
+}
+
+// MonsterTurnCompletedEvent is sent when a monster finishes its turn
+message MonsterTurnCompletedEvent {
+  MonsterTurnResult monster_turn = 1;
+  repeated Character updated_characters = 2; // Characters that took damage
+  Room updated_room = 3;
+}
+
+// CombatEndedEvent is sent when combat ends (victory or defeat)
+message CombatEndedEvent {
+  EncounterResult result = 1;
+}
+
+// ============================================================================
+// CONNECTION EVENTS
+// ============================================================================
+
+// PlayerDisconnectedEvent is sent when a player's connection drops
+message PlayerDisconnectedEvent {
+  string player_id = 1;
+  string character_id = 2;
+}
+
+// PlayerReconnectedEvent is sent when a disconnected player reconnects
+message PlayerReconnectedEvent {
+  string player_id = 1;
+  PartyMember member = 2; // Full state in case anything changed
+}
+
+// CombatPausedEvent is sent when combat is paused due to disconnect
+message CombatPausedEvent {
+  string reason = 1;
+  string disconnected_player_id = 2;
+}
+
+// CombatResumedEvent is sent when all players are reconnected
+message CombatResumedEvent {
+  CombatState combat_state = 1; // Current state when resuming
+}
 
 // ============================================================================
 // SERVICE DEFINITION
@@ -339,23 +556,49 @@ message ActivateFeatureResponse {
 
 // EncounterService manages D&D 5e encounters
 service EncounterService {
-  // DungeonStart generates room, places entities, and rolls initiative
+  // === Lobby Management ===
+
+  // CreateEncounter creates a new encounter lobby with a join code
+  rpc CreateEncounter(CreateEncounterRequest) returns (CreateEncounterResponse);
+
+  // JoinEncounter joins an existing encounter via join code
+  rpc JoinEncounter(JoinEncounterRequest) returns (JoinEncounterResponse);
+
+  // SetReady marks a player as ready to start combat
+  rpc SetReady(SetReadyRequest) returns (SetReadyResponse);
+
+  // StartCombat begins combat (host only, all players must be ready)
+  rpc StartCombat(StartCombatRequest) returns (StartCombatResponse);
+
+  // LeaveEncounter removes a player from the encounter
+  rpc LeaveEncounter(LeaveEncounterRequest) returns (LeaveEncounterResponse);
+
+  // === Event Stream ===
+
+  // StreamEncounterEvents subscribes to real-time encounter events
+  rpc StreamEncounterEvents(StreamEncounterEventsRequest) returns (stream EncounterEvent);
+
+  // === Single-Player Quick Start ===
+
+  // DungeonStart generates room, places entities, and rolls initiative (single-player)
   rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
 
-  // GetCombatState retrieves current state (mainly for reconnection)
+  // === State Retrieval ===
+
+  // GetCombatState retrieves current state (for reconnection/refresh)
   rpc GetCombatState(GetCombatStateRequest) returns (GetCombatStateResponse);
 
-  // Movement - client calculates valid moves, server validates
+  // === Combat Actions ===
+
+  // MoveCharacter validates and executes movement along a path
   rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse);
 
-  // Turn Management
+  // EndTurn ends the current entity's turn
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
 
-  // Combat Actions
+  // Attack executes a melee or ranged attack
   rpc Attack(AttackRequest) returns (AttackResponse);
 
-  // Feature Activation
+  // ActivateFeature activates a combat feature (e.g., Rage, Second Wind)
   rpc ActivateFeature(ActivateFeatureRequest) returns (ActivateFeatureResponse);
-
-  // FUTURE: rpc StreamEncounterEvents for multiplayer
 }

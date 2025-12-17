@@ -683,3 +683,37 @@ enum MonsterActionType {
   MONSTER_ACTION_TYPE_STEALTH = 6;
   MONSTER_ACTION_TYPE_DEFEND = 7;
 }
+
+// DungeonTheme defines the thematic style of a dungeon
+// Maps to toolkit's dungeon.Theme
+enum DungeonTheme {
+  DUNGEON_THEME_UNSPECIFIED = 0;
+  DUNGEON_THEME_CRYPT = 1; // Undead, structured stone, tombs
+  DUNGEON_THEME_CAVE = 2; // Beasts, organic shapes, natural caverns
+  DUNGEON_THEME_RUINS = 3; // Mixed creatures, ancient structures
+}
+
+// DungeonDifficulty controls encounter CR scaling
+enum DungeonDifficulty {
+  DUNGEON_DIFFICULTY_UNSPECIFIED = 0;
+  DUNGEON_DIFFICULTY_EASY = 1; // Lower CR encounters
+  DUNGEON_DIFFICULTY_MEDIUM = 2; // Standard CR encounters
+  DUNGEON_DIFFICULTY_HARD = 3; // Higher CR encounters
+}
+
+// DungeonLength determines the number of rooms
+enum DungeonLength {
+  DUNGEON_LENGTH_UNSPECIFIED = 0;
+  DUNGEON_LENGTH_SHORT = 1; // 3-4 rooms
+  DUNGEON_LENGTH_MEDIUM = 2; // 5-7 rooms
+  DUNGEON_LENGTH_LONG = 3; // 8-10 rooms
+}
+
+// DungeonState tracks the lifecycle of a dungeon run
+enum DungeonState {
+  DUNGEON_STATE_UNSPECIFIED = 0;
+  DUNGEON_STATE_ACTIVE = 1; // Dungeon in progress
+  DUNGEON_STATE_VICTORIOUS = 2; // Boss defeated, dungeon complete
+  DUNGEON_STATE_FAILED = 3; // Party wiped (TPK)
+  DUNGEON_STATE_ABANDONED = 4; // Players left the dungeon
+}

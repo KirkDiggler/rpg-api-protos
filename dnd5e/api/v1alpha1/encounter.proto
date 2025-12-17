@@ -52,23 +52,76 @@ message Room {
   map<string, EntityPlacement> entities = 7;
 }
 
-// DungeonStartRequest initiates a simple dungeon encounter
+// DoorInfo represents a connection point between rooms in a dungeon
+message DoorInfo {
+  // Unique identifier for this door/connection
+  string connection_id = 1;
+  // Position of the door within the current room
+  .api.v1alpha1.Position position = 2;
+  // Physical description hint (e.g., "heavy stone door", "narrow crevice")
+  string physical_hint = 3;
+  // Whether the door is currently open (revealed)
+  bool is_open = 4;
+  // ID of the room this door leads to (only set if is_open is true)
+  string leads_to_room_id = 5;
+}
+
+// DungeonStartRequest initiates a dungeon encounter with configurable options
 message DungeonStartRequest {
   // IDs of the characters entering the dungeon
   repeated string character_ids = 1;
+  // Theme of the dungeon (defaults to CRYPT if unspecified)
+  DungeonTheme theme = 2;
+  // Difficulty scaling for encounters (defaults to MEDIUM if unspecified)
+  DungeonDifficulty difficulty = 3;
+  // Number of rooms in the dungeon (defaults to SHORT if unspecified)
+  DungeonLength length = 4;
 }
 
-// DungeonStartResponse contains the generated encounter with combat already started
+// DungeonStartResponse contains the generated dungeon with the first room ready
 message DungeonStartResponse {
-  // Unique identifier for this encounter
-  string encounter_id = 1;
+  // Unique identifier for this dungeon run
+  string dungeon_id = 1;
+  // Unique identifier for the current encounter (room)
+  string encounter_id = 2;
   // The generated room with all entities placed (including characters)
-  Room room = 2;
+  Room room = 3;
   // Combat state with initiative already rolled
-  CombatState combat_state = 3;
-
+  CombatState combat_state = 4;
   // If monsters won initiative and acted before first player
-  repeated MonsterTurnResult monster_turns = 4;
+  repeated MonsterTurnResult monster_turns = 5;
+  // Doors/connections visible from the current room
+  repeated DoorInfo doors = 6;
+  // Current state of the dungeon run
+  DungeonState dungeon_state = 7;
+}
+
+// OpenDoorRequest attempts to open a door and reveal the next room
+message OpenDoorRequest {
+  // The dungeon run this door belongs to
+  string dungeon_id = 1;
+  // The connection/door ID to open
+  string connection_id = 2;
+}
+
+// OpenDoorResponse contains the revealed room and updated dungeon state
+message OpenDoorResponse {
+  // Whether the door was successfully opened
+  bool success = 1;
+  // Error message if failed (e.g., "door is locked", "already open")
+  string error = 2;
+  // Unique identifier for the new encounter (room)
+  string encounter_id = 3;
+  // The revealed room with entities placed
+  Room room = 4;
+  // Combat state with initiative rolled for the new room
+  CombatState combat_state = 5;
+  // If monsters won initiative and acted before first player
+  repeated MonsterTurnResult monster_turns = 6;
+  // Doors visible from the newly revealed room
+  repeated DoorInfo doors = 7;
+  // Updated dungeon state (may transition to VICTORIOUS if boss room cleared)
+  DungeonState dungeon_state = 8;
 }
 
 // ============================================================================
@@ -443,6 +496,11 @@ message EncounterEvent {
     PlayerReconnectedEvent player_reconnected = 31;
     CombatPausedEvent combat_paused = 32;
     CombatResumedEvent combat_resumed = 33;
+
+    // Dungeon events
+    RoomRevealedEvent room_revealed = 40;
+    DungeonVictoryEvent dungeon_victory = 41;
+    DungeonFailureEvent dungeon_failure = 42;
   }
 }
 
@@ -552,6 +610,44 @@ message CombatResumedEvent {
 }
 
 // ============================================================================
+// DUNGEON EVENTS
+// ============================================================================
+
+// RoomRevealedEvent is sent when a door is opened and a new room is revealed
+message RoomRevealedEvent {
+  // The dungeon run
+  string dungeon_id = 1;
+  // The door that was opened
+  string connection_id = 2;
+  // The newly revealed room with entities
+  Room room = 3;
+  // Combat state for the new room
+  CombatState combat_state = 4;
+  // Doors visible from the new room
+  repeated DoorInfo doors = 5;
+}
+
+// DungeonVictoryEvent is sent when the boss is defeated and the dungeon is complete
+message DungeonVictoryEvent {
+  // The dungeon run that was completed
+  string dungeon_id = 1;
+  // Total rooms cleared
+  int32 rooms_cleared = 2;
+  // Final dungeon state
+  DungeonState dungeon_state = 3;
+}
+
+// DungeonFailureEvent is sent when the party is defeated (TPK)
+message DungeonFailureEvent {
+  // The dungeon run that failed
+  string dungeon_id = 1;
+  // The room where the party was defeated
+  string final_room_id = 2;
+  // Final dungeon state
+  DungeonState dungeon_state = 3;
+}
+
+// ============================================================================
 // SERVICE DEFINITION
 // ============================================================================
 
@@ -579,10 +675,13 @@ service EncounterService {
   // StreamEncounterEvents subscribes to real-time encounter events
   rpc StreamEncounterEvents(StreamEncounterEventsRequest) returns (stream EncounterEvent);
 
-  // === Single-Player Quick Start ===
+  // === Dungeon Exploration ===
 
-  // DungeonStart generates room, places entities, and rolls initiative (single-player)
+  // DungeonStart generates a dungeon and starts in the first room (single-player)
   rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
+
+  // OpenDoor opens a door to reveal and enter the next room
+  rpc OpenDoor(OpenDoorRequest) returns (OpenDoorResponse);
 
   // === State Retrieval ===
 

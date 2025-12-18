@@ -170,6 +170,45 @@ message GetCombatStateResponse {
   CombatState combat_state = 2;
 }
 
+// GetEncounterStateRequest retrieves the full encounter snapshot
+// Used for the load-then-stream pattern to sync state before processing events
+message GetEncounterStateRequest {
+  string encounter_id = 1;
+  string player_id = 2;
+}
+
+// MonsterCombatState contains monster HP information for rendering
+// Entity positions are in Room.entities, this provides combat stats
+message MonsterCombatState {
+  string monster_id = 1;
+  string monster_name = 2;
+  int32 current_hit_points = 3;
+  int32 max_hit_points = 4;
+}
+
+// GetEncounterStateResponse returns a full snapshot of the encounter
+// Includes everything needed to render the current state without events
+message GetEncounterStateResponse {
+  // Encounter metadata
+  string encounter_id = 1;
+  EncounterState state = 2;
+
+  // Lobby state (populated in WAITING state)
+  repeated PartyMember party = 3;
+  string join_code = 4;
+  string host_id = 5;
+
+  // Combat state (populated in ACTIVE state)
+  CombatState combat_state = 6;
+  Room room = 7;
+  repeated MonsterCombatState monsters = 8;
+
+  // Event synchronization
+  // ULID of the most recent event - used for client-side filtering
+  // Client should ignore events with event_id <= last_event_id
+  string last_event_id = 9;
+}
+
 // ============================================================================
 // MOVEMENT
 // ============================================================================
@@ -686,7 +725,12 @@ service EncounterService {
   // === State Retrieval ===
 
   // GetCombatState retrieves current state (for reconnection/refresh)
+  // Deprecated: Use GetEncounterState for full snapshot with event sync
   rpc GetCombatState(GetCombatStateRequest) returns (GetCombatStateResponse);
+
+  // GetEncounterState retrieves full encounter snapshot for load-then-stream pattern
+  // Returns complete state including last_event_id for client-side event filtering
+  rpc GetEncounterState(GetEncounterStateRequest) returns (GetEncounterStateResponse);
 
   // === Combat Actions ===
 

@@ -671,6 +671,15 @@ enum FeatureId {
   FEATURE_ID_STARRY_FORM_ARCHER = 7; // Stars Druid bonus action attack
 }
 
+// ActionType represents the action economy cost of activating a feature
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_ACTION = 1;
+  ACTION_TYPE_BONUS_ACTION = 2;
+  ACTION_TYPE_REACTION = 3;
+  ACTION_TYPE_FREE = 4; // No action cost (Sneak Attack, Reckless Attack declaration)
+}
+
 // MonsterActionType categorizes monster actions for behavior decisions
 // Maps to toolkit's monster.ActionType constants
 enum MonsterActionType {

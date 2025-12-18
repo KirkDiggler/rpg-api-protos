@@ -99,6 +99,9 @@ message Condition {
 
   // Any additional notes
   string notes = 4;
+
+  // Condition identifier (maps to toolkit condition ref)
+  ConditionId id = 5;
 }
 
 // Validation warning (non-blocking)

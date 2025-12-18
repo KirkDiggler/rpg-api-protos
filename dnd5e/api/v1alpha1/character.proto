@@ -75,7 +75,8 @@ service CharacterService {
 
 // Character feature (class features, racial traits, etc)
 message CharacterFeature {
-  string id = 1;
+  // Feature identifier (maps to toolkit feature ref)
+  FeatureId id = 1;
   string name = 2;
   string description = 3;
   string source = 4; // Full ref format: "dnd5e:classes:barbarian"

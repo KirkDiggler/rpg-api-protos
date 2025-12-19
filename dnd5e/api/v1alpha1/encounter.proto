@@ -209,6 +209,28 @@ message GetEncounterStateResponse {
   string last_event_id = 9;
 }
 
+// GetEncounterHistoryRequest retrieves historical events for an encounter
+// Used by late joiners to populate event log before streaming new events
+message GetEncounterHistoryRequest {
+  string encounter_id = 1;
+  // Get events up to this ID (from GetEncounterState.last_event_id)
+  // If empty, returns all events
+  string up_to_event_id = 2;
+  // Maximum events to return (0 = no limit)
+  // Events are returned in chronological order
+  int32 limit = 3;
+}
+
+// GetEncounterHistoryResponse returns historical encounter events
+message GetEncounterHistoryResponse {
+  // Events in chronological order
+  repeated EncounterEvent events = 1;
+  // True if more events exist beyond the limit
+  bool has_more = 2;
+  // ID of the last event returned (for pagination)
+  string last_event_id = 3;
+}
+
 // ============================================================================
 // MOVEMENT
 // ============================================================================
@@ -732,6 +754,10 @@ service EncounterService {
   // GetEncounterState retrieves full encounter snapshot for load-then-stream pattern
   // Returns complete state including last_event_id for client-side event filtering
   rpc GetEncounterState(GetEncounterStateRequest) returns (GetEncounterStateResponse);
+
+  // GetEncounterHistory retrieves historical events for late join/reconnect
+  // Returns events up to the specified event ID for event log population
+  rpc GetEncounterHistory(GetEncounterHistoryRequest) returns (GetEncounterHistoryResponse);
 
   // === Combat Actions ===
 

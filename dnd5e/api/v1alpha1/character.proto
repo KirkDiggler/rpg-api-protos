@@ -82,6 +82,8 @@ message CharacterFeature {
   string source = 4; // Full ref format: "dnd5e:classes:barbarian"
   int32 level = 5; // Level when gained (0 for racial/background)
   ActionType action_type = 6; // Action economy cost to activate
+  // Raw JSON from toolkit for UI display (charges remaining, damage bonuses, etc.)
+  bytes feature_data = 7;
 }
 
 // Types of class resources in D&D 5e

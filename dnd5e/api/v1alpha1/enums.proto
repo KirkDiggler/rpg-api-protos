@@ -642,8 +642,8 @@ enum GearCategory {
   GEAR_CATEGORY_CONTAINER = 8;
 }
 
-// ConditionId identifies active conditions that can modify damage
-// Maps to toolkit's DamageSourceType constants
+// ConditionId identifies active conditions that modify combat mechanics
+// (attack rolls, damage, AC, etc.) by hooking into event chains.
 enum ConditionId {
   CONDITION_ID_UNSPECIFIED = 0;
   CONDITION_ID_RAGING = 1;
@@ -652,6 +652,10 @@ enum ConditionId {
   CONDITION_ID_FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 4;
   CONDITION_ID_SNEAK_ATTACK = 5;
   CONDITION_ID_DIVINE_SMITE = 6;
+  CONDITION_ID_FIGHTING_STYLE_GREAT_WEAPON_FIGHTING = 7;
+  CONDITION_ID_FIGHTING_STYLE_ARCHERY = 8;
+  CONDITION_ID_FIGHTING_STYLE_DEFENSE = 9;
+  CONDITION_ID_FIGHTING_STYLE_PROTECTION = 10;
 }
 
 // FeatureId identifies class/racial features that directly deal damage when activated

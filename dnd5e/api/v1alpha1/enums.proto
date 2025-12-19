@@ -656,6 +656,11 @@ enum ConditionId {
   CONDITION_ID_FIGHTING_STYLE_ARCHERY = 8;
   CONDITION_ID_FIGHTING_STYLE_DEFENSE = 9;
   CONDITION_ID_FIGHTING_STYLE_PROTECTION = 10;
+  // Class-based passive conditions
+  CONDITION_ID_UNARMORED_DEFENSE = 11;
+  CONDITION_ID_IMPROVED_CRITICAL = 12;
+  CONDITION_ID_MARTIAL_ARTS = 13;
+  CONDITION_ID_UNARMORED_MOVEMENT = 14;
 }
 
 // FeatureId identifies class/racial features that directly deal damage when activated

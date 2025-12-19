@@ -102,6 +102,8 @@ message Condition {
 
   // Condition identifier (maps to toolkit condition ref)
   ConditionId id = 5;
+  // Raw JSON from toolkit for UI display (duration, stacks, bonuses, etc.)
+  bytes condition_data = 6;
 }
 
 // Validation warning (non-blocking)

@@ -652,6 +652,7 @@ enum ConditionId {
   CONDITION_ID_FIGHTING_STYLE_TWO_WEAPON_FIGHTING = 4;
   CONDITION_ID_SNEAK_ATTACK = 5;
   CONDITION_ID_DIVINE_SMITE = 6;
+  CONDITION_ID_FIGHTING_STYLE_GREAT_WEAPON_FIGHTING = 7;
 }
 
 // FeatureId identifies class/racial features that directly deal damage when activated

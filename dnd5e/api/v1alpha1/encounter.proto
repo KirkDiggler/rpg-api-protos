@@ -607,6 +607,7 @@ message FeatureActivatedEvent {
 message TurnEndedEvent {
   TurnChangeEvent turn_change = 1;
   CombatState combat_state = 2;
+  Room updated_room = 3; // Room with updated entity positions after turn
 }
 
 // MonsterTurnCompletedEvent is sent when a monster finishes its turn

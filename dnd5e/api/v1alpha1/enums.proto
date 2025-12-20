@@ -702,6 +702,33 @@ enum MonsterActionType {
   MONSTER_ACTION_TYPE_DEFEND = 7;
 }
 
+// MonsterType identifies the species/kind of monster for UI texture selection
+// Maps to toolkit's monster refs (e.g., refs.Monsters().Skeleton.ID)
+enum MonsterType {
+  MONSTER_TYPE_UNSPECIFIED = 0;
+
+  // Undead (Crypt theme) - 1-9
+  MONSTER_TYPE_SKELETON = 1;
+  MONSTER_TYPE_ZOMBIE = 2;
+  MONSTER_TYPE_SKELETON_ARCHER = 3;
+  MONSTER_TYPE_SKELETON_CAPTAIN = 4;
+  MONSTER_TYPE_GHOUL = 5;
+
+  // Beasts (Cave theme) - 10-19
+  MONSTER_TYPE_GIANT_RAT = 10;
+  MONSTER_TYPE_GIANT_SPIDER = 11;
+  MONSTER_TYPE_GIANT_WOLF_SPIDER = 12;
+  MONSTER_TYPE_WOLF = 13;
+  MONSTER_TYPE_BROWN_BEAR = 14;
+
+  // Humanoids (Bandit Lair theme) - 20-29
+  MONSTER_TYPE_BANDIT = 20;
+  MONSTER_TYPE_BANDIT_ARCHER = 21;
+  MONSTER_TYPE_BANDIT_CAPTAIN = 22;
+  MONSTER_TYPE_THUG = 23;
+  MONSTER_TYPE_GOBLIN = 24;
+}
+
 // DungeonTheme defines the thematic style of a dungeon
 // Maps to toolkit's dungeon.Theme
 enum DungeonTheme {

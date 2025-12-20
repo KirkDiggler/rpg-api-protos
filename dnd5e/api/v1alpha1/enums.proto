@@ -726,9 +726,7 @@ enum MonsterType {
   MONSTER_TYPE_BANDIT_ARCHER = 21;
   MONSTER_TYPE_BANDIT_CAPTAIN = 22;
   MONSTER_TYPE_THUG = 23;
-
-  // Fallback - 100+
-  MONSTER_TYPE_GOBLIN = 100;
+  MONSTER_TYPE_GOBLIN = 24;
 }
 
 // DungeonTheme defines the thematic style of a dungeon

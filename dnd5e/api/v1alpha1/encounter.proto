@@ -184,6 +184,7 @@ message MonsterCombatState {
   string monster_name = 2;
   int32 current_hit_points = 3;
   int32 max_hit_points = 4;
+  MonsterType monster_type = 5; // For UI texture selection
 }
 
 // GetEncounterStateResponse returns a full snapshot of the encounter

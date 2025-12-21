@@ -347,6 +347,12 @@ message DamageComponent {
 
   // Type-safe source reference
   SourceRef source_ref = 8;
+
+  // Multiplier for this component (default 1.0)
+  // Used for vulnerability (2.0), resistance (0.5), or immunity (0.0)
+  // When set, this component represents a damage multiplier, not additive damage
+  // UI should display as "×2" rather than "+X"
+  optional float multiplier = 9;
 }
 
 // DamageBreakdown provides complete damage breakdown by source

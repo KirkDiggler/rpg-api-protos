@@ -680,6 +680,16 @@ enum FeatureId {
   FEATURE_ID_STARRY_FORM_ARCHER = 7; // Stars Druid bonus action attack
 }
 
+// MonsterTraitId identifies monster traits that affect damage calculation
+enum MonsterTraitId {
+  MONSTER_TRAIT_ID_UNSPECIFIED = 0;
+  MONSTER_TRAIT_ID_VULNERABILITY = 1; // Double damage from specific type
+  MONSTER_TRAIT_ID_RESISTANCE = 2; // Half damage from specific type
+  MONSTER_TRAIT_ID_IMMUNITY = 3; // No damage from specific type
+  MONSTER_TRAIT_ID_PACK_TACTICS = 4; // Advantage when ally adjacent
+  MONSTER_TRAIT_ID_UNDEAD_FORTITUDE = 5; // CON save to avoid death
+}
+
 // ActionType represents the action economy cost of activating a feature
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;

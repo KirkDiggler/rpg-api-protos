@@ -202,5 +202,8 @@ message SourceRef {
 
     // Damage from a spell (fireball, magic missile, etc.)
     Spell spell = 5;
+
+    // Damage modifier from a monster trait (vulnerability, resistance, immunity)
+    MonsterTraitId monster_trait = 6;
   }
 }

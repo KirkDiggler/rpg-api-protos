@@ -445,7 +445,7 @@ message MonsterTurnResult {
 message ActivateFeatureRequest {
   string encounter_id = 1;
   string character_id = 2;
-  string feature_id = 3; // e.g., "rage", "second_wind"
+  FeatureId feature_id = 3; // Which feature to activate
 }
 
 // ActivateFeatureResponse returns the result of feature activation

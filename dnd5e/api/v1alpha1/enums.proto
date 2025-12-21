@@ -663,21 +663,42 @@ enum ConditionId {
   CONDITION_ID_UNARMORED_MOVEMENT = 14;
 }
 
-// FeatureId identifies class/racial features that directly deal damage when activated
-// These are features where the feature itself is the damage source, not a weapon or spell
+// FeatureId identifies activatable class/racial features.
+// Used for feature activation requests and UI display.
 enum FeatureId {
   FEATURE_ID_UNSPECIFIED = 0;
-  // Racial features
+
+  // Racial features (damage-dealing)
   FEATURE_ID_BREATH_WEAPON = 1; // Dragonborn breath weapon
   FEATURE_ID_HELLISH_REBUKE = 2; // Tiefling racial (spell-like)
+
   // Cleric Channel Divinity
   FEATURE_ID_RADIANCE_OF_DAWN = 3; // Light Cleric
   FEATURE_ID_WRATH_OF_THE_STORM = 4; // Tempest Cleric
   FEATURE_ID_DESTRUCTIVE_WRATH = 5; // Tempest Cleric (max damage)
+
   // Monk features
-  FEATURE_ID_DEFLECT_MISSILES = 6; // When thrown back at attacker
+  FEATURE_ID_DEFLECT_MISSILES = 6; // Reaction - catch/throw missiles
+  FEATURE_ID_FLURRY_OF_BLOWS = 7; // Bonus action - 2 unarmed strikes (ki)
+  FEATURE_ID_PATIENT_DEFENSE = 8; // Bonus action - Dodge (ki)
+  FEATURE_ID_STEP_OF_THE_WIND = 9; // Bonus action - Disengage/Dash (ki)
+
   // Druid features
-  FEATURE_ID_STARRY_FORM_ARCHER = 7; // Stars Druid bonus action attack
+  FEATURE_ID_STARRY_FORM_ARCHER = 10; // Stars Druid bonus action attack
+
+  // Barbarian features
+  FEATURE_ID_RAGE = 11; // Bonus action - enter rage
+  FEATURE_ID_RECKLESS_ATTACK = 12; // Free - declare on attack for advantage
+
+  // Fighter features
+  FEATURE_ID_SECOND_WIND = 13; // Bonus action - heal 1d10 + level
+  FEATURE_ID_ACTION_SURGE = 14; // Free - gain additional action
+
+  // Rogue features
+  FEATURE_ID_SNEAK_ATTACK = 15; // Free - extra damage on finesse/ranged
+
+  // Paladin features
+  FEATURE_ID_DIVINE_SMITE = 16; // Free - spend spell slot on hit
 }
 
 // MonsterTraitId identifies monster traits that affect damage calculation

@@ -26,6 +26,7 @@ service CharacterService {
   rpc UpdateBackground(UpdateBackgroundRequest) returns (UpdateBackgroundResponse);
   rpc UpdateAbilityScores(UpdateAbilityScoresRequest) returns (UpdateAbilityScoresResponse);
   rpc UpdateSkills(UpdateSkillsRequest) returns (UpdateSkillsResponse);
+  rpc UpdateAppearance(UpdateAppearanceRequest) returns (UpdateAppearanceResponse);
 
   // Validation
   rpc ValidateDraft(ValidateDraftRequest) returns (ValidateDraftResponse);
@@ -218,6 +219,26 @@ message Character {
 
   // Active conditions (raging, blessed, poisoned, etc.)
   repeated Condition active_conditions = 28;
+
+  // Visual appearance customization
+  Appearance appearance = 29;
+}
+
+// Character appearance customization for visual rendering
+// Colors are stored as hex strings (e.g., "#D5A88C") for maximum flexibility
+// The web client controls color palettes; backend accepts any valid hex value
+message Appearance {
+  // Skin tone color (replaces white marker in shader)
+  string skin_tone = 1;
+
+  // Primary armor/clothing color (replaces magenta marker in shader)
+  string primary_color = 2;
+
+  // Secondary accent/trim color (replaces yellow marker in shader)
+  string secondary_color = 3;
+
+  // Eye iris color (used for eye mesh primary color)
+  string eye_color = 4;
 }
 
 // Ability modifiers calculated from scores
@@ -393,6 +414,9 @@ message CharacterDraftData {
 
   // Track what steps are complete
   CreationProgress progress = 12;
+
+  // Visual appearance customization
+  Appearance appearance = 13;
 }
 
 // Tracks which parts of character creation are complete
@@ -452,6 +476,9 @@ message CharacterDraft {
   SubraceInfo subrace_info = 15;
   ClassInfo class_info = 16;
   BackgroundInfo background_info = 17;
+
+  // Visual appearance customization
+  Appearance appearance = 18;
 }
 
 // Request to create a draft
@@ -558,6 +585,15 @@ message UpdateAbilityScoresResponse {
 }
 
 message UpdateSkillsResponse {
+  CharacterDraft draft = 1;
+}
+
+message UpdateAppearanceRequest {
+  string draft_id = 1;
+  Appearance appearance = 2;
+}
+
+message UpdateAppearanceResponse {
   CharacterDraft draft = 1;
 }
 

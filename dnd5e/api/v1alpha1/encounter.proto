@@ -521,6 +521,12 @@ message StartCombatRequest {
 message StartCombatResponse {
   CombatState combat_state = 1;
   Room room = 2; // Room with entity positions for rendering
+  // If monsters won initiative and acted before first player
+  repeated MonsterTurnResult monster_turns = 3;
+  // Doors/connections visible from the starting room
+  repeated DoorInfo doors = 4;
+  // Unique identifier for this dungeon run (needed for OpenDoor)
+  string dungeon_id = 5;
 }
 
 // LeaveEncounterRequest removes a player from the encounter
@@ -752,8 +758,11 @@ service EncounterService {
 
   // === Dungeon Exploration ===
 
-  // DungeonStart generates a dungeon and starts in the first room (single-player)
-  rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse);
+  // Deprecated: Use CreateEncounter + StartCombat instead.
+  // Single-player now uses the multiplayer flow (party of one).
+  rpc DungeonStart(DungeonStartRequest) returns (DungeonStartResponse) {
+    option deprecated = true;
+  }
 
   // OpenDoor opens a door to reveal and enter the next room
   rpc OpenDoor(OpenDoorRequest) returns (OpenDoorResponse);

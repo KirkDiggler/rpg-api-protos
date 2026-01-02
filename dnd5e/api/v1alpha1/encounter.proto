@@ -208,6 +208,10 @@ message GetEncounterStateResponse {
   // ULID of the most recent event - used for client-side filtering
   // Client should ignore events with event_id <= last_event_id
   string last_event_id = 9;
+
+  // Dungeon state (populated in ACTIVE state for dungeon encounters)
+  repeated DoorInfo doors = 10;
+  string dungeon_id = 11;
 }
 
 // GetEncounterHistoryRequest retrieves historical events for an encounter
@@ -610,6 +614,12 @@ message CombatStartedEvent {
   Room room = 2; // Final room with all entity placements
   repeated PartyMember party = 3; // Full party state at combat start
   repeated MonsterCombatState monsters = 4; // Monster state with types for UI textures
+  // Doors/connections visible from the starting room
+  repeated DoorInfo doors = 5;
+  // Unique identifier for this dungeon run (needed for OpenDoor)
+  string dungeon_id = 6;
+  // If monsters won initiative and acted before first player
+  repeated MonsterTurnResult monster_turns = 7;
 }
 
 // ============================================================================

@@ -511,6 +511,10 @@ message SetReadyResponse {
 // StartCombatRequest initiates combat (host only, all players must be ready)
 message StartCombatRequest {
   string encounter_id = 1;
+  // Dungeon configuration (host sets these in lobby)
+  DungeonTheme theme = 2;
+  DungeonDifficulty difficulty = 3;
+  DungeonLength length = 4;
 }
 
 // StartCombatResponse returns the initial combat state

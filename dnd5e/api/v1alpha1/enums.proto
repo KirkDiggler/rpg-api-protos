@@ -793,3 +793,10 @@ enum DungeonState {
   DUNGEON_STATE_FAILED = 3; // Party wiped (TPK)
   DUNGEON_STATE_ABANDONED = 4; // Players left the dungeon
 }
+
+// AttackHand specifies which hand is making the attack for two-weapon fighting
+enum AttackHand {
+  ATTACK_HAND_UNSPECIFIED = 0; // Default to main hand behavior
+  ATTACK_HAND_MAIN = 1; // Main hand attack (uses action)
+  ATTACK_HAND_OFF = 2; // Off-hand attack (uses bonus action, TWF rules apply)
+}

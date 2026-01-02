@@ -320,6 +320,7 @@ message AttackRequest {
   string attacker_id = 2;
   string target_id = 3;
   string weapon_id = 4; // Optional, uses default weapon if not specified
+  AttackHand attack_hand = 5; // Which hand is attacking (for two-weapon fighting)
 }
 
 // ============================================================================

@@ -50,6 +50,8 @@ message Room {
   // Entities placed in the room - map of entity ID to their placement data
   // Matches toolkit's map[string]EntityPlacement structure
   map<string, EntityPlacement> entities = 7;
+  // Wall segments in the room (perimeter + internal tactical walls)
+  repeated .api.v1alpha1.Wall walls = 8;
 }
 
 // DoorInfo represents a connection point between rooms in a dungeon

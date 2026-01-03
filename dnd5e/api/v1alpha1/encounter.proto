@@ -381,6 +381,16 @@ message AttackResult {
   DamageBreakdown damage_breakdown = 8; // Detailed damage breakdown (optional)
 }
 
+// GrantedAction represents an action granted during combat
+// Example: Two-weapon fighting grants an off-hand strike after main-hand attack
+message GrantedAction {
+  string id = 1; // Unique identifier for this granted action
+  string type = 2; // Action type (e.g., "off-hand-strike")
+  string name = 3; // Display name for UI
+  string reason = 4; // Why granted (e.g., "dual-wielding light weapons")
+  string weapon_id = 5; // Associated weapon (if applicable)
+}
+
 // AttackResponse returns the attack outcome
 message AttackResponse {
   bool success = 1;
@@ -388,6 +398,7 @@ message AttackResponse {
   AttackResult result = 3;
   CombatState combat_state = 4;
   Room updated_room = 5; // Updated if entities are defeated/removed
+  GrantedAction granted_action = 6; // Action granted from this attack (e.g., off-hand strike)
 }
 
 // ============================================================================
@@ -646,6 +657,7 @@ message AttackResolvedEvent {
   Character updated_attacker = 4; // If attacker state changed
   Character updated_target = 5; // New HP, conditions, etc.
   Room updated_room = 6; // If entity was defeated/removed
+  GrantedAction granted_action = 7; // Action granted from this attack (e.g., off-hand strike)
 }
 
 // FeatureActivatedEvent is sent when a character activates a feature

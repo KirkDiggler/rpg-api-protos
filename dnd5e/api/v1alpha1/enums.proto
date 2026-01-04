@@ -800,3 +800,47 @@ enum AttackHand {
   ATTACK_HAND_MAIN = 1; // Main hand attack (uses action)
   ATTACK_HAND_OFF = 2; // Off-hand attack (uses bonus action, TWF rules apply)
 }
+
+// EntityType identifies what kind of entity this is for lookup purposes
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_CHARACTER = 1; // Player character - look up in characters[]
+  ENTITY_TYPE_MONSTER = 2; // Monster - look up in monsters[]
+  ENTITY_TYPE_OBSTACLE = 3; // Static obstacle - no additional lookup needed
+  // ENTITY_TYPE_HAZARD = 4;  // Future: traps, difficult terrain
+}
+
+// EntitySize represents D&D 5e creature/object sizes
+enum EntitySize {
+  ENTITY_SIZE_UNSPECIFIED = 0;
+  ENTITY_SIZE_TINY = 1; // 2.5 ft - 1 hex (can share)
+  ENTITY_SIZE_SMALL = 2; // 5 ft - 1 hex
+  ENTITY_SIZE_MEDIUM = 3; // 5 ft - 1 hex
+  ENTITY_SIZE_LARGE = 4; // 10 ft - 2x2 hexes
+  ENTITY_SIZE_HUGE = 5; // 15 ft - 3x3 hexes
+  ENTITY_SIZE_GARGANTUAN = 6; // 20+ ft - 4x4 hexes
+}
+
+// ObstacleType identifies the visual asset for obstacles
+// Toolkit owns the tactical properties (blocking, cover) for each type
+enum ObstacleType {
+  OBSTACLE_TYPE_UNSPECIFIED = 0;
+
+  // Cave obstacles (1-19)
+  OBSTACLE_TYPE_STALAGMITE = 1;
+  OBSTACLE_TYPE_BOULDER = 2;
+
+  // Structural obstacles (20-39)
+  OBSTACLE_TYPE_PILLAR = 20;
+  OBSTACLE_TYPE_STATUE = 21;
+
+  // Crypt obstacles (40-59)
+  OBSTACLE_TYPE_SARCOPHAGUS = 40;
+  OBSTACLE_TYPE_ALTAR = 41;
+  OBSTACLE_TYPE_BRAZIER = 42;
+
+  // Furniture obstacles (60-79)
+  OBSTACLE_TYPE_CRATE = 60;
+  OBSTACLE_TYPE_BARREL = 61;
+  OBSTACLE_TYPE_TABLE = 62;
+}

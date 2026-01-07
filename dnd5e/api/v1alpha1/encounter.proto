@@ -62,6 +62,10 @@ message Room {
   map<string, EntityPlacement> entities = 7;
   // Wall segments in the room (perimeter + internal tactical walls)
   repeated .api.v1alpha1.Wall walls = 8;
+  // Room origin in dungeon-absolute coordinates
+  // Used to position floor hexes in the unified coordinate system
+  // First room has origin (0,0,0), subsequent rooms are offset based on door alignment
+  .api.v1alpha1.Position origin = 9;
 }
 
 // DoorInfo represents a connection point between rooms in a dungeon
@@ -134,9 +138,6 @@ message OpenDoorResponse {
   repeated DoorInfo doors = 7;
   // Updated dungeon state (may transition to VICTORIOUS if boss room cleared)
   DungeonState dungeon_state = 8;
-  // Room origin in dungeon-absolute coordinates (for floor hex rendering)
-  // Used by clients to position the revealed room's floor hexes in the unified coordinate system
-  .api.v1alpha1.Position room_origin = 9;
 }
 
 // ============================================================================

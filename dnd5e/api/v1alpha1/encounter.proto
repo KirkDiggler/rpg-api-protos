@@ -134,6 +134,9 @@ message OpenDoorResponse {
   repeated DoorInfo doors = 7;
   // Updated dungeon state (may transition to VICTORIOUS if boss room cleared)
   DungeonState dungeon_state = 8;
+  // Room origin in dungeon-absolute coordinates (for floor hex rendering)
+  // Used by clients to position the revealed room's floor hexes in the unified coordinate system
+  .api.v1alpha1.Position room_origin = 9;
 }
 
 // ============================================================================

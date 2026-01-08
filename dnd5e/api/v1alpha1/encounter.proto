@@ -156,12 +156,45 @@ message InitiativeEntry {
 // TurnState tracks resources available during a turn
 message TurnState {
   string entity_id = 1;
-  int32 movement_used = 2;
-  int32 movement_max = 3;
-  bool action_used = 4;
-  bool bonus_action_used = 5;
-  bool reaction_available = 6;
+  int32 movement_used = 2 [deprecated = true]; // Use action_economy.movement_remaining
+  int32 movement_max = 3 [deprecated = true]; // Use action_economy.movement_max
+  bool action_used = 4 [deprecated = true]; // Use action_economy.standard_action_available
+  bool bonus_action_used = 5 [deprecated = true]; // Use action_economy.bonus_action_available
+  bool reaction_available = 6 [deprecated = true]; // Use action_economy.reaction_available
   .api.v1alpha1.Position position = 7;
+
+  // New action economy system - tracks all combat resources
+  ActionEconomy action_economy = 8;
+}
+
+// ActionEconomy tracks all combat resources available during a turn
+// This replaces the individual boolean/int fields in TurnState
+message ActionEconomy {
+  // Movement capacity in feet (base speed, DASH adds to it)
+  int32 movement_remaining = 1;
+  // Maximum movement for this turn (base + any bonuses like DASH)
+  int32 movement_max = 2;
+
+  // Attack capacity granted by ATTACK ability
+  // Starts at 0, ATTACK grants 1 (or more with Extra Attack)
+  int32 attacks_remaining = 3;
+
+  // Standard action availability (consumed by ATTACK, DASH, DODGE, etc.)
+  bool standard_action_available = 4;
+  // Bonus action availability (consumed by off-hand attack, Flurry of Blows, etc.)
+  bool bonus_action_available = 5;
+  // Reaction availability (consumed by opportunity attacks, etc.)
+  bool reaction_available = 6;
+
+  // Off-hand attack capacity (granted by two-weapon fighting after main attack)
+  int32 off_hand_attacks_remaining = 7;
+  // Flurry strikes remaining (granted by Flurry of Blows)
+  int32 flurry_strikes_remaining = 8;
+
+  // Whether disengage is active (no opportunity attacks this turn)
+  bool disengage_active = 9;
+  // Whether dodge is active (attacks against have disadvantage)
+  bool dodge_active = 10;
 }
 
 // CombatState represents the complete state of combat
@@ -416,6 +449,90 @@ message AttackResponse {
 }
 
 // ============================================================================
+// TWO-LEVEL ACTION ECONOMY
+// ============================================================================
+
+// ActivateCombatAbilityRequest activates a combat ability (ATTACK, DASH, DODGE, etc.)
+// This consumes action economy resources and grants capacity to execute actions
+message ActivateCombatAbilityRequest {
+  string encounter_id = 1;
+  string entity_id = 2;
+  CombatAbilityId ability_id = 3;
+
+  // Optional target for abilities that need one (HELP)
+  string target_id = 4;
+}
+
+// ActivateCombatAbilityResponse returns the result of ability activation
+message ActivateCombatAbilityResponse {
+  bool success = 1;
+  string error = 2;
+
+  // Updated action economy after activation
+  ActionEconomy action_economy = 3;
+
+  // What capacity was granted (for UI feedback)
+  // e.g., "Granted 2 attacks" for Fighter with Extra Attack
+  string granted_capacity = 4;
+
+  // Full combat state update
+  CombatState combat_state = 5;
+}
+
+// StrikeInput contains parameters for executing a strike action
+message StrikeInput {
+  string target_id = 1;
+  string weapon_id = 2; // Optional, uses equipped weapon if not specified
+}
+
+// MoveInput contains parameters for executing a move action
+message MoveInput {
+  repeated .api.v1alpha1.Position path = 1; // Each step in order
+}
+
+// ExecuteActionRequest executes an action that consumes granted capacity
+message ExecuteActionRequest {
+  string encounter_id = 1;
+  string entity_id = 2;
+  ActionId action_id = 3;
+
+  // Action-specific input
+  oneof input {
+    StrikeInput strike = 10;
+    MoveInput move = 11;
+  }
+}
+
+// MoveResult contains the outcome of a move action
+message MoveResult {
+  .api.v1alpha1.Position final_position = 1;
+  int32 movement_used = 2;
+  string stop_reason = 3; // "completed", "trap triggered", etc.
+}
+
+// ExecuteActionResponse returns the result of action execution
+message ExecuteActionResponse {
+  bool success = 1;
+  string error = 2;
+
+  // Updated action economy after execution
+  ActionEconomy action_economy = 3;
+
+  // Action-specific result
+  oneof result {
+    AttackResult strike_result = 10;
+    MoveResult move_result = 11;
+  }
+
+  // Full state updates
+  CombatState combat_state = 4;
+  Room updated_room = 5;
+
+  // For strike actions: was an off-hand attack granted?
+  GrantedAction granted_action = 6;
+}
+
+// ============================================================================
 // MONSTER TURN RESULTS
 // ============================================================================
 
@@ -593,13 +710,17 @@ message EncounterEvent {
     PlayerReadyEvent player_ready = 12;
     CombatStartedEvent combat_started = 13;
 
-    // Combat events
+    // Combat events (legacy)
     MovementCompletedEvent movement_completed = 20;
     AttackResolvedEvent attack_resolved = 21;
     FeatureActivatedEvent feature_activated = 22;
     TurnEndedEvent turn_ended = 23;
     MonsterTurnCompletedEvent monster_turn_completed = 24;
     CombatEndedEvent combat_ended = 25;
+
+    // Combat events (new action economy)
+    CombatAbilityActivatedEvent combat_ability_activated = 26;
+    ActionExecutedEvent action_executed = 27;
 
     // Connection events
     PlayerDisconnectedEvent player_disconnected = 30;
@@ -699,6 +820,44 @@ message MonsterTurnCompletedEvent {
 // CombatEndedEvent is sent when combat ends (victory or defeat)
 message CombatEndedEvent {
   EncounterResult result = 1;
+}
+
+// CombatAbilityActivatedEvent is sent when an entity activates a combat ability
+message CombatAbilityActivatedEvent {
+  string entity_id = 1;
+  CombatAbilityId ability_id = 2;
+  // What capacity was granted (for UI/log display)
+  string granted_capacity = 3;
+  // Updated action economy after activation
+  ActionEconomy action_economy = 4;
+  // Full combat state update
+  CombatState combat_state = 5;
+}
+
+// ActionExecutedEvent is sent when an entity executes an action
+message ActionExecutedEvent {
+  string entity_id = 1;
+  ActionId action_id = 2;
+
+  // Action-specific result
+  oneof result {
+    AttackResult strike_result = 10;
+    MoveResult move_result = 11;
+  }
+
+  // Updated action economy after execution
+  ActionEconomy action_economy = 3;
+
+  // State updates
+  CombatState combat_state = 4;
+  Room updated_room = 5;
+
+  // For attack actions: target and updated state
+  string target_id = 6;
+  Character updated_target = 7; // If target took damage
+
+  // Was an additional action granted? (e.g., off-hand strike)
+  GrantedAction granted_action = 8;
 }
 
 // ============================================================================
@@ -819,17 +978,33 @@ service EncounterService {
   // Returns events up to the specified event ID for event log population
   rpc GetEncounterHistory(GetEncounterHistoryRequest) returns (GetEncounterHistoryResponse);
 
-  // === Combat Actions ===
+  // === Combat Actions (Legacy) ===
 
+  // Deprecated: Use ExecuteAction with ACTION_ID_MOVE instead.
   // MoveCharacter validates and executes movement along a path
-  rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse);
+  rpc MoveCharacter(MoveCharacterRequest) returns (MoveCharacterResponse) {
+    option deprecated = true;
+  }
 
   // EndTurn ends the current entity's turn
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
 
+  // Deprecated: Use ActivateCombatAbility + ExecuteAction instead.
   // Attack executes a melee or ranged attack
-  rpc Attack(AttackRequest) returns (AttackResponse);
+  rpc Attack(AttackRequest) returns (AttackResponse) {
+    option deprecated = true;
+  }
 
   // ActivateFeature activates a combat feature (e.g., Rage, Second Wind)
   rpc ActivateFeature(ActivateFeatureRequest) returns (ActivateFeatureResponse);
+
+  // === Combat Actions (Two-Level Action Economy) ===
+
+  // ActivateCombatAbility activates a combat ability (ATTACK, DASH, DODGE, etc.)
+  // This consumes action economy resources and grants capacity to execute actions
+  rpc ActivateCombatAbility(ActivateCombatAbilityRequest) returns (ActivateCombatAbilityResponse);
+
+  // ExecuteAction executes an action that consumes granted capacity
+  // Use after ActivateCombatAbility to perform strikes, moves, etc.
+  rpc ExecuteAction(ExecuteActionRequest) returns (ExecuteActionResponse);
 }

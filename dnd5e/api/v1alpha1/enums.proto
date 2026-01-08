@@ -844,3 +844,37 @@ enum ObstacleType {
   OBSTACLE_TYPE_BARREL = 61;
   OBSTACLE_TYPE_TABLE = 62;
 }
+
+// CombatAbilityId identifies standard combat abilities that consume action economy
+// Activating an ability grants capacity to execute specific actions
+enum CombatAbilityId {
+  COMBAT_ABILITY_ID_UNSPECIFIED = 0;
+
+  // Standard actions (consume standard action)
+  COMBAT_ABILITY_ID_ATTACK = 1; // Grants attack capacity (1 strike, or more with Extra Attack)
+  COMBAT_ABILITY_ID_DASH = 2; // Grants extra movement capacity (doubles speed)
+  COMBAT_ABILITY_ID_DODGE = 3; // Grants dodging condition until next turn
+  COMBAT_ABILITY_ID_DISENGAGE = 4; // Grants free movement without opportunity attacks
+  COMBAT_ABILITY_ID_HELP = 5; // Grants advantage to an ally's next attack or check
+  COMBAT_ABILITY_ID_HIDE = 6; // Attempt to become hidden
+  COMBAT_ABILITY_ID_READY = 7; // Prepare an action for a trigger
+
+  // Bonus action abilities
+  COMBAT_ABILITY_ID_OFFHAND_ATTACK = 10; // Two-weapon fighting bonus action attack
+  COMBAT_ABILITY_ID_FLURRY_OF_BLOWS = 11; // Monk: 2 unarmed strikes for 1 ki
+}
+
+// ActionId identifies executable actions that consume granted capacity
+// Actions are executed after activating a combat ability
+enum ActionId {
+  ACTION_ID_UNSPECIFIED = 0;
+
+  // Movement actions
+  ACTION_ID_MOVE = 1; // Consume movement capacity to change position
+
+  // Attack actions
+  ACTION_ID_STRIKE = 2; // Execute a weapon attack (main hand)
+  ACTION_ID_OFF_HAND_STRIKE = 3; // Execute off-hand attack (two-weapon fighting)
+  ACTION_ID_FLURRY_STRIKE = 4; // Execute unarmed strike from Flurry of Blows
+  ACTION_ID_UNARMED_STRIKE = 5; // Execute unarmed strike (Martial Arts bonus action)
+}

@@ -197,6 +197,32 @@ message ActionEconomy {
   bool dodge_active = 10;
 }
 
+// AvailableAbility represents a combat ability with its current availability status
+// Used by UI to render ability buttons with proper enabled/disabled state
+message AvailableAbility {
+  // Which ability this represents
+  CombatAbilityId ability_id = 1;
+  // Display name for UI
+  string name = 2;
+  // Whether the ability can be activated right now
+  bool can_use = 3;
+  // Explanation if can_use is false (e.g., "no actions remaining")
+  string reason = 4;
+}
+
+// AvailableAction represents an executable action with its current availability status
+// Used by UI to render action buttons based on granted capacity
+message AvailableAction {
+  // Which action this represents
+  ActionId action_id = 1;
+  // Display name for UI
+  string name = 2;
+  // Whether the action can be executed right now
+  bool can_use = 3;
+  // Explanation if can_use is false (e.g., "no attacks remaining")
+  string reason = 4;
+}
+
 // CombatState represents the complete state of combat
 message CombatState {
   string encounter_id = 1;
@@ -477,6 +503,14 @@ message ActivateCombatAbilityResponse {
 
   // Full combat state update
   CombatState combat_state = 5;
+
+  // Current availability of all combat abilities after this activation
+  // UI should refresh ability buttons based on this list
+  repeated AvailableAbility available_abilities = 6;
+
+  // Current availability of all actions after this activation
+  // UI should refresh action buttons based on this list
+  repeated AvailableAction available_actions = 7;
 }
 
 // StrikeInput contains parameters for executing a strike action
@@ -530,6 +564,14 @@ message ExecuteActionResponse {
 
   // For strike actions: was an off-hand attack granted?
   GrantedAction granted_action = 6;
+
+  // Current availability of all combat abilities after this action
+  // UI should refresh ability buttons based on this list
+  repeated AvailableAbility available_abilities = 7;
+
+  // Current availability of all actions after this action
+  // UI should refresh action buttons based on this list
+  repeated AvailableAction available_actions = 8;
 }
 
 // ============================================================================

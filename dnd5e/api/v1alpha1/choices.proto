@@ -4,6 +4,7 @@ package dnd5e.api.v1alpha1;
 
 import "dnd5e/api/v1alpha1/common.proto"; // For AbilityScores
 import "dnd5e/api/v1alpha1/enums.proto";
+import "dnd5e/api/v1alpha1/equipment_types.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
 option java_multiple_files = true;
@@ -112,6 +113,10 @@ message EquipmentItem {
     Pack pack = 6;
     Ammunition ammunition = 7;
   }
+
+  // Resolved equipment stats for display (weapon damage, armor AC, etc.)
+  // Populated by toolkit during choice building. Optional for backward compatibility.
+  Equipment equipment_detail = 8;
 }
 
 // Category-based equipment selection (e.g., "choose 2 martial weapons")

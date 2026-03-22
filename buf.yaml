@@ -1,10 +1,14 @@
 version: v2
+modules:
+  - path: .
+    excludes:
+      - .claude
 breaking:
   use:
     - FILE
 lint:
   use:
-    - STANDARD
+    - DEFAULT
   except:
     - PACKAGE_VERSION_SUFFIX # We use v1alpha1 style versioning
     - RPC_RESPONSE_STANDARD_NAME # Streaming RPCs use event-style naming (e.g., EncounterEvent)

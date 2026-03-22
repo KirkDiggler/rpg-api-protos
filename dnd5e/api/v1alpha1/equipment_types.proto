@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha1;
+
+import "dnd5e/api/v1alpha1/enums.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
+
+// Cost information for equipment
+message Cost {
+  int32 quantity = 1;
+  string unit = 2; // "gp", "sp", "cp", etc.
+}
+
+// Weight information for equipment
+message Weight {
+  int32 quantity = 1; // Weight value in fixed-point representation (e.g., grams or ounces)
+  string unit = 2; // Unit of measurement (e.g., "g", "oz", "lbs")
+}
+
+// Equipment item
+message Equipment {
+  string id = 1;
+  string name = 2;
+  EquipmentCategory category = 3;
+  Cost cost = 4;
+  Weight weight = 5;
+  string description = 6;
+
+  // Equipment type-specific data
+  oneof equipment_data {
+    WeaponData weapon_data = 7;
+    ArmorData armor_data = 8;
+    GearData gear_data = 9;
+  }
+}
+
+// Weapon-specific data
+message WeaponData {
+  WeaponCategory weapon_category = 1;
+  string damage_dice = 2; // "1d6", "1d8", etc.
+  DamageType damage_type = 3;
+  repeated WeaponProperty properties = 4;
+  string range = 5; // "melee", "ranged"
+  int32 normal_range = 6; // range in feet for ranged weapons
+  int32 long_range = 7; // long range in feet for ranged weapons
+}
+
+// Armor-specific data
+message ArmorData {
+  ArmorCategory armor_category = 1;
+  int32 base_ac = 2;
+  bool dex_bonus = 3;
+  bool has_dex_limit = 4; // Indicates if max_dex_bonus is applicable
+  int32 max_dex_bonus = 5; // Maximum Dexterity bonus to AC, valid only if has_dex_limit is true
+  int32 str_minimum = 6;
+  bool stealth_disadvantage = 7;
+}
+
+// General gear data
+message GearData {
+  GearCategory gear_category = 1;
+  repeated string properties = 2;
+}

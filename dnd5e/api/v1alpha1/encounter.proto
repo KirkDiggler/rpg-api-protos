@@ -191,10 +191,8 @@ message ActionEconomy {
   // Flurry strikes remaining (granted by Flurry of Blows)
   int32 flurry_strikes_remaining = 8;
 
-  // Whether disengage is active (no opportunity attacks this turn)
-  bool disengage_active = 9;
-  // Whether dodge is active (attacks against have disadvantage)
-  bool dodge_active = 10;
+  reserved 9, 10;
+  reserved "disengage_active", "dodge_active";
 }
 
 // AvailableAbility represents a combat ability with its current availability status
@@ -208,6 +206,8 @@ message AvailableAbility {
   bool can_use = 3;
   // Explanation if can_use is false (e.g., "no actions remaining")
   string reason = 4;
+  int32 resource_current = 5; // Current charges (0 = no resource tracking)
+  int32 resource_max = 6; // Max charges (0 = no resource tracking)
 }
 
 // AvailableAction represents an executable action with its current availability status

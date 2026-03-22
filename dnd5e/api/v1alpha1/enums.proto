@@ -862,6 +862,11 @@ enum CombatAbilityId {
   // Bonus action abilities
   COMBAT_ABILITY_ID_OFFHAND_ATTACK = 10; // Two-weapon fighting bonus action attack
   COMBAT_ABILITY_ID_FLURRY_OF_BLOWS = 11; // Monk: 2 unarmed strikes for 1 ki
+
+  // Class features that cost action economy
+  COMBAT_ABILITY_ID_RAGE = 12; // Barbarian: bonus action, consumes rage charge
+  COMBAT_ABILITY_ID_SECOND_WIND = 13; // Fighter: bonus action, consumes second wind use
+  COMBAT_ABILITY_ID_MARTIAL_ARTS_BONUS = 14; // Monk: bonus action, granted after monk weapon/unarmed strike
 }
 
 // ActionId identifies executable actions that consume granted capacity

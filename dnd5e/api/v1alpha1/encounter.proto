@@ -234,6 +234,25 @@ message CombatState {
   bool combat_ended = 7;
 }
 
+// DeathSaveProgress tracks death save successes and failures for a character at 0 HP
+message DeathSaveProgress {
+  int32 success_count = 1;
+  int32 failure_count = 2;
+  bool stabilized = 3;
+  bool dead = 4;
+}
+
+// CharacterCombatState tracks combat-specific state for a player character
+// Entity positions are in Room.entities, this provides combat stats
+message CharacterCombatState {
+  string character_id = 1;
+  int32 current_hit_points = 2;
+  int32 max_hit_points = 3;
+  DeathSaveProgress death_saves = 4;
+  bool is_unconscious = 5;
+  bool is_dead = 6;
+}
+
 // GetCombatStateRequest retrieves current state (for reconnection/refresh)
 message GetCombatStateRequest {
   string encounter_id = 1;
@@ -287,6 +306,9 @@ message GetEncounterStateResponse {
   // Dungeon state (populated in ACTIVE state for dungeon encounters)
   repeated DoorInfo doors = 10;
   string dungeon_id = 11;
+
+  // Per-character combat state (HP, death saves, unconscious/dead status)
+  repeated CharacterCombatState characters = 12;
 }
 
 // GetEncounterHistoryRequest retrieves historical events for an encounter
@@ -774,6 +796,15 @@ message EncounterEvent {
     RoomRevealedEvent room_revealed = 40;
     DungeonVictoryEvent dungeon_victory = 41;
     DungeonFailureEvent dungeon_failure = 42;
+
+    // Death save events
+    DeathSaveRolledEvent death_save_rolled = 50;
+    CharacterDiedEvent character_died = 51;
+    CharacterStabilizedEvent character_stabilized = 52;
+    CharacterUnconsciousEvent character_unconscious = 53;
+
+    // Rest events
+    RestCompletedEvent rest_completed = 55;
   }
 }
 
@@ -968,6 +999,90 @@ message DungeonFailureEvent {
 }
 
 // ============================================================================
+// DEATH SAVE EVENTS
+// ============================================================================
+
+// DeathSaveRolledEvent is sent when a character rolls a death saving throw
+message DeathSaveRolledEvent {
+  string character_id = 1;
+  int32 roll = 2;
+  bool is_success = 3;
+  bool is_critical_fail = 4;
+  bool is_critical_success = 5;
+  DeathSaveProgress progress = 6;
+  // If nat 20: character regains consciousness at 1 HP
+  bool regained_consciousness = 7;
+  int32 hp_restored = 8;
+}
+
+// CharacterDiedEvent is sent when a character accumulates 3 death save failures
+message CharacterDiedEvent {
+  string character_id = 1;
+  string character_name = 2;
+}
+
+// CharacterStabilizedEvent is sent when a character accumulates 3 death save successes
+message CharacterStabilizedEvent {
+  string character_id = 1;
+  string character_name = 2;
+}
+
+// CharacterUnconsciousEvent is sent when a character drops to 0 HP
+message CharacterUnconsciousEvent {
+  string character_id = 1;
+  string character_name = 2;
+  string source_entity_id = 3;
+}
+
+// ============================================================================
+// REST EVENTS
+// ============================================================================
+
+// RestCompletedEvent is sent when the party completes a rest between rooms
+message RestCompletedEvent {
+  RestType rest_type = 1;
+  repeated string character_ids = 2;
+  // Per-character HP after rest
+  repeated CharacterCombatState updated_characters = 3;
+}
+
+// ============================================================================
+// REST MESSAGES
+// ============================================================================
+
+// ShortRestRequest initiates a short rest for the party between rooms
+message ShortRestRequest {
+  string dungeon_id = 1;
+  // Character IDs spending hit dice (with how many)
+  repeated HitDiceSpend hit_dice_spends = 2;
+}
+
+// HitDiceSpend specifies how many hit dice a character spends during short rest
+message HitDiceSpend {
+  string character_id = 1;
+  int32 dice_count = 2;
+}
+
+// ShortRestResponse returns updated character state after short rest
+message ShortRestResponse {
+  bool success = 1;
+  string error = 2;
+  repeated CharacterCombatState updated_characters = 3;
+}
+
+// LongRestRequest initiates a long rest for the party
+message LongRestRequest {
+  string dungeon_id = 1;
+}
+
+// LongRestResponse returns updated character state after long rest
+message LongRestResponse {
+  bool success = 1;
+  string error = 2;
+  repeated CharacterCombatState updated_characters = 3;
+}
+
+// ============================================================================
 // SERVICE DEFINITION
 // ============================================================================
 
@@ -1049,4 +1164,12 @@ service EncounterService {
   // ExecuteAction executes an action that consumes granted capacity
   // Use after ActivateCombatAbility to perform strikes, moves, etc.
   rpc ExecuteAction(ExecuteActionRequest) returns (ExecuteActionResponse);
+
+  // === Rest ===
+
+  // ShortRest performs a short rest for the party between rooms
+  rpc ShortRest(ShortRestRequest) returns (ShortRestResponse);
+
+  // LongRest performs a long rest for the party
+  rpc LongRest(LongRestRequest) returns (LongRestResponse);
 }

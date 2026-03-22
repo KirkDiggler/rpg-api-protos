@@ -661,6 +661,10 @@ enum ConditionId {
   CONDITION_ID_IMPROVED_CRITICAL = 12;
   CONDITION_ID_MARTIAL_ARTS = 13;
   CONDITION_ID_UNARMORED_MOVEMENT = 14;
+  CONDITION_ID_UNCONSCIOUS = 15;
+  CONDITION_ID_RECKLESS_ATTACK = 16;
+  CONDITION_ID_DODGING = 17;
+  CONDITION_ID_DISENGAGING = 18;
 }
 
 // FeatureId identifies activatable class/racial features.
@@ -882,4 +886,11 @@ enum ActionId {
   ACTION_ID_OFF_HAND_STRIKE = 3; // Execute off-hand attack (two-weapon fighting)
   ACTION_ID_FLURRY_STRIKE = 4; // Execute unarmed strike from Flurry of Blows
   ACTION_ID_UNARMED_STRIKE = 5; // Execute unarmed strike (Martial Arts bonus action)
+}
+
+// RestType identifies the type of rest taken between encounters
+enum RestType {
+  REST_TYPE_UNSPECIFIED = 0;
+  REST_TYPE_SHORT = 1;
+  REST_TYPE_LONG = 2;
 }

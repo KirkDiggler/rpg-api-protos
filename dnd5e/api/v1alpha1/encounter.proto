@@ -81,6 +81,31 @@ message ObstacleDetails {
   ObstacleType obstacle_type = 1;
 }
 
+message RoomLayout {
+  string id = 1;
+  string type = 2;
+  int32 width = 3;
+  int32 height = 4;
+  .api.v1alpha1.GridType grid_type = 5;
+  repeated .api.v1alpha1.Wall walls = 6;
+  .api.v1alpha1.Position origin = 7;
+}
+
+// EncounterSnapshot holds the complete state of a dungeon encounter
+// Named to avoid conflict with the EncounterState enum
+message EncounterSnapshot {
+  string encounter_id = 1;
+  string dungeon_id = 2;
+  map<string, EntityState> entities = 3;
+  map<string, RoomLayout> rooms = 4;
+  string current_room_id = 5;
+  repeated string revealed_room_ids = 6;
+  CombatState combat = 7;
+  DungeonState dungeon_state = 8;
+  int32 rooms_cleared = 9;
+  map<string, DoorInfo> doors = 10;
+}
+
 // Room represents a spatial area where encounters take place
 // Matches toolkit's RoomData structure exactly for direct field mapping
 message Room {
@@ -273,6 +298,7 @@ message CombatState {
   TurnState current_turn = 5;
   bool combat_started = 6;
   bool combat_ended = 7;
+  ActionEconomy current_turn_economy = 10;
 }
 
 // DeathSaveProgress tracks death save successes and failures for a character at 0 HP

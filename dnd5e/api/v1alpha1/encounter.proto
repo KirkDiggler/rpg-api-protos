@@ -91,9 +91,9 @@ message RoomLayout {
   .api.v1alpha1.Position origin = 7;
 }
 
-// EncounterSnapshot holds the complete state of a dungeon encounter
-// Named to avoid conflict with the EncounterState enum
-message EncounterSnapshot {
+// EncounterStateData holds the complete state of a dungeon encounter
+// Follows the toolkit Data convention (character.Data, monster.Data)
+message EncounterStateData {
   string encounter_id = 1;
   string dungeon_id = 2;
   map<string, EntityState> entities = 3;
@@ -378,7 +378,7 @@ message GetEncounterStateResponse {
   repeated CharacterCombatState characters = 12;
 
   // Unified encounter snapshot (replaces fragmented state above)
-  EncounterSnapshot encounter_snapshot = 20;
+  EncounterStateData encounter_state_data = 20;
 }
 
 // GetEncounterHistoryRequest retrieves historical events for an encounter
@@ -905,7 +905,7 @@ message CombatStartedEvent {
   reserved "combat_state", "room", "party", "monsters", "doors";
   string dungeon_id = 6;
   repeated MonsterTurnResult monster_turns = 7;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // ============================================================================
@@ -964,7 +964,7 @@ message MonsterTurnCompletedEvent {
 // CombatEndedEvent is sent when combat ends (victory or defeat)
 message CombatEndedEvent {
   EncounterResult result = 1;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // CombatAbilityActivatedEvent is sent when an entity activates a combat ability
@@ -1008,7 +1008,7 @@ message PlayerDisconnectedEvent {
 message PlayerReconnectedEvent {
   string player_id = 1;
   PartyMember member = 2;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // CombatPausedEvent is sent when combat is paused due to disconnect
@@ -1021,7 +1021,7 @@ message CombatPausedEvent {
 message CombatResumedEvent {
   reserved 1;
   reserved "combat_state";
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // ============================================================================
@@ -1032,7 +1032,7 @@ message CombatResumedEvent {
 message RoomRevealedEvent {
   string dungeon_id = 1;
   string connection_id = 2;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
   reserved 3, 4, 5;
   reserved "room", "combat_state", "doors";
 }
@@ -1040,7 +1040,7 @@ message RoomRevealedEvent {
 // DungeonVictoryEvent is sent when the boss is defeated and the dungeon is complete
 message DungeonVictoryEvent {
   string dungeon_id = 1;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
   reserved 2, 3;
   reserved "rooms_cleared", "dungeon_state";
 }
@@ -1048,7 +1048,7 @@ message DungeonVictoryEvent {
 // DungeonFailureEvent is sent when the party is defeated (TPK)
 message DungeonFailureEvent {
   string dungeon_id = 1;
-  EncounterSnapshot encounter_snapshot = 10;
+  EncounterStateData encounter_state_data = 10;
   reserved 2, 3;
   reserved "final_room_id", "dungeon_state";
 }

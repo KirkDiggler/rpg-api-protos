@@ -40,6 +40,72 @@ message EntityPlacement {
   }
 }
 
+// EntityState represents the unified state of any entity in an encounter
+// Replaces the fragmented CharacterCombatState, MonsterCombatState, and EntityPlacement
+message EntityState {
+  string entity_id = 1;
+  EntityType entity_type = 2;
+  string room_id = 3;
+  .api.v1alpha1.Position position = 4;
+  EntitySize size = 5;
+  bool blocks_movement = 6;
+  bool blocks_line_of_sight = 7;
+  int32 current_hit_points = 8;
+  int32 max_hit_points = 9;
+  repeated Condition active_conditions = 10;
+  DeathSaveProgress death_saves = 11;
+  oneof details {
+    CharacterDetails character_details = 20;
+    MonsterDetails monster_details = 21;
+    ObstacleDetails obstacle_details = 22;
+  }
+}
+
+message CharacterDetails {
+  string name = 1;
+  Race race = 2;
+  Class character_class = 3;
+  Appearance appearance = 4;
+  EquipmentSlots equipment_slots = 5;
+  int32 level = 6;
+  int32 armor_class = 7;
+}
+
+message MonsterDetails {
+  string name = 1;
+  MonsterType monster_type = 2;
+  int32 armor_class = 3;
+}
+
+message ObstacleDetails {
+  ObstacleType obstacle_type = 1;
+}
+
+message RoomLayout {
+  string id = 1;
+  string type = 2;
+  int32 width = 3;
+  int32 height = 4;
+  .api.v1alpha1.GridType grid_type = 5;
+  repeated .api.v1alpha1.Wall walls = 6;
+  .api.v1alpha1.Position origin = 7;
+}
+
+// EncounterStateData holds the complete state of a dungeon encounter
+// Follows the toolkit Data convention (character.Data, monster.Data)
+message EncounterStateData {
+  string encounter_id = 1;
+  string dungeon_id = 2;
+  map<string, EntityState> entities = 3;
+  map<string, RoomLayout> rooms = 4;
+  string current_room_id = 5;
+  repeated string revealed_room_ids = 6;
+  CombatState combat = 7;
+  DungeonState dungeon_state = 8;
+  int32 rooms_cleared = 9;
+  map<string, DoorInfo> doors = 10;
+}
+
 // Room represents a spatial area where encounters take place
 // Matches toolkit's RoomData structure exactly for direct field mapping
 message Room {
@@ -232,6 +298,7 @@ message CombatState {
   TurnState current_turn = 5;
   bool combat_started = 6;
   bool combat_ended = 7;
+  ActionEconomy current_turn_economy = 10;
 }
 
 // DeathSaveProgress tracks death save successes and failures for a character at 0 HP
@@ -309,6 +376,9 @@ message GetEncounterStateResponse {
 
   // Per-character combat state (HP, death saves, unconscious/dead status)
   repeated CharacterCombatState characters = 12;
+
+  // Unified encounter snapshot (replaces fragmented state above)
+  EncounterStateData encounter_state_data = 20;
 }
 
 // GetEncounterHistoryRequest retrieves historical events for an encounter
@@ -831,16 +901,11 @@ message PlayerReadyEvent {
 
 // CombatStartedEvent is sent when the host starts combat
 message CombatStartedEvent {
-  CombatState combat_state = 1;
-  Room room = 2; // Final room with all entity placements
-  repeated PartyMember party = 3; // Full party state at combat start
-  repeated MonsterCombatState monsters = 4; // Monster state with types for UI textures
-  // Doors/connections visible from the starting room
-  repeated DoorInfo doors = 5;
-  // Unique identifier for this dungeon run (needed for OpenDoor)
+  reserved 1, 2, 3, 4, 5;
+  reserved "combat_state", "room", "party", "monsters", "doors";
   string dungeon_id = 6;
-  // If monsters won initiative and acted before first player
   repeated MonsterTurnResult monster_turns = 7;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // ============================================================================
@@ -850,11 +915,11 @@ message CombatStartedEvent {
 // MovementCompletedEvent is sent when an entity finishes moving
 message MovementCompletedEvent {
   string entity_id = 1;
-  repeated .api.v1alpha1.Position path = 2; // Full path taken for client animation
-  .api.v1alpha1.Position final_position = 3;
-  int32 movement_remaining = 4;
-  string stop_reason = 5; // "completed", "trap triggered", etc.
-  Room updated_room = 6;
+  repeated .api.v1alpha1.Position path = 2;
+  EntityState updated_entity = 10;
+  CombatState combat_state = 11;
+  reserved 3, 4, 5, 6;
+  reserved "final_position", "movement_remaining", "stop_reason", "updated_room";
 }
 
 // AttackResolvedEvent is sent when an attack is resolved
@@ -862,75 +927,71 @@ message AttackResolvedEvent {
   string attacker_id = 1;
   string target_id = 2;
   AttackResult result = 3;
-  Character updated_attacker = 4; // If attacker state changed
-  Character updated_target = 5; // New HP, conditions, etc.
-  Room updated_room = 6; // If entity was defeated/removed
-  GrantedAction granted_action = 7; // Action granted from this attack (e.g., off-hand strike)
+  GrantedAction granted_action = 7;
+  EntityState attacker_state = 10;
+  EntityState target_state = 11;
+  reserved 4, 5, 6;
+  reserved "updated_attacker", "updated_target", "updated_room";
 }
 
 // FeatureActivatedEvent is sent when a character activates a feature
 message FeatureActivatedEvent {
   string character_id = 1;
   string feature_id = 2;
-  string message = 3; // e.g., "Thorin enters a rage!"
-  Character updated_character = 4;
+  string message = 3;
+  EntityState updated_entity = 10;
+  reserved 4;
+  reserved "updated_character";
 }
 
 // TurnEndedEvent is sent when a turn ends and a new turn begins
 message TurnEndedEvent {
-  TurnChangeEvent turn_change = 1;
   CombatState combat_state = 2;
-  Room updated_room = 3; // Room with updated entity positions after turn
+  repeated EntityState updated_entities = 10;
+  reserved 1, 3;
+  reserved "turn_change", "updated_room";
 }
 
 // MonsterTurnCompletedEvent is sent when a monster finishes its turn
 message MonsterTurnCompletedEvent {
   MonsterTurnResult monster_turn = 1;
-  repeated Character updated_characters = 2; // Characters that took damage
-  Room updated_room = 3;
+  repeated EntityState updated_entities = 10;
+  CombatState combat_state = 11;
+  reserved 2, 3;
+  reserved "updated_characters", "updated_room";
 }
 
 // CombatEndedEvent is sent when combat ends (victory or defeat)
 message CombatEndedEvent {
   EncounterResult result = 1;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // CombatAbilityActivatedEvent is sent when an entity activates a combat ability
 message CombatAbilityActivatedEvent {
   string entity_id = 1;
   CombatAbilityId ability_id = 2;
-  // What capacity was granted (for UI/log display)
   string granted_capacity = 3;
-  // Updated action economy after activation
-  ActionEconomy action_economy = 4;
-  // Full combat state update
   CombatState combat_state = 5;
+  EntityState updated_entity = 10;
+  reserved 4;
+  reserved "action_economy";
 }
 
 // ActionExecutedEvent is sent when an entity executes an action
 message ActionExecutedEvent {
   string entity_id = 1;
   ActionId action_id = 2;
-
-  // Action-specific result
   oneof result {
     AttackResult strike_result = 10;
     MoveResult move_result = 11;
   }
-
-  // Updated action economy after execution
-  ActionEconomy action_economy = 3;
-
-  // State updates
   CombatState combat_state = 4;
-  Room updated_room = 5;
-
-  // For attack actions: target and updated state
   string target_id = 6;
-  Character updated_target = 7; // If target took damage
-
-  // Was an additional action granted? (e.g., off-hand strike)
   GrantedAction granted_action = 8;
+  repeated EntityState updated_entities = 20;
+  reserved 3, 5, 7;
+  reserved "action_economy", "updated_room", "updated_target";
 }
 
 // ============================================================================
@@ -946,7 +1007,8 @@ message PlayerDisconnectedEvent {
 // PlayerReconnectedEvent is sent when a disconnected player reconnects
 message PlayerReconnectedEvent {
   string player_id = 1;
-  PartyMember member = 2; // Full state in case anything changed
+  PartyMember member = 2;
+  EncounterStateData encounter_state_data = 10;
 }
 
 // CombatPausedEvent is sent when combat is paused due to disconnect
@@ -957,7 +1019,9 @@ message CombatPausedEvent {
 
 // CombatResumedEvent is sent when all players are reconnected
 message CombatResumedEvent {
-  CombatState combat_state = 1; // Current state when resuming
+  reserved 1;
+  reserved "combat_state";
+  EncounterStateData encounter_state_data = 10;
 }
 
 // ============================================================================
@@ -966,36 +1030,27 @@ message CombatResumedEvent {
 
 // RoomRevealedEvent is sent when a door is opened and a new room is revealed
 message RoomRevealedEvent {
-  // The dungeon run
   string dungeon_id = 1;
-  // The door that was opened
   string connection_id = 2;
-  // The newly revealed room with entities
-  Room room = 3;
-  // Combat state for the new room
-  CombatState combat_state = 4;
-  // Doors visible from the new room
-  repeated DoorInfo doors = 5;
+  EncounterStateData encounter_state_data = 10;
+  reserved 3, 4, 5;
+  reserved "room", "combat_state", "doors";
 }
 
 // DungeonVictoryEvent is sent when the boss is defeated and the dungeon is complete
 message DungeonVictoryEvent {
-  // The dungeon run that was completed
   string dungeon_id = 1;
-  // Total rooms cleared
-  int32 rooms_cleared = 2;
-  // Final dungeon state
-  DungeonState dungeon_state = 3;
+  EncounterStateData encounter_state_data = 10;
+  reserved 2, 3;
+  reserved "rooms_cleared", "dungeon_state";
 }
 
 // DungeonFailureEvent is sent when the party is defeated (TPK)
 message DungeonFailureEvent {
-  // The dungeon run that failed
   string dungeon_id = 1;
-  // The room where the party was defeated
-  string final_room_id = 2;
-  // Final dungeon state
-  DungeonState dungeon_state = 3;
+  EncounterStateData encounter_state_data = 10;
+  reserved 2, 3;
+  reserved "final_room_id", "dungeon_state";
 }
 
 // ============================================================================
@@ -1009,29 +1064,34 @@ message DeathSaveRolledEvent {
   bool is_success = 3;
   bool is_critical_fail = 4;
   bool is_critical_success = 5;
-  DeathSaveProgress progress = 6;
-  // If nat 20: character regains consciousness at 1 HP
-  bool regained_consciousness = 7;
-  int32 hp_restored = 8;
+  EntityState updated_entity = 10;
+  reserved 6, 7, 8;
+  reserved "progress", "regained_consciousness", "hp_restored";
 }
 
 // CharacterDiedEvent is sent when a character accumulates 3 death save failures
 message CharacterDiedEvent {
   string character_id = 1;
-  string character_name = 2;
+  EntityState updated_entity = 10;
+  reserved 2;
+  reserved "character_name";
 }
 
 // CharacterStabilizedEvent is sent when a character accumulates 3 death save successes
 message CharacterStabilizedEvent {
   string character_id = 1;
-  string character_name = 2;
+  EntityState updated_entity = 10;
+  reserved 2;
+  reserved "character_name";
 }
 
 // CharacterUnconsciousEvent is sent when a character drops to 0 HP
 message CharacterUnconsciousEvent {
   string character_id = 1;
-  string character_name = 2;
   string source_entity_id = 3;
+  EntityState updated_entity = 10;
+  reserved 2;
+  reserved "character_name";
 }
 
 // ============================================================================
@@ -1041,9 +1101,9 @@ message CharacterUnconsciousEvent {
 // RestCompletedEvent is sent when the party completes a rest between rooms
 message RestCompletedEvent {
   RestType rest_type = 1;
-  repeated string character_ids = 2;
-  // Per-character HP after rest
-  repeated CharacterCombatState updated_characters = 3;
+  repeated EntityState updated_entities = 10;
+  reserved 2, 3;
+  reserved "character_ids", "updated_characters";
 }
 
 // ============================================================================

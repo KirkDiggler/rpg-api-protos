@@ -1,5 +1,17 @@
 # Claude AI Development Guidelines for rpg-api-protos
 
+rpg-api-protos is the contract layer between rpg-api (Go) and rpg-dnd5e-web (TS); buf-managed proto definitions, generates Go and TypeScript SDKs (and C++, currently without a consumer).
+
+## Where things live
+
+- `docs/status.md` — current health: active work, paused items, known drift, per-service confidence
+- `docs/quality.md` — A-D scorecard with rationale per service
+- `docs/architecture/overview.md` — contract rules, package layout, breaking-change discipline, named violations
+- `docs/architecture/data-model.md` — common types (Position, DiceRoll, ValidationResult), error and pagination patterns, cross-package type collisions
+- `docs/architecture/components/` — one doc per service: character, encounter, dice, environment, spatial, spawn, selection-table, sandbox-room, plus shared-types
+- `docs/how-to/` — task guides: run-buf-checks-locally, breaking-change-workflow, regenerate-sdks, consumer-integration, add-a-new-service
+- `docs/archive/` — pre-bootstrap historical docs: P001 UE C++ plugin notes, original ADRs (dice/room service), 2025-12 / 2026-01 design plans, prior usage-go.md / usage-typescript.md guides. Read for historical context only.
+
 ## 🚨 CRITICAL: Proto Repository Workflow
 
 ### Proto Changes Go to Feature Branches

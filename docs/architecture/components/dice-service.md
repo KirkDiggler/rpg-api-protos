@@ -1,7 +1,7 @@
 ---
 name: DiceService
 description: Generic dice rolling service with entity+context grouping; consumed for ability score rolls
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by reading api/v1alpha1/dice.proto end-to-end
 ---
 
@@ -81,19 +81,10 @@ int32 modifier = 8;               // applied modifier
 
 None. This service is the cleanest in the repo.
 
-The one issue is **Rule 6 (naming consistency): `DiceRoll` collision.**
-`api.v1alpha1.DiceRoll` (this file, line 49) and
-`dnd5e.api.v1alpha1.DiceRoll` (`common.proto:45`) share the message
-name despite different shapes:
-
-- `api.v1alpha1.DiceRoll` — a roll *result* with rolled dice values.
-- `dnd5e.api.v1alpha1.DiceRoll` — a roll *notation* (count, size,
-  modifier, "1d20+5").
-
-Different roles, different fields, identical name. Generated
-TypeScript code disambiguates by import path, but humans don't. When
-either is touched next, rename to `DiceRollResult` /
-`DiceRollNotation` (or similar).
+The previous `DiceRoll` name collision with `dnd5e.api.v1alpha1.DiceRoll`
+was resolved by deleting the unused dnd5e copy (issue #141, 2026-05-04).
+`api.v1alpha1.DiceRoll` is now the only `DiceRoll` message in the
+contract layer.
 
 ## Confidence and what's not verified
 

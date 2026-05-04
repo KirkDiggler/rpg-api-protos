@@ -160,11 +160,6 @@ now.
   `sandbox.api.v1alpha1.EntitySize` — same six values, different fully-
   qualified names. Either consolidate to a shared one in `api/v1alpha1`
   or delete the sandbox copy when the package goes.
-- **Two `DiceRoll` messages.** `api.v1alpha1.DiceRoll` (in `dice.proto`,
-  rich roll result with rolled dice and dropped values) and
-  `dnd5e.api.v1alpha1.DiceRoll` (in `common.proto`, just notation +
-  count + size + modifier). Different roles (result vs. notation) but
-  same name — confusing.
 - **Two `ValidationResult` messages.** `api.v1alpha1.ValidationResult`
   (in `room_common.proto`, generic) and
   `dnd5e.api.v1alpha1.ValidationResult` (in `common.proto`, character
@@ -239,7 +234,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e/choices.proto` | Medium — works; submission shape has dual paths (generic `selection_ids` + deprecated `oneof`) that are not enforceable at the schema level |
 | `dnd5e/enums.proto` | Medium-high — comprehensive; some enums (`Spell`, `MonsterType`, `FeatureId`, `ConditionId`) grow per-feature with no deprecation discipline yet |
 | `dnd5e/equipment_types.proto` | Medium-high — small, focused, clean |
-| `dnd5e/common.proto` | Medium — solid building blocks; `DiceRoll` name collides with `api.DiceService.DiceRoll`; `ValidationResult` name collides with `api.ValidationResult` |
+| `dnd5e/common.proto` | Medium — solid building blocks; `ValidationResult` name collides with `api.ValidationResult` |
 | `api/room_common.proto` | Medium-low — generic shapes that aren't used by live consumers; risk of being kept "for the future" indefinitely |
 
 ## Upcoming work (not yet planned in detail)
@@ -253,8 +248,8 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 - **Remove deprecated RPCs** (`Attack`, `MoveCharacter`, `DungeonStart`,
   `GetCombatState`) from the service after consumers migrate.
 - **Reconcile duplicate names** (`Room`, `Entity`, `EntitySize`,
-  `DiceRoll`, `ValidationResult`). Either consolidate or rename to
-  remove ambiguity.
+  `ValidationResult`). Either consolidate or rename to remove
+  ambiguity. (`DiceRoll` collision resolved 2026-05-04 — issue #141.)
 
 ## Related references
 

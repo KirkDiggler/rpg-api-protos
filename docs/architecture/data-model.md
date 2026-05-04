@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos data model
 description: Common message types, envelopes, error and pagination patterns, and known shape collisions
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by reading every .proto and grepping field reuse across files
 ---
 
@@ -75,17 +75,19 @@ Used by `dnd5e.api.v1alpha1.Room.walls` (encounter.proto:130). The
 encounter service imports `api.v1alpha1.Wall` rather than redefining
 it — good reuse.
 
-### Ability scores, dice, modifiers, conditions (`dnd5e/api/v1alpha1/common.proto`)
+### Ability scores, modifiers, conditions (`dnd5e/api/v1alpha1/common.proto`)
 
 ```proto
 message AbilityScores { strength, dexterity, constitution, intelligence, wisdom, charisma; }
-message DiceRoll { count, size, modifier, notation; }    // notation form
 message Modifier { target, value, source, type; }
 message Resource { name, current, maximum, refresh_on; } // hit dice, spell slots, etc.
 message Condition { name, source, duration, notes, ConditionId id, bytes condition_data; }
 message ValidationError { field, message, code; }
 message ValidationWarning { field, message, type; }
 ```
+
+For dice, see `api.v1alpha1.DiceRoll` (the result form, in `dice.proto`)
+— there is no notation-form message in the dnd5e package.
 
 `Condition.condition_data` (line 106) is `bytes` carrying toolkit-owned
 JSON. The pattern: enum identifies the condition; toolkit owns the

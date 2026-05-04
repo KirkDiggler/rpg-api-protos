@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos quality scorecard
 description: Per-service grade with rationale — a graded scorecard the janitor will update over time
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: low-medium — first draft grades from a read-through of every .proto file plus grep against rpg-api / rpg-dnd5e-web; expect Kirk to adjust
 ---
 
@@ -87,10 +87,9 @@ Strengths:
 
 Small, focused, well-named. Three RPCs (`RollDice`, `GetRollSession`,
 `ClearRollSession`) over a sensible entity+context grouping. Used by
-rpg-api. The only nitpick: `api.v1alpha1.DiceRoll` (a roll *result* with
-dice values) shares its name with `dnd5e.api.v1alpha1.DiceRoll` (a roll
-*notation*). Different packages, identical message name — confusing
-when both appear in a generated TS client.
+rpg-api. The previous `DiceRoll` name collision with
+`dnd5e.api.v1alpha1.DiceRoll` was resolved by deleting the unused
+dnd5e copy (issue #141, 2026-05-04).
 
 ## Live shared types
 
@@ -122,9 +121,6 @@ carries both an enum id and a `bytes condition_data` for toolkit-owned
 JSON.
 
 Drag:
-- `DiceRoll` here is the notation form; `api.DiceService` has its own
-  `DiceRoll` for results. Same name, different shapes, no hint at the
-  proto level that they're related.
 - `ValidationResult` here is the rich 3-tier draft validation;
   `api.v1alpha1.ValidationResult` (room_common) is a generic
   is-valid-or-not. Same name, different shapes.
@@ -219,7 +215,7 @@ candidate for deletion.**
   (consistent across all live services)
 
 The deduction is for type-name collisions (`Room`, `Entity`,
-`EntitySize`, `DiceRoll`, `ValidationResult` exist in 2+ places) which
+`EntitySize`, `ValidationResult` exist in 2+ places) which
 are technically fine in protobuf (different packages) but trip up
 generated TypeScript imports and code review.
 

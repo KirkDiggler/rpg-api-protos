@@ -30,7 +30,7 @@ rpg-api-protos/
   dnd5e/api/v1alpha1/
     character.proto             # CharacterService — live
     encounter.proto             # EncounterService — live
-    common.proto                # AbilityScores, DiceRoll, Modifier, Resource, Condition, ValidationResult, SourceRef
+    common.proto                # AbilityScores, Modifier, Resource, Condition, ValidationResult, SourceRef
     enums.proto                 # Race, Class, Skill, Spell, etc.
     choices.proto               # Choice, ChoiceSubmission, ChoiceData
     equipment_types.proto       # Equipment, WeaponData, ArmorData, GearData
@@ -230,7 +230,7 @@ match it.
 - Enums: `<TYPE>_<UPPER_SNAKE>` with `_UNSPECIFIED = 0` ✓ (every enum)
 - Request/response: `<Verb><Subject>Request` / `Response` ✓
 
-The deduction is for **type-name collisions across packages.** Five names
+The deduction is for **type-name collisions across packages.** Four names
 are reused in 2+ places with different shapes:
 
 | Name | Locations | Status |
@@ -238,9 +238,10 @@ are reused in 2+ places with different shapes:
 | `Room` | `api.v1alpha1.Room` (`room_common.proto:176`); `dnd5e.api.v1alpha1.Room` (`encounter.proto:111`) | Both populated; only the dnd5e one is live |
 | `Entity` / `EntityPlacement` / `EntityState` | `api.v1alpha1.Entity` (generic, `room_common.proto:33`); `dnd5e.api.v1alpha1.EntityPlacement` (encounter.proto:18); `dnd5e.api.v1alpha1.EntityState` (encounter.proto:45) | Live: dnd5e versions; generic Entity not consumed |
 | `EntitySize` | `dnd5e.api.v1alpha1.EntitySize` (`enums.proto:818`); `sandbox.api.v1alpha1.EntitySize` (`sandbox_common.proto:73`) | Same six values, different fully-qualified names |
-| `DiceRoll` | `api.v1alpha1.DiceRoll` (`dice.proto:49`, a roll *result*); `dnd5e.api.v1alpha1.DiceRoll` (`common.proto:45`, a roll *notation*) | Different roles, identical name |
 | `ValidationResult` | `api.v1alpha1.ValidationResult` (`room_common.proto:216`, generic); `dnd5e.api.v1alpha1.ValidationResult` (`common.proto:122`, three-tier draft system) | Different shapes, identical name |
 | `Wall` | `api.v1alpha1.Wall` (`room_common.proto:104`); `sandbox.api.v1alpha1.WallSegment` (different shape) | Live: api.v1alpha1.Wall via encounter Room |
+
+(`DiceRoll` was previously in this list; the unused `dnd5e.api.v1alpha1.DiceRoll` was deleted in issue #141, 2026-05-04.)
 
 Technically valid in protobuf (different packages = different
 fully-qualified types). Trips up generated TypeScript imports and code

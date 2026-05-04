@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -81,10 +81,6 @@ shape and consumer drift, it shows up here as a "rough edge."
   rpg-api or rpg-dnd5e-web** (verified by grep, 2026-05-02). Either an
   experimental harness from earlier room-generation work or genuinely dead
   code. Decide: keep as scaffolding or delete.
-- **C++/Unreal generation (P001)** — `buf.gen.yaml` includes
-  `protocolbuffers/cpp` + `grpc/cpp` plugins; `Makefile` has
-  `package-ue-plugin` / `validate-ue-plugin` targets. No active UE consumer
-  in this workspace. Treated as future work; CI does not exercise it.
 - **`api/v1alpha1` room services** (`EnvironmentService`,
   `SpatialService`, `SpawnService`, `SelectionTableService`) — fully
   defined, but only `DiceService` from this package is consumed by rpg-api.
@@ -222,9 +218,6 @@ of which is canonical; the comment is the only signal.
   PR; the workflow then skips the breaking check and emits a CI annotation
   noting the override. See
   [breaking-change-workflow.md](how-to/breaking-change-workflow.md).
-- `buf.gen.yaml` includes `protocolbuffers/cpp` + `grpc/cpp` plugins
-  even though no UE consumer exists in this workspace. CI generates the
-  C++ output anyway.
 - The `generated` branch is force-pushed by CI on every main merge with
   a fresh tag (`v0.1.86` is the latest as of pull). Worth knowing if
   someone tries to checkout `generated` for proto edits.

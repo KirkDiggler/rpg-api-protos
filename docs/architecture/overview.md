@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -38,7 +38,7 @@ rpg-api-protos/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed
   buf.yaml                      # lint: DEFAULT minus 2 exceptions; breaking: FILE
-  buf.gen.yaml                  # Go + TS + (unused) C++ generation
+  buf.gen.yaml                  # Go + TS generation
   .github/workflows/ci.yml      # lint, format, breaking, generate, publish
 ```
 
@@ -62,7 +62,6 @@ PR merged to main
     ▼
 buf generate     → gen/go (protoc-gen-go + grpc-go)
                   → gen/ts (bufbuild/es target=ts, Connect)
-                  → gen/cpp (unused, no UE consumer)
 make mocks       → mockgen-generated mocks for all gRPC clients
     │
     ▼
@@ -261,8 +260,6 @@ review. Reconciliation tracked as part of **issue #140**.
 - `gen/go` consumed by `rpg-api` via `go.mod`:
   `github.com/KirkDiggler/rpg-api-protos/gen/go@<version>`.
 - `gen/ts` published to npm: `@kirkdiggler/rpg-api-protos`.
-- `gen/cpp` (unused — no UE consumer in this workspace, but generated
-  anyway).
 - A `generated` branch with the latest tag — sometimes used directly via
   `@generated` for development.
 

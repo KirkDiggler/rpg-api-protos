@@ -1,7 +1,7 @@
 ---
 name: Consumer integration
 description: How rpg-api (Go) and rpg-dnd5e-web (TypeScript) consume this contract
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by reading rpg-api/CLAUDE.md, rpg-api-protos/buf.gen.yaml, .github/workflows/ci.yml
 ---
 
@@ -14,13 +14,12 @@ pinning model, and the failure modes.
 
 ## Generation outputs
 
-`buf.gen.yaml` produces three SDK targets per merge to main:
+`buf.gen.yaml` produces two SDK targets per merge to main:
 
 | Target | Path | Plugins |
 |---|---|---|
 | Go | `gen/go/...` | `protocolbuffers/go` + `grpc/go` (no `require_unimplemented_servers`) |
 | TypeScript | `gen/ts/...` | `bufbuild/es target=ts` (Connect-ES; one plugin handles both messages and services) |
-| C++ | `gen/cpp/...` | `protocolbuffers/cpp` + `grpc/cpp` (unused; no UE consumer in this workspace) |
 
 CI then:
 1. Force-pushes `gen/` to a `generated` branch.

@@ -1,23 +1,22 @@
 ---
 name: Regenerate SDKs
 description: How CI generates Go and TypeScript SDKs and how to consume them
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by reading buf.gen.yaml and .github/workflows/ci.yml
 ---
 
 # Regenerate SDKs
 
-The repo generates three SDK targets: Go (gRPC + grpc-go), TypeScript
-(Connect-ES via `bufbuild/es`), and C++ (unused, no UE consumer).
-You should rarely need to do this locally — CI does it on every
-merge to main and force-pushes the result to the `generated` branch
-plus an auto-incremented git tag.
+The repo generates two SDK targets: Go (gRPC + grpc-go) and TypeScript
+(Connect-ES via `bufbuild/es`). You should rarely need to do this
+locally — CI does it on every merge to main and force-pushes the
+result to the `generated` branch plus an auto-incremented git tag.
 
 ## What the pipeline does
 
-`.github/workflows/ci.yml` `publish-packages` job (lines 81-170):
+`.github/workflows/ci.yml` `publish-packages` job:
 
-1. Generates code: `buf generate` writes `gen/go`, `gen/ts`, `gen/cpp`.
+1. Generates code: `buf generate` writes `gen/go` and `gen/ts`.
 2. Generates mocks: `make mocks` runs `mockgen` against the gRPC
    client interfaces and writes them under `gen/go`.
 3. Sets up the Go module: `cd gen/go && go mod init && go mod tidy`.
@@ -35,7 +34,7 @@ pushes to `main`.
 ```bash
 cd /home/kirk/personal/rpg-api-protos
 
-buf generate                      # writes gen/go, gen/ts, gen/cpp
+buf generate                      # writes gen/go, gen/ts
 make mocks                        # writes mocks under gen/go
 
 # Validate Go output:
@@ -81,13 +80,6 @@ const client = new CharacterServiceClient(transport);
 ```
 
 Standard `npm install @kirkdiggler/rpg-api-protos`.
-
-### C++
-
-`gen/cpp` is generated but no UE consumer in this workspace
-exercises it. The generation cost is small enough that CI continues
-to run it. Decision pending whether to remove the C++ plugins from
-`buf.gen.yaml`.
 
 ## Why the `generated` branch exists
 

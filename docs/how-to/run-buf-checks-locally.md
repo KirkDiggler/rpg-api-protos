@@ -1,7 +1,7 @@
 ---
 name: Run buf checks locally
 description: Lint, format, and breaking-change checks before pushing
-updated: 2026-05-02
+updated: 2026-05-04
 confidence: high — verified by running each command on docs/honest-status-snapshot
 ---
 
@@ -69,11 +69,11 @@ correctly.
 
 ## Generation locally
 
-`buf generate` produces Go, TypeScript, and (unused) C++ code. Useful
-for verifying generation works before CI.
+`buf generate` produces Go and TypeScript SDKs. Useful for verifying
+generation works before CI.
 
 ```bash
-buf generate              # writes gen/go, gen/ts, gen/cpp
+buf generate              # writes gen/go, gen/ts
 make mocks                # generates Go mocks for gRPC clients
 
 # Quick verification:

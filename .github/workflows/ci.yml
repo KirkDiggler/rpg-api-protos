@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # Default pull_request types are [opened, synchronize, reopened]; adding
+    # labeled/unlabeled lets the breaking-change-approved override (see the
+    # "Breaking change detection" step) take effect when the label is applied
+    # *after* the PR is opened. Without this, applying the label later doesn't
+    # retrigger CI and the breaking step keeps failing on its first run.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: write

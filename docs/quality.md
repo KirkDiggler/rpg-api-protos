@@ -223,16 +223,20 @@ The deduction is for type-name collisions (`Room`, `Entity`,
 are technically fine in protobuf (different packages) but trip up
 generated TypeScript imports and code review.
 
-### Breaking-change discipline — B
+### Breaking-change discipline — A-
 
 - The repo uses `breaking: use: [FILE]` (per-file breaking detection).
-- CI runs `buf breaking` against `main` on PRs but with
-  `continue-on-error: true` — i.e. **non-blocking**. A breaking change
-  can land if humans don't catch it. For a contract repo that publishes
-  to BSR + npm + Go modules, this is the single biggest risk.
+- CI runs `buf breaking` against `main` on PRs as a **blocking** step
+  (since issue #139 / 2026-05-03). Intentional breaking changes apply the
+  `breaking-change-approved` label to skip the check; the workflow emits
+  a CI annotation noting the override.
 - The work in PR #136 demonstrates the team knows how to retire fields
-  correctly (`reserved` both number and name). The discipline exists in
-  practice; CI just doesn't enforce it.
+  correctly (`reserved` both number and name). The discipline now lives in
+  CI as well as in practice.
+- Held back from A by the dual-shape live coexistence (`EncounterStateData`
+  + legacy fields per Rule 1) — discipline is enforced at the wire level
+  but not yet at the "no two parallel shapes once a migration completes"
+  level.
 
 ### Deprecation path — C+
 

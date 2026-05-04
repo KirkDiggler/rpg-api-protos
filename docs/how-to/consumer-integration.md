@@ -172,8 +172,9 @@ boundary. See [breaking-change-workflow.md](breaking-change-workflow.md).
 
 - **Consumer pinned to old SDK uses removed field.** Compile-time
   break in rpg-api (Go), runtime break in rpg-dnd5e-web (TS proto
-  decode error). Mitigated by `buf breaking` (advisory today, blocking
-  per issue #139) and pre-merge consumer migration.
+  decode error). Mitigated by `buf breaking` (blocking in CI; PR can
+  carry `breaking-change-approved` for intentional breaks) and
+  pre-merge consumer migration.
 - **Consumer pinned to old SDK calls deprecated RPC.** Works (the RPC
   is still implemented today even when proto-deprecated) until the
   RPC is removed. Then unimplemented error at runtime.

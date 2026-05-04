@@ -27,9 +27,14 @@ jobs:
         run: buf format --diff --exit-code
       
       - name: Breaking change detection
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
+        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'breaking-change-approved')
         run: buf breaking --against "https://github.com/${{ github.repository }}.git#branch=main"
+
+      - name: Breaking change override notice
+        if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'breaking-change-approved')
+        run: |
+          echo "::warning::buf breaking skipped — PR carries 'breaking-change-approved' label."
+          echo "::warning::Per docs/how-to/breaking-change-workflow.md, this is acceptable for alpha packages with explicit reviewer ack, or when a version bump (e.g. v1alpha1→v1alpha2) is the chosen migration path."
 
   generate-and-test:
     runs-on: ubuntu-latest

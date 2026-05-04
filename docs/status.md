@@ -269,8 +269,15 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 - [README.md](../README.md) — package overview, usage examples
 - [CLAUDE.md](../CLAUDE.md) — proto workflow, branch rules,
   `buf format -w` requirement
-- [docs/usage-go.md](usage-go.md) / [docs/usage-typescript.md](usage-typescript.md) —
-  consumer guides
-- [docs/adr/](adr/) — architecture decisions for dice and room services
-- [docs/plans/](plans/) — design docs for monster turn results,
-  multiplayer, entity asset types
+- [architecture/overview.md](architecture/overview.md) — contract
+  rules (Rules 1-6) with current violations cited at file:line
+- [architecture/data-model.md](architecture/data-model.md) — common
+  message types, error and pagination patterns
+- [architecture/components/](architecture/components/) — one doc
+  per service (Encounter, Character, Dice, plus the unused
+  Environment/Spatial/Spawn/SelectionTable/SandboxRoom)
+- [how-to/](how-to/) — running buf checks locally, regenerating
+  SDKs, breaking-change workflow, consumer integration, adding a
+  new service
+- [archive/](archive/) — older docs (usage-go.md, usage-typescript.md,
+  ADRs, plans, P001 UE plugin design) preserved for context

@@ -217,10 +217,11 @@ of which is canonical; the comment is the only signal.
 
 - `buf lint` clean as of 2026-05-02.
 - `buf format --diff --exit-code` clean.
-- `buf breaking` runs in CI on PRs with `continue-on-error: true` —
-  i.e. breaking detection is **advisory only**, not blocking. Worth
-  noting because the proto repo is the contract layer; a missed breaking
-  change here is a runtime break in either consumer.
+- `buf breaking` runs in CI on PRs as a **blocking** step. To intentionally
+  land a breaking change, apply the `breaking-change-approved` label to the
+  PR; the workflow then skips the breaking check and emits a CI annotation
+  noting the override. See
+  [breaking-change-workflow.md](how-to/breaking-change-workflow.md).
 - `buf.gen.yaml` includes `protocolbuffers/cpp` + `grpc/cpp` plugins
   even though no UE consumer exists in this workspace. CI generates the
   C++ output anyway.
@@ -258,8 +259,6 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
   shapes coexist in `GetEncounterStateResponse`.
 - **Remove deprecated RPCs** (`Attack`, `MoveCharacter`, `DungeonStart`,
   `GetCombatState`) from the service after consumers migrate.
-- **Make `buf breaking` blocking** in CI (currently `continue-on-error:
-  true`). The contract layer should not be advisory about breakage.
 - **Reconcile duplicate names** (`Room`, `Entity`, `EntitySize`,
   `DiceRoll`, `ValidationResult`). Either consolidate or rename to
   remove ambiguity.

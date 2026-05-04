@@ -54,7 +54,7 @@ PR opened
     ▼
 buf lint            (blocking)
 buf format --diff   (blocking)
-buf breaking        (continue-on-error: true — ADVISORY ONLY, see violation below)
+buf breaking        (blocking; PR may carry `breaking-change-approved` label to skip)
     │
     ▼
 PR merged to main
@@ -115,23 +115,27 @@ rpg-api's orchestrator. Tracked as **issue #138** (rpg-api-protos board).
 ### Rule 2: `buf breaking` is authoritative, not advisory
 
 A breaking change in this repo is a runtime break in either consumer. The
-schema check exists to prevent that. CI must enforce it.
+schema check exists to prevent that. CI enforces it.
 
-**Violation: `buf breaking` runs with `continue-on-error: true`.**
-`.github/workflows/ci.yml:31`:
+**Enforcement (since issue #139):** `.github/workflows/ci.yml` runs
+`buf breaking` as a blocking step on PRs. To intentionally land a breaking
+change — typically an alpha-package edit per
+[breaking-change-workflow.md](../how-to/breaking-change-workflow.md) — apply
+the **`breaking-change-approved`** label to the PR. The label flips the
+breaking step into a skipped + warning state and adds a CI annotation noting
+the override.
 
 ```yaml
 - name: Breaking change detection
-  if: github.event_name == 'pull_request'
-  continue-on-error: true        # ← defeats the check
+  if: github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'breaking-change-approved')
   run: buf breaking --against ...
 ```
 
-A PR that introduces a breaking change reports a yellow x but merges anyway.
-The rest of the CI discipline (`buf lint` clean, `buf format --diff` clean,
-careful `reserved` use in PR #136) demonstrates the team knows the rules. CI
-just doesn't enforce the most important one. Tracked as **issue #139**. This
-is the highest-leverage one-line fix on the board.
+The override is intentional: alpha packages permit breaking changes, but
+each one requires explicit reviewer acknowledgment via the label, not a
+silent merge with a yellow x. Stable (v1+) services should bump the package
+version (`v1`→`v2`) instead of using the override.
 
 ### Rule 3: Deprecated fields are retired in the same release as their replacement
 
@@ -249,8 +253,9 @@ review. Reconciliation tracked as part of **issue #140**.
 - Proto file edits on feature branches.
 - `buf format -w` clean.
 - `buf lint` clean.
-- `buf breaking` clean against main (advisory today, blocking once #139
-  lands).
+- `buf breaking` clean against main, OR PR carries
+  `breaking-change-approved` label (alpha-only override; v1+ should bump
+  package version instead).
 
 **What this repo produces:**
 - `gen/go` consumed by `rpg-api` via `go.mod`:

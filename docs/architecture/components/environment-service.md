@@ -58,8 +58,8 @@ service.
 ## What it would cost to delete
 
 - A breaking change at the file level (`buf breaking: use: [FILE]`).
-  Once `buf breaking` becomes blocking (issue #139), this service must
-  be deleted as part of the same PR or with explicit waiver.
+  `buf breaking` is blocking in CI; a deletion PR will need the
+  `breaking-change-approved` label since this is alpha-package code.
 - Generated TypeScript and Go consumers won't be affected — there
   aren't any.
 

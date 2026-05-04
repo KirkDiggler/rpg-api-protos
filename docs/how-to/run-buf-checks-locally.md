@@ -7,10 +7,11 @@ confidence: high — verified by running each command on docs/honest-status-snap
 
 # Run buf checks locally
 
-CI runs three buf checks. Two are blocking, one is currently advisory
-(see [overview.md Rule 2](../architecture/overview.md#rule-2-buf-breaking-is-authoritative-not-advisory)
-— issue #139 will make it blocking). Run all three locally before
-pushing.
+CI runs three buf checks; all three are blocking. The breaking-change
+check has a labeled override (`breaking-change-approved`) for intentional
+breaks — see
+[overview.md Rule 2](../architecture/overview.md#rule-2-buf-breaking-is-authoritative-not-advisory).
+Run all three locally before pushing.
 
 ## Prerequisites
 
@@ -34,7 +35,8 @@ buf lint
 buf format --diff --exit-code      # check (exits non-zero if changes needed)
 buf format -w                       # write fixes (run before commit)
 
-# 3. Breaking-change detection — currently advisory in CI.
+# 3. Breaking-change detection — blocking; PR may carry
+#    'breaking-change-approved' label to intentionally skip in CI.
 buf breaking --against "https://github.com/KirkDiggler/rpg-api-protos.git#branch=main"
 ```
 
@@ -101,9 +103,10 @@ If all five clean, push.
 - **`buf format`** — keeps PR diffs small. A formatting churn diff hides
   the actual change.
 - **`buf breaking`** — the contract guarantee. A breaking change here
-  is a runtime break in rpg-api or rpg-dnd5e-web. Today the check is
-  advisory in CI (`continue-on-error: true`). Run it locally; don't
-  rely on CI to catch it for you.
+  is a runtime break in rpg-api or rpg-dnd5e-web. CI enforces this
+  blocking, with the `breaking-change-approved` label as the only
+  override path. Run it locally too — failing on a push is slower than
+  catching it before the push.
 - **`buf generate`** — protos that fail to generate Go/TS won't ship.
   Catching here saves a CI cycle.
 

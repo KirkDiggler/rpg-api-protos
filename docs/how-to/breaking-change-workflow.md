@@ -45,15 +45,21 @@ Non-breaking (safe):
 - Marking a field `[deprecated = true]` or an RPC `option deprecated
   = true` (these are advisory, not wire-affecting).
 
-## Today's CI gap
+## CI enforcement
 
-`.github/workflows/ci.yml:31` runs `buf breaking` with
-`continue-on-error: true`. **The check is advisory, not blocking.**
-A PR with a breaking change merges with a yellow x.
+`.github/workflows/ci.yml` runs `buf breaking` against `main` on every PR
+as a **blocking** step. A PR with an unintended breaking change fails CI
+and cannot merge.
 
-This is **issue #139** — the highest-leverage one-line fix on the
-board. Until that fix lands, treat `buf breaking` as if it were
-blocking when run locally; don't rely on CI.
+To intentionally land a breaking change, apply the
+**`breaking-change-approved`** label to the PR. The workflow then skips
+the breaking step and emits a CI annotation noting the override. Use this
+for alpha-package edits where breakage is part of the migration plan;
+v1+ services should bump the package version (`v1`→`v2`) instead.
+
+The check still runs locally; verify with `buf breaking --against
+"https://github.com/KirkDiggler/rpg-api-protos.git#branch=main"` before
+pushing.
 
 ## The PR #136 worked example
 
@@ -177,9 +183,12 @@ afterthought.
 - **Skipping `reserved` because "no one's using that tag anyway."**
   Future you, or another contributor, will reuse that tag and create
   a silent break. `reserved` is cheap.
-- **Bypassing CI's breaking check.** Today CI is advisory; locally
-  run the check and respect it. When CI becomes blocking (issue #139),
-  there will be no `--no-verify` equivalent for `buf breaking`.
+- **Bypassing CI's breaking check via the label without justification.**
+  The `breaking-change-approved` label is for migrations whose plan is
+  documented (in the PR description, in `rpg-project/ideas/`, or in a
+  linked design doc). Slapping the label on to silence CI without a
+  written rationale is the anti-pattern; the label is a deliberate
+  acknowledgment, not a `--no-verify` shortcut.
 
 ## When breaking is unavoidable: bump the version
 
@@ -202,7 +211,7 @@ appropriate for "I want to rename one field."
 - [run-buf-checks-locally.md](run-buf-checks-locally.md) — running
   `buf breaking` before pushing
 - [overview.md Rule 2](../architecture/overview.md#rule-2-buf-breaking-is-authoritative-not-advisory)
-  — the ci.yml issue (#139)
+  — the enforcement rule and override label policy
 - [overview.md Rule 3](../architecture/overview.md#rule-3-deprecated-fields-are-retired-in-the-same-release-as-their-replacement)
   — the deprecation discipline this workflow enforces
 - PR #136 in rpg-api-protos — the worked example

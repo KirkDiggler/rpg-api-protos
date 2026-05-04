@@ -5,11 +5,15 @@ package api.v1alpha1;
 // Common types shared across all room generation services
 // Provides universal spatial concepts and entity structures
 
-// Universal position coordinates for all grid systems
+// Universal position coordinates for all grid systems.
+// Integer cube-coordinate space: X+Y+Z=0 invariant for hex grids; X/Y for
+// square grids with Z=0. The previous double signature caused int↔float64
+// casts at every consumer boundary; see rpg-project/ideas/coordinate-types/
+// for the full motivation.
 message Position {
-  double x = 1;
-  double y = 2;
-  double z = 3; // Optional for future 3D support
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
 }
 
 // Grid type enumeration for different RPG systems

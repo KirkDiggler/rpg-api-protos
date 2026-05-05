@@ -1,0 +1,317 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.encounter;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
+
+// =============================================================================
+// Common primitives
+// =============================================================================
+
+// Ref is a typed reference to a piece of toolkit content.
+// module/type/id triple disambiguates across rulebooks and prevents id collisions.
+// Used everywhere the wire identifies a typed thing (action, monster, feature, condition,
+// damage type, item, ...). NOT used for runtime instance ids (encounter_id, entity_id) —
+// those stay strings. The `type` field is open-ended; toolkit grows the vocabulary.
+message Ref {
+  string module = 1; // "dnd5e", future: "artificer", "homebrew-x"
+  string type = 2; // "monster", "feature", "condition", "action", "spell", "item", "damage", ...
+  string id = 3; // "goblin", "rage", "dodging", "attack"
+}
+
+// Position uses hex cube coordinates with the invariant x + y + z == 0.
+// Coordinates are dungeon-absolute on the wire — no room-local coords ever.
+message Position {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+// HitPoints is the destructibility shape carried on Entity when the entity has HP.
+// Non-destructible entities omit the optional Entity.hp field entirely.
+message HitPoints {
+  int32 current = 1;
+  int32 max = 2;
+  int32 temp = 3;
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// EncounterMode determines the rule-set in effect for the encounter.
+// Mode flips happen within a single encounter; the encounter persists across the transition.
+enum EncounterMode {
+  ENCOUNTER_MODE_UNSPECIFIED = 0;
+  ENCOUNTER_MODE_FREE_ROAM = 1;
+  ENCOUNTER_MODE_TURN_BASED = 2;
+}
+
+// EntityType is the discriminator for what kind of thing an Entity is.
+// Used for client-side dispatch (rendering, default interactions). Toolkit content
+// identification still uses Ref inside the type-specific data messages.
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_CHARACTER = 1;
+  ENTITY_TYPE_MONSTER = 2;
+  ENTITY_TYPE_OBSTACLE = 3;
+  ENTITY_TYPE_TRAP = 4;
+  ENTITY_TYPE_PROP = 5;
+  ENTITY_TYPE_NPC = 6;
+}
+
+// TerrainType describes per-hex movement properties.
+// Walkability per entity (e.g. flying over VOID, swimmer through WATER) is server-evaluated.
+enum TerrainType {
+  TERRAIN_TYPE_UNSPECIFIED = 0;
+  TERRAIN_TYPE_FLOOR = 1;
+  TERRAIN_TYPE_ROUGH = 2;
+  TERRAIN_TYPE_DIFFICULT = 3;
+  TERRAIN_TYPE_VOID = 4;
+  TERRAIN_TYPE_WATER = 5;
+}
+
+// WallKind describes what a wall segment is.
+// DOOR_CLOSED transitions to DOOR_OPEN via the DoorOpened event; the segment stays
+// in the wall list with a different kind so closing it is a state change, not a removal.
+enum WallKind {
+  WALL_KIND_UNSPECIFIED = 0;
+  WALL_KIND_SOLID = 1;
+  WALL_KIND_DOOR_CLOSED = 2;
+  WALL_KIND_DOOR_OPEN = 3;
+  WALL_KIND_WINDOW = 4;
+}
+
+// TrapState is carried on TrapData entities so visible state matches what the player
+// should see.
+enum TrapState {
+  TRAP_STATE_UNSPECIFIED = 0;
+  TRAP_STATE_ARMED = 1;
+  TRAP_STATE_TRIGGERED = 2;
+  TRAP_STATE_DISARMED = 3;
+}
+
+// =============================================================================
+// Space — flat hex map with optional zones
+// =============================================================================
+
+// Hex is one cell of the player's view of the map.
+// Sticky once revealed: stays in Space.hexes for the rest of the campaign for that character.
+message Hex {
+  Position position = 1;
+  TerrainType terrain = 2;
+  string zone_id = 3; // optional zone membership ("" if none)
+}
+
+// Wall is a barrier between two adjacent hexes.
+// Doors are walls with a DOOR_* kind; opening a door changes the kind, not the wall's
+// existence.
+message Wall {
+  Position from = 1;
+  Position to = 2;
+  WallKind kind = 3;
+}
+
+// Zone is optional metadata attached to a region of hexes.
+// Used for ambient cues (lighting, music), narration moments ("you entered the throne
+// room"), and scripted triggers. Zones do NOT structure the map for movement or rendering
+// — that's all flat-hex.
+message Zone {
+  string id = 1;
+  string name = 2;
+  // Future ambient hooks (lighting profile ref, music cue ref, trigger refs) will be
+  // added with new field numbers as needed.
+}
+
+// StatusEffect is the wire-shape of toolkit's core.Effect (called Condition in the dnd5e
+// rulebook). Carries display payload only; the reactive mechanism stays server-side.
+message StatusEffect {
+  Ref source = 1; // {module:"dnd5e", type:"condition", id:"poisoned"}
+  string display_name = 2;
+  string icon_hint = 3; // UI category — actual asset path resolved web-side
+  optional int32 duration_rounds = 4;
+}
+
+// Space is the player's current view of the world.
+// Continuous flat hex map — no rooms on the wire. Zones are optional metadata regions.
+// Visibility:
+//   - hexes and walls are sticky (explored geometry persists per character across the
+//     campaign)
+//   - entities are real-time LOS (server filters per player per event)
+message Space {
+  repeated Hex hexes = 1; // explored, sticky
+  repeated Wall walls = 2; // explored
+  repeated Entity entities = 3; // currently visible (LOS-filtered)
+  repeated Zone zones = 4; // optional metadata
+}
+
+// =============================================================================
+// Entity — common shape + typed data oneof
+// =============================================================================
+
+// Entity is anything that can occupy a position in the space.
+// Common shape (id, position, type, display_name, optional hp, status_effects) is what
+// every entity carries because every entity is destructible-or-not and has-or-doesn't-have
+// visible statuses. The oneof carries the type-specific rich data.
+message Entity {
+  string id = 1; // runtime instance id; not a Ref
+  Position position = 2;
+  EntityType type = 3;
+  string display_name = 4;
+  optional HitPoints hp = 5; // present only on destructibles
+  repeated StatusEffect status_effects = 6; // visible only
+
+  oneof data {
+    CharacterData character = 10;
+    MonsterData monster = 11;
+    ObstacleData obstacle = 12;
+    TrapData trap = 13;
+    PropData prop = 14;
+    NpcData npc = 15;
+  }
+}
+
+// CharacterData — player-controlled character.
+message CharacterData {
+  Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
+  Ref race_ref = 2;
+  string player_id = 3; // who controls this character
+  // Additional fields (level, AC, equipment) added in later phases as orchestrator needs.
+}
+
+// MonsterData — server-controlled monster.
+message MonsterData {
+  Ref monster_ref = 1; // {module:"dnd5e", type:"monster", id:"goblin"}
+}
+
+// ObstacleData — boulder, table, statue, etc.
+message ObstacleData {
+  Ref obstacle_ref = 1;
+  bool blocks_movement = 2;
+  bool blocks_line_of_sight = 3;
+}
+
+// TrapData — pit traps, dart traps, magic traps.
+// appears_as is the illusion mechanic: undetected traps report a different EntityType
+// to players who haven't perceived them. Server filters per player.
+message TrapData {
+  Ref trap_ref = 1; // {module:"dnd5e", type:"trap", id:"pit-trap"}
+  TrapState state = 2;
+  EntityType appears_as = 3; // FLOOR/PROP for undetected; same as `type` once perceived
+}
+
+// PropData — chest, lever, lootable, decoration.
+message PropData {
+  Ref prop_ref = 1;
+  bool interactable = 2;
+}
+
+// NpcData — non-hostile, non-monster characters (shopkeeper, quest-giver).
+message NpcData {
+  Ref npc_ref = 1;
+  bool hostile = 2; // can flip during encounter (e.g. betrayal)
+}
+
+// =============================================================================
+// Encounter — session, mode, turn state, action economy
+// =============================================================================
+
+// Encounter is the session the player is currently inside.
+// One encounter persists across mode flips — combat starting mid-exploration does not tear
+// down the world; it just changes the rule-set.
+message Encounter {
+  string id = 1; // runtime instance id
+  EncounterMode mode = 2;
+  Space space = 3;
+  optional TurnState turn_state = 4; // present only when mode == TURN_BASED
+}
+
+// TurnState is the action-economy and initiative payload, present only in TURN_BASED mode.
+message TurnState {
+  repeated string initiative_order = 1; // entity ids in order of who acts when
+  string active_entity_id = 2;
+  int32 round = 3; // 1-based; increments when initiative_order wraps
+  ActionEconomy economy = 4;
+  repeated AvailableAction available_actions = 5;
+}
+
+// ActionEconomy mirrors the toolkit's two-level model from
+// rulebooks/dnd5e/combat/action_economy.go.
+//
+// Primary resources (action, bonus_action, reaction, movement) are universal-ish across
+// turn-based rulebooks. Capacity is the rulebook-specific bag — toolkit-defined keys like
+// "attacks", "off_hand_attacks", "flurry_strikes". New capacity types add new keys without
+// churning the proto.
+message ActionEconomy {
+  int32 actions_remaining = 1;
+  int32 bonus_actions_remaining = 2;
+  int32 reactions_remaining = 3;
+  int32 movement_remaining = 4; // in feet (toolkit-native unit)
+
+  // Keys are toolkit-defined: "attacks", "off_hand_attacks", "flurry_strikes"
+  map<string, int32> capacities = 10;
+}
+
+// AvailableAction is one entry in the server-pushed list of actions the active entity can
+// take right now. Web does not compute availability — it renders the list and disables
+// buttons whose `available` is false (showing `unavailable_reason` as tooltip).
+message AvailableAction {
+  Ref ref = 1; // {module:"dnd5e", type:"action", id:"attack"}
+  string display_name = 2;
+  bool available = 3;
+  string unavailable_reason = 4; // user-facing: "no movement", "out of range", ...
+}
+
+// MovementInterruption is attached to an EntityMoved event when the path was cut short.
+// Used so the client can animate the partial movement and surface narration.
+message MovementInterruption {
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    REASON_OUT_OF_MOVEMENT = 1;
+    REASON_TRAP_TRIGGERED = 2;
+    REASON_OPPORTUNITY_ATTACK = 3;
+    REASON_DIFFICULT_TERRAIN = 4; // hidden until perceived
+    REASON_BLOCKED_BY_ENTITY = 5;
+    REASON_BLOCKED_BY_TERRAIN = 6; // unwalkable hex on path
+  }
+  Reason reason = 1;
+  string description = 2;
+  optional Ref triggered_by = 3; // which trap, feature, ability caused it
+}
+
+// =============================================================================
+// Caller-private follow-up payloads
+// =============================================================================
+
+// InputRequired is the caller-private follow-up payload returned in InteractResponse or
+// TakeActionResponse when the operation needs more input from the requester (skill check,
+// dialogue choice). Server tracks the pending prompt as encounter state; SubmitCheck
+// implicitly resolves it. No correlation id needed on the wire.
+message InputRequired {
+  oneof kind {
+    SkillCheckPrompt skill_check = 1;
+    DialogueChoice dialogue = 2;
+    TargetSelect target_select = 3;
+  }
+}
+
+message SkillCheckPrompt {
+  int32 dc = 1;
+  string ability = 2; // 5e three-letter codes: "STR", "DEX", "INT", ...
+  optional Ref tool = 3; // {module:"dnd5e", type:"item", id:"thieves-tools"}
+}
+
+message DialogueChoice {
+  repeated DialogueOption options = 1;
+}
+
+message DialogueOption {
+  string id = 1; // option id the client echoes back via Interact again
+  string text = 2;
+}
+
+message TargetSelect {
+  repeated string candidate_entity_ids = 1;
+}

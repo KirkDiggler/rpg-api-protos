@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.encounter;
+
+import "dnd5e/api/v1alpha2/encounter/events.proto";
+import "dnd5e/api/v1alpha2/encounter/types.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
+
+// =============================================================================
+// RPC request / response messages
+// =============================================================================
+
+message CreateEncounterRequest {
+  string campaign_id = 1;
+  EncounterMode initial_mode = 2;
+  // Future: party composition, dungeon ref, scenario ref
+}
+
+message CreateEncounterResponse {
+  Encounter encounter = 1;
+}
+
+message GetEncounterRequest {
+  string encounter_id = 1;
+}
+
+message GetEncounterResponse {
+  Encounter encounter = 1;
+}
+
+message StreamEncounterRequest {
+  string encounter_id = 1;
+  string player_id = 2;
+  optional int64 last_seen_sequence = 3; // for reconnect/replay
+}
+
+message MoveEntityRequest {
+  string encounter_id = 1;
+  string entity_id = 2; // what's being moved
+  Position destination = 3;
+  repeated Position proposed_path = 4; // client's chosen path through the hex grid
+  optional Ref movement_source = 5; // spell, ability, item powering this
+}
+
+message MoveEntityResponse {
+  // Empty ack. World changes flow as events. The server may modify the path
+  // (trap intercepts, OoM, opportunity attack, hidden difficult terrain) — events
+  // report the actual outcome, not the proposal.
+}
+
+message InteractRequest {
+  string encounter_id = 1;
+  string target_entity_id = 2;
+  optional string interaction_kind = 3; // optional: "open", "examine", "loot"
+}
+
+message InteractResponse {
+  // World changes flow as events. This response carries only follow-ups
+  // private to the caller (skill check prompts, dialogue choices).
+  optional InputRequired input_required = 1;
+}
+
+message TakeActionRequest {
+  string encounter_id = 1;
+  string actor_entity_id = 2;
+  Ref action_ref = 3; // {module:"dnd5e", type:"action", id:"attack"}
+  ActionTarget target = 4;
+  // Future: spell level, ki spend, etc.
+}
+
+message TakeActionResponse {
+  optional InputRequired input_required = 1;
+}
+
+// ActionTarget is the union of how an action can be aimed.
+message ActionTarget {
+  oneof kind {
+    string entity_id = 1;
+    Position position = 2;
+    AreaTarget area = 3;
+    SelfTarget self = 4;
+  }
+}
+
+message AreaTarget {
+  Position center = 1;
+  // Future: shape (cone, line, sphere, cube), size, orientation
+}
+
+message SelfTarget {}
+
+message EndTurnRequest {
+  string encounter_id = 1;
+  string entity_id = 2;
+}
+
+message EndTurnResponse {}
+
+// SubmitCheckRequest resolves the caller's currently-pending InputRequired prompt.
+// No correlation id: server tracks pending_prompt_per_player. If none is pending,
+// server returns FailedPrecondition.
+message SubmitCheckRequest {
+  string encounter_id = 1;
+  string entity_id = 2;
+  int32 roll = 3; // raw d20 result the client rolled
+  // Future: optional advantage/disadvantage, modifier breakdown
+}
+
+message SubmitCheckResponse {
+  bool success = 1;
+  int32 total = 2;
+}
+
+// =============================================================================
+// Service
+// =============================================================================
+
+service EncounterService {
+  // Lifecycle
+  rpc CreateEncounter(CreateEncounterRequest) returns (CreateEncounterResponse);
+  rpc GetEncounter(GetEncounterRequest) returns (GetEncounterResponse);
+
+  // Stream — primary state delivery channel.
+  // Server sends an initial snapshot as the first event, then deltas. Reconnects pass
+  // last_seen_sequence to resume; if gap is too large, server sends a fresh snapshot.
+  rpc StreamEncounter(StreamEncounterRequest) returns (stream EncounterEvent);
+
+  // World actions — emit events on the stream. Caller-private follow-ups (skill check,
+  // dialogue) come back in the response's InputRequired.
+  rpc MoveEntity(MoveEntityRequest) returns (MoveEntityResponse);
+  rpc Interact(InteractRequest) returns (InteractResponse);
+
+  // Turn-based only — server returns FailedPrecondition if mode != TURN_BASED.
+  rpc TakeAction(TakeActionRequest) returns (TakeActionResponse);
+  rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
+
+  // Resolves the caller's pending InputRequired prompt.
+  // Returns FailedPrecondition if no prompt is pending.
+  rpc SubmitCheck(SubmitCheckRequest) returns (SubmitCheckResponse);
+}

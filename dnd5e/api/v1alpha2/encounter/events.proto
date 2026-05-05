@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.encounter;
+
+import "dnd5e/api/v1alpha2/encounter/types.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
+
+// EncounterEvent is the unit of state delivery on the stream.
+// Decision rule for adding events: events are unique because each one's payload is unique.
+// Same payload → same event with a wider type, not a new event.
+message EncounterEvent {
+  int64 sequence = 1; // monotonic per encounter
+  google.protobuf.Timestamp timestamp = 2;
+
+  oneof event {
+    // Lifecycle
+    SnapshotDelivered snapshot_delivered = 5;
+
+    // Geometry & visibility
+    GeometryRevealed geometry_revealed = 10;
+    EntityAppeared entity_appeared = 11;
+    EntityDisappeared entity_disappeared = 12;
+
+    // Entity state
+    EntityMoved entity_moved = 20;
+    EntityDamaged entity_damaged = 21;
+    EntityHealed entity_healed = 22;
+    EntityDied entity_died = 23;
+    EntityRemoved entity_removed = 24;
+    StatusApplied status_applied = 25;
+    StatusRemoved status_removed = 26;
+
+    // World interaction
+    DoorOpened door_opened = 30;
+    DoorClosed door_closed = 31;
+    LootRevealed loot_revealed = 32;
+    TrapTriggered trap_triggered = 33;
+    StateChanged state_changed = 34; // lever toggle, generic state mutation
+
+    // Encounter mode + turn structure
+    ModeChanged mode_changed = 40;
+    InitiativeRolled initiative_rolled = 41;
+    TurnStarted turn_started = 42;
+    TurnEnded turn_ended = 43;
+    EncounterEnded encounter_ended = 44;
+
+    // Dialogue
+    DialogueStarted dialogue_started = 50;
+    DialogueEnded dialogue_ended = 51;
+  }
+}
+
+// SnapshotDelivered is the first event on a new stream subscription. Carries the player's
+// complete view so the client can render without needing to request anything else.
+message SnapshotDelivered {
+  Encounter encounter = 1;
+}
+
+// GeometryRevealed adds hexes/walls to the player's sticky map. Emitted when a door opens,
+// when the player moves into a previously-unseen area, or when a Reveal effect is cast.
+message GeometryRevealed {
+  repeated Hex hexes = 1;
+  repeated Wall walls = 2;
+}
+
+message EntityAppeared {
+  Entity entity = 1; // came into LOS
+  string reason = 2; // optional: "entered LOS", "spell reveal", "perception success"
+}
+
+message EntityDisappeared {
+  string entity_id = 1;
+  string reason = 2; // "left LOS", "invisibility cast"
+}
+
+message EntityMoved {
+  string entity_id = 1;
+  Position from = 2;
+  Position to = 3; // actual final position
+  repeated Position actual_path = 4; // hex by hex, for animation
+  optional Ref movement_source = 5;
+  optional MovementInterruption interruption = 6;
+}
+
+message EntityDamaged {
+  string entity_id = 1;
+  int32 amount = 2;
+  Ref damage_type = 3; // {module:"dnd5e", type:"damage", id:"slashing"}
+  HitPoints hp_after = 4;
+  optional string source_entity_id = 5;
+}
+
+message EntityHealed {
+  string entity_id = 1;
+  int32 amount = 2;
+  HitPoints hp_after = 3;
+  optional string source_entity_id = 4;
+}
+
+message EntityDied {
+  string entity_id = 1;
+  optional string killer_entity_id = 2;
+}
+
+message EntityRemoved {
+  string entity_id = 1;
+  string reason = 2; // "destroyed", "fled", "transformed"
+}
+
+message StatusApplied {
+  string entity_id = 1;
+  StatusEffect status = 2;
+  optional string source_entity_id = 3;
+}
+
+message StatusRemoved {
+  string entity_id = 1;
+  Ref status_source = 2; // matches StatusEffect.source from earlier StatusApplied
+}
+
+message DoorOpened {
+  string door_entity_id = 1;
+  repeated Hex revealed_hexes = 2; // full hex (terrain + zone) for newly-visible cells
+  repeated Wall revealed_walls = 3;
+  repeated Wall removed_walls = 4; // walls no longer present (door itself transitions
+  // via DOOR_CLOSED → DOOR_OPEN; this is for any
+  // genuinely-removed barriers from the open action)
+}
+
+message DoorClosed {
+  string door_entity_id = 1;
+}
+
+message LootRevealed {
+  string container_entity_id = 1;
+  repeated Ref items = 2; // {module:"dnd5e", type:"item", id:"longsword"}
+}
+
+message TrapTriggered {
+  string trap_entity_id = 1;
+  string victim_entity_id = 2;
+  // Damage events emitted separately; this is the narration moment.
+}
+
+message StateChanged {
+  string entity_id = 1;
+  string state_key = 2; // entity-specific: "lever_position", "door_locked"
+  string state_value = 3;
+}
+
+message ModeChanged {
+  EncounterMode from = 1;
+  EncounterMode to = 2;
+  string reason = 3; // narration: "ambush", "combat ended", "negotiated peace"
+}
+
+message InitiativeRolled {
+  repeated string order = 1;
+}
+
+message TurnStarted {
+  string entity_id = 1;
+  int32 round = 2;
+}
+
+message TurnEnded {
+  string entity_id = 1;
+}
+
+message EncounterEnded {
+  string reason = 1;
+}
+
+message DialogueStarted {
+  string with_entity_id = 1;
+}
+
+message DialogueEnded {
+  string with_entity_id = 1;
+}

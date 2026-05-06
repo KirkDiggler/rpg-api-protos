@@ -35,6 +35,8 @@ mocks: ## Generate mocks for gRPC services
 	mkdir -p gen/go/dnd5e/api/v1alpha1/mocks
 	mockgen -source=gen/go/dnd5e/api/v1alpha1/character_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha1/mocks/character_service.go -package=mocks
 	mockgen -source=gen/go/dnd5e/api/v1alpha1/encounter_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha1/mocks/encounter_service.go -package=mocks
+	mkdir -p gen/go/dnd5e/api/v1alpha2/encounter/mocks
+	mockgen -source=gen/go/dnd5e/api/v1alpha2/encounter/service_grpc.pb.go -destination=gen/go/dnd5e/api/v1alpha2/encounter/mocks/encounter_service.go -package=mocks
 	# Core API services
 	mkdir -p gen/go/api/v1alpha1/mocks
 	mockgen -source=gen/go/api/v1alpha1/dice_grpc.pb.go -destination=gen/go/api/v1alpha1/mocks/dice_service.go -package=mocks

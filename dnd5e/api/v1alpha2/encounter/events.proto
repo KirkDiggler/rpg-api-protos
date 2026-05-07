@@ -75,6 +75,13 @@ message EntityAppeared {
 message EntityDisappeared {
   string entity_id = 1;
   string reason = 2; // "left LOS", "invisibility cast"
+  // Per-viewer last-known position. Different viewers may have last seen the
+  // entity at different hexes (pass-through movement past two viewers in
+  // different positions), so the wire form is per-stream — the encounter
+  // server populates this for the specific subscriber receiving the event.
+  // Required for rendering "freeze marker at last-seen hex" without
+  // client-side game-state tracking.
+  Position last_known_position = 3;
 }
 
 message EntityMoved {

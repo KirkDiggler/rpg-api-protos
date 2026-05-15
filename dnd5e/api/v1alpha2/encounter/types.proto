@@ -289,11 +289,18 @@ message MovementInterruption {
 // TakeActionResponse when the operation needs more input from the requester (skill check,
 // dialogue choice). Server tracks the pending prompt as encounter state; SubmitCheck
 // implicitly resolves it. No correlation id needed on the wire.
+//
+// Wave 2.11d: ReactionPrompt joins as a fourth variant. Unlike the other three, a
+// reaction prompt is NOT delivered as the response to the calling RPC — it rides
+// the per-viewer event stream as an EncounterEvent.InputRequired event because the
+// reactor isn't the caller. The reactor's stream receives the prompt; the reactor
+// responds via SubmitCheck with the take_reaction field set.
 message InputRequired {
   oneof kind {
     SkillCheckPrompt skill_check = 1;
     DialogueChoice dialogue = 2;
     TargetSelect target_select = 3;
+    ReactionPrompt reaction_prompt = 4;
   }
 }
 
@@ -314,4 +321,37 @@ message DialogueOption {
 
 message TargetSelect {
   repeated string candidate_entity_ids = 1;
+}
+
+// ReactionPrompt is the InputRequired variant pushed to a player who has a readied
+// reaction whose predicate matched at an attack/movement boundary. The player chooses
+// to take or skip the reaction by replying via SubmitCheck with the take_reaction field.
+//
+// The prompt rides the per-viewer event stream (EncounterEvent.InputRequired) projected
+// to the reactor only. The mover/attacker's RPC response returns normally with phase-1
+// results; the reactor's stream gets this prompt as an additional event.
+//
+// Per Wave 2.11d Decision Point 2 (rpg-project#47): reuse SubmitCheck for take/skip
+// in this wave; defer a richer SubmitReaction RPC to a future wave when reactions need
+// payloads beyond yes/no (Counterspell slot pick, Polearm Master target pick).
+message ReactionPrompt {
+  // The reaction the reactor is being asked to take.
+  // Examples: dnd5e:conditions:opportunity_attack, dnd5e:spells:shield
+  Ref reaction_ref = 1;
+
+  // What triggered the reaction prompt. Mirrors the toolkit's TriggerKind enum
+  // (rulebooks/dnd5e/events.TriggerKind): "movement_oa", "post_hit", "post_damage".
+  string trigger_kind = 2;
+
+  // The entity whose action triggered this reaction.
+  // For OA: the moving entity. For Shield: the attacker.
+  string trigger_source_entity_id = 3;
+
+  // The reaction's intended target.
+  // For OA: the moving entity (you OA the mover). For Shield: the reactor (you Shield yourself).
+  string target_entity_id = 4;
+
+  // Optional human-readable description for the reactor's UI.
+  // Server may pre-format ("Goblin attacks you. Cast Shield (+5 AC, 1st-level slot)?").
+  string display_text = 5;
 }

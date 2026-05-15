@@ -102,16 +102,53 @@ message EndTurnResponse {}
 // SubmitCheckRequest resolves the caller's currently-pending InputRequired prompt.
 // No correlation id: server tracks pending_prompt_per_player. If none is pending,
 // server returns FailedPrecondition.
+//
+// Wave 2.11d: take_reaction extends this RPC for reaction prompts. When the caller's
+// pending prompt is a ReactionPrompt, the server interprets take_reaction as the
+// reactor's choice (true = take the reaction, false = skip) and runs phase 2 of the
+// attack with or without the reaction modifier baked in. The roll field is ignored
+// in that case (reaction prompts don't carry a d20 roll).
 message SubmitCheckRequest {
   string encounter_id = 1;
   string entity_id = 2;
-  int32 roll = 3; // raw d20 result the client rolled
+  int32 roll = 3; // raw d20 result the client rolled (skill-check semantics)
+  // When set on a request that resolves a ReactionPrompt, indicates whether the
+  // reactor takes (true) or skips (false) the prompted reaction. Ignored for
+  // non-reaction prompt kinds.
+  optional bool take_reaction = 4;
   // Future: optional advantage/disadvantage, modifier breakdown
 }
 
 message SubmitCheckResponse {
   bool success = 1;
   int32 total = 2;
+}
+
+// SetReactionReadyRequest toggles whether a character has a specific reaction
+// readied. Readiness is opt-in per the Wave 2.11d design: condition handlers only
+// emit reaction triggers (and the server only pushes prompts) when the character
+// has the relevant reaction readied.
+//
+// Default readiness varies by reaction type and is set server-side at encounter
+// setup (free-cost reactions like OA are default-on for melee combatants;
+// spell-cost reactions like Shield are default-off; class-feature reactions
+// per-feature). Players use this RPC to override defaults.
+//
+// Spell-cost reactions auto-clear after firing (one-shot). Free reactions stay
+// ready until the player toggles them off.
+message SetReactionReadyRequest {
+  string encounter_id = 1;
+  string character_id = 2;
+  // Which reaction to toggle. Examples: dnd5e:conditions:opportunity_attack,
+  // dnd5e:spells:shield
+  Ref reaction_ref = 3;
+  // true = ready (will trigger prompts); false = unready (silent default)
+  bool ready = 4;
+}
+
+message SetReactionReadyResponse {
+  // Empty for now; success implied by no error.
+  // Future: return resulting readiness map for the character so clients can confirm state.
 }
 
 // =============================================================================
@@ -140,4 +177,10 @@ service EncounterService {
   // Resolves the caller's pending InputRequired prompt.
   // Returns FailedPrecondition if no prompt is pending.
   rpc SubmitCheck(SubmitCheckRequest) returns (SubmitCheckResponse);
+
+  // SetReactionReady toggles whether a character has a specific reaction readied.
+  // Wave 2.11d: opt-in readiness model. Conditions only publish ReactionTrigger
+  // events (which become InputRequired{reaction_prompt} stream events) when the
+  // reactor has the relevant reaction readied via this RPC.
+  rpc SetReactionReady(SetReactionReadyRequest) returns (SetReactionReadyResponse);
 }

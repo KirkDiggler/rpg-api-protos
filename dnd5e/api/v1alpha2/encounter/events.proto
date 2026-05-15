@@ -51,7 +51,26 @@ message EncounterEvent {
     // Dialogue
     DialogueStarted dialogue_started = 50;
     DialogueEnded dialogue_ended = 51;
+
+    // Input prompts that arrive on the stream (rather than as the response of
+    // the calling RPC). Used by Wave 2.11d reaction prompts: when phase 1 of
+    // an attack publishes a ReactionTriggerEvent for a player reactor, the
+    // server pushes InputRequiredDelivered onto the reactor's per-viewer
+    // stream. The reactor responds via SubmitCheck{take_reaction}.
+    InputRequiredDelivered input_required_delivered = 60;
   }
+}
+
+// InputRequiredDelivered carries an InputRequired prompt that the server
+// is pushing onto a reactor's per-viewer stream. Wave 2.11d adds this so
+// reaction prompts can be delivered to players who are not the caller of
+// the action that triggered them (the mover/attacker's RPC response cannot
+// carry a prompt for a different player).
+//
+// The InputRequired payload is the same shape used in Interact / TakeAction
+// responses; clients can reuse the same prompt-modal infrastructure.
+message InputRequiredDelivered {
+  InputRequired input_required = 1;
 }
 
 // SnapshotDelivered is the first event on a new stream subscription. Carries the player's

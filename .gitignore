@@ -23,3 +23,6 @@ Thumbs.db
 
 # Buf
 .buf/.claude/
+
+# Git worktrees (used by superpowers using-git-worktrees skill)
+.worktrees/

@@ -112,12 +112,30 @@ message EntityMoved {
   optional MovementInterruption interruption = 6;
 }
 
+// DamageComponent is a single source's contribution to a damage event.
+// source is an opaque identifier: toolkit SourceRef.String() for named
+// sources (e.g. "dnd5e:conditions:sneak_attack") or a category string
+// ("weapon", "ability") for generic ones. amount is the component's total
+// after all chain modifiers (dice + flat bonus). damage_type reuses the
+// Ref shape used by EntityDamaged.damage_type. is_critical marks components
+// doubled for a critical hit — useful for crit highlighting in the UI.
+message DamageComponent {
+  string source = 1;
+  int32 amount = 2;
+  Ref damage_type = 3;
+  bool is_critical = 4;
+}
+
 message EntityDamaged {
   string entity_id = 1;
   int32 amount = 2;
   Ref damage_type = 3; // {module:"dnd5e", type:"damage", id:"slashing"}
   HitPoints hp_after = 4;
   optional string source_entity_id = 5;
+  // Per-source breakdown. Empty when the resolver did not produce component
+  // data (e.g. stand-in resolver or NPC attacks). When non-empty, the sum
+  // of component amounts equals amount.
+  repeated DamageComponent damage_breakdown = 6;
 }
 
 message EntityHealed {

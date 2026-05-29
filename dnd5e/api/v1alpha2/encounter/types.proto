@@ -152,9 +152,10 @@ message Space {
 // =============================================================================
 
 // Entity is anything that can occupy a position in the space.
-// Common shape (id, position, type, display_name, optional hp, status_effects) is what
-// every entity carries because every entity is destructible-or-not and has-or-doesn't-have
-// visible statuses. The oneof carries the type-specific rich data.
+// Common shape (id, position, type, display_name, optional hp, armor_class,
+// status_effects) is what every entity carries because every entity is
+// destructible-or-not and has-or-doesn't-have visible statuses.
+// The oneof carries the type-specific rich data.
 message Entity {
   string id = 1; // runtime instance id; not a Ref
   Position position = 2;
@@ -162,6 +163,7 @@ message Entity {
   string display_name = 4;
   optional HitPoints hp = 5; // present only on destructibles
   repeated StatusEffect status_effects = 6; // visible only
+  optional int32 armor_class = 7; // present for characters and monsters; absent for props/obstacles
 
   oneof data {
     CharacterData character = 10;

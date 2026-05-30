@@ -33,6 +33,7 @@ message EncounterEvent {
     EntityRemoved entity_removed = 24;
     StatusApplied status_applied = 25;
     StatusRemoved status_removed = 26;
+    ResourceChanged resource_changed = 61;
 
     // World interaction
     DoorOpened door_opened = 30;
@@ -164,6 +165,17 @@ message StatusApplied {
 message StatusRemoved {
   string entity_id = 1;
   Ref status_source = 2; // matches StatusEffect.source from earlier StatusApplied
+}
+
+// ResourceChanged reports a change in a tracked resource (e.g. rage charges,
+// ki points, spell slots) for an entity. The resource is identified by an opaque
+// ref so new resource types ride this event without a new proto field.
+// Example: {module:"dnd5e", type:"resources", id:"rage_charges"}, new_current=1, max=2.
+message ResourceChanged {
+  string entity_id = 1;
+  Ref resource_ref = 2; // e.g. {module:"dnd5e", type:"resources", id:"rage_charges"}
+  int32 new_current = 3;
+  int32 max = 4;
 }
 
 message DoorOpened {

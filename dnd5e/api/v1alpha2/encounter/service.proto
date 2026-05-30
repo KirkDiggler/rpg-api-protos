@@ -151,6 +151,17 @@ message SetReactionReadyResponse {
   // Future: return resulting readiness map for the character so clients can confirm state.
 }
 
+message ActivateFeatureRequest {
+  string encounter_id = 1;
+  string character_id = 2;
+  Ref feature_ref = 3; // e.g., {module:"dnd5e", type:"features", id:"rage"}
+}
+
+message ActivateFeatureResponse {
+  // Empty ack — state changes (condition applied, charges decremented, action consumed)
+  // flow via the existing EncounterEvent stream.
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -183,4 +194,8 @@ service EncounterService {
   // events (which become InputRequired{reaction_prompt} stream events) when the
   // reactor has the relevant reaction readied via this RPC.
   rpc SetReactionReady(SetReactionReadyRequest) returns (SetReactionReadyResponse);
+
+  // ActivateFeature applies a character feature (e.g. Rage) as an in-encounter action.
+  // State changes flow via the EncounterEvent stream; this is a lean ack.
+  rpc ActivateFeature(ActivateFeatureRequest) returns (ActivateFeatureResponse);
 }

@@ -1,8 +1,8 @@
 ---
 name: EncounterService
-description: D&D 5e encounter contract — lobby, dungeon exploration, combat, action economy, event streaming
-updated: 2026-05-02
-confidence: high — verified by reading dnd5e/api/v1alpha1/encounter.proto end-to-end and grepping consumers
+description: D&D 5e encounter contract — lobby, dungeon exploration, combat, action economy, event streaming (v1alpha1) + the v1alpha2 TakeAction action-resolution contract
+updated: 2026-06-01
+confidence: high — v1alpha1 verified by reading dnd5e/api/v1alpha1/encounter.proto end-to-end; v1alpha2 TakeAction section verified against the edited dnd5e/api/v1alpha2/encounter/{events,types}.proto. Full v1alpha2 doc still owed (tracked).
 ---
 
 # EncounterService
@@ -261,3 +261,91 @@ unnecessarily. See [data-model.md pagination](../data-model.md#pagination-patter
   by rpg-api today; that's an rpg-api-member concern. If an event is
   defined but never emitted, that's drift in the proto-but-not-in-use
   direction.
+
+---
+
+# v1alpha2 EncounterService (the replacement)
+
+`dnd5e/api/v1alpha2/encounter/` is the clean-break replacement (design:
+`rpg-project/ideas/encounter/v1alpha2/design.md`). It is a different,
+room-free contract — hex-absolute geometry, tiered visibility, a typed
+semantic-verb event stream — split across three files:
+`types.proto`, `events.proto`, `service.proto`. This doc still documents
+the v1alpha1 surface above in full; the section below covers only the
+**TakeAction action-resolution contract** added for Chapter 2's
+TakeAction wave. A full v1alpha2 component doc is owed once the package
+stops moving (tracked drift — the rest of v1alpha2 is not yet documented
+here).
+
+## TakeAction event contract (Chapter 2, wave umbrella rpg-project #54)
+
+A character's action streams as a **correlated family** of events tied
+together by `EncounterEvent.correlation_id` (`events.proto`, envelope
+field 3). The toolkit stamps the id per action; rpg-api copies it
+through. The combat log is reassembled from this — see Invariant 8 in
+the design's North-Star Invariants.
+
+| Event | Tag | Carries | Notes |
+|---|---|---|---|
+| `ActionResolved` | 27 | actor, `action_ref`, target, `EconomyConsumed` | Umbrella beat — one per action (Invariant 9). Uniform broadcast record. |
+| `AttackResolved` | 28 | attacker, target, hit, critical, attack_roll, attack_bonus, target_ac | Per-attack roll detail. **Fires on a MISS too** (`hit=false`) — the #594 fix; un-suppressing without this proto variant is what threw `ErrUnknownEventType`. No damage here. |
+| `EntityDamaged` | 21 | amount, damage_type, hp_after, breakdown | Pre-existing. Published alongside `AttackResolved` on a hit, same correlation id. |
+| `TurnStateChanged` | 45 | full recomputed `TurnState` | Pushed after an action mutates the active actor's economy/menu (Invariant 12 — the menu never goes silently stale; no polling). |
+
+The attack story is the correlated triple
+`ActionResolved → AttackResolved → EntityDamaged` (the last only on a hit).
+
+**Why `TurnStateChanged` is separate from `ActionResolved`.**
+`TurnState.available_actions` is the *active actor's* menu — it is
+projected for audience (Invariant 6), so it can't ride the uniform
+broadcast `ActionResolved`. Keeping them separate preserves
+`ActionResolved` as a clean combat-log entry and lets the menu refresh
+be projected to whoever needs it.
+
+## Action menu fields
+
+`AvailableAction` (`types.proto`) gained two toolkit-authored fields so
+the web renders the menu without computing any rules:
+
+- `economy_slot` (`EconomySlot` enum) — which slot the action draws
+  from, so the web groups the menu by slot.
+- `target_kind` (`TargetKind` enum) — which targeting prompt the UI
+  raises. `SELF`/`SINGLE_ENTITY`/`POSITION`/`AREA` correspond to the
+  `ActionTarget` oneof arms (`service.proto`): the web reads `target_kind`,
+  raises the matching prompt, and fills the matching `ActionTarget.kind`
+  in the request. Two values have no arm: `UNSPECIFIED` (toolkit didn't
+  set it; treat as a defect) and `NONE` (deliberately untargeted — Dash;
+  fire with no prompt and an empty/self target). `NONE` ≠ `SELF`: a SELF
+  action (Dodge) targets the actor; a NONE action targets nothing. The
+  proto mirrors the toolkit's enum 1:1 so rpg-api projects it
+  field-for-field with no translation conditional.
+
+## Ref namespacing — two `type` namespaces, not flattened
+
+`action_ref` carries the toolkit's **native ref verbatim**, both
+namespaces of the two-level economy:
+
+- `{type:"combat_abilities", id:"attack"}` — the intent verb (spends
+  economy, grants capacity).
+- `{type:"actions", id:"strike"}` — the granted-capacity action.
+
+These are **not** flattened to a single `action:*` namespace on the
+wire. Flattening would be a rules-level remap that someone must own, and
+rpg-api is forbidden from rules conditionals (Invariant 2). `Ref` is
+already a `{module,type,id}` triple; carrying the namespace in `type`
+costs nothing and keeps rpg-api a pure passthrough. The web switches on
+the triple; it never needs the namespace to *mean* anything.
+
+## Causation timestamp
+
+`EncounterEvent.timestamp` is now sourced from the toolkit event's
+game-time `occurred_at` at publish, **not** rpg-api's wall clock at
+translate (Invariant 5). The proto field is unchanged; the sourcing is
+an rpg-api projection change.
+
+## Dependency order (D9)
+
+The proto variants here land **before** rpg-api stops suppressing the
+resolved-action event — otherwise the un-suppress yields
+`ErrUnknownEventType`. Critical path: protos #170 + toolkit #697/#698 →
+rpg-api #597 → web #426.

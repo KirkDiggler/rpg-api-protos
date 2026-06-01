@@ -93,6 +93,44 @@ enum TrapState {
   TRAP_STATE_DISARMED = 3;
 }
 
+// EconomySlot is which action-economy slot an AvailableAction draws from, so the web can
+// GROUP the menu by slot (TakeAction wave). Toolkit-authored — rpg-api copies it through,
+// the web never derives it from rules. Maps from the toolkit's action type; a granted-
+// capacity action (e.g. an off-hand strike) carries the slot of the capacity it spends.
+enum EconomySlot {
+  ECONOMY_SLOT_UNSPECIFIED = 0;
+  ECONOMY_SLOT_ACTION = 1;
+  ECONOMY_SLOT_BONUS_ACTION = 2;
+  ECONOMY_SLOT_REACTION = 3;
+  ECONOMY_SLOT_MOVEMENT = 4;
+  ECONOMY_SLOT_FREE = 5;
+}
+
+// TargetKind tells the UI which targeting prompt to raise for an AvailableAction without
+// the web knowing any rules (TakeAction wave). Toolkit-authored. Attack/strike =
+// SINGLE_ENTITY, Dodge = SELF, move = POSITION, a fireball = AREA, Dash = NONE.
+//
+// SELF/SINGLE_ENTITY/POSITION/AREA correspond to the ActionTarget oneof arms (service.proto):
+// the web reads target_kind on the menu entry, raises the matching prompt, and fills the
+// matching ActionTarget.kind in the request.
+//
+// Two values have no ActionTarget arm and are deliberate:
+//   - UNSPECIFIED (0): the toolkit did not set a kind — treat as a defect (a bug to surface).
+//   - NONE (5): the action is deliberately untargeted — fire it with no prompt and an
+//     empty/self ActionTarget. Distinct from SELF: a SELF action (Dodge) targets the actor
+//     (a self-buff lands on them), whereas a NONE action (Dash) targets nothing at all.
+//     Collapsing them would lose that the web should confirm-self for Dodge but prompt-
+//     nothing for Dash. The toolkit owns this distinction; the proto mirrors its enum 1:1
+//     so rpg-api projects target_kind field-for-field with no translation conditional.
+enum TargetKind {
+  TARGET_KIND_UNSPECIFIED = 0;
+  TARGET_KIND_SELF = 1;
+  TARGET_KIND_SINGLE_ENTITY = 2;
+  TARGET_KIND_POSITION = 3;
+  TARGET_KIND_AREA = 4;
+  TARGET_KIND_NONE = 5;
+}
+
 // =============================================================================
 // Space — flat hex map with optional zones
 // =============================================================================
@@ -259,11 +297,17 @@ message ActionEconomy {
 // AvailableAction is one entry in the server-pushed list of actions the active entity can
 // take right now. Web does not compute availability — it renders the list and disables
 // buttons whose `available` is false (showing `unavailable_reason` as tooltip).
+//
+// ref carries the toolkit's native ref verbatim (e.g. {type:"combat_abilities", id:"attack"}
+// or {type:"actions", id:"strike"}); the two `type` namespaces are the toolkit's two-level
+// economy and are not flattened on the wire.
 message AvailableAction {
-  Ref ref = 1; // {module:"dnd5e", type:"action", id:"attack"}
+  Ref ref = 1; // {module:"dnd5e", type:"combat_abilities", id:"attack"}
   string display_name = 2;
   bool available = 3;
   string unavailable_reason = 4; // user-facing: "no movement", "out of range", ...
+  EconomySlot economy_slot = 5; // which slot it draws from — web groups the menu by this
+  TargetKind target_kind = 6; // which targeting prompt the UI should raise
 }
 
 // MovementInterruption is attached to an EntityMoved event when the path was cut short.

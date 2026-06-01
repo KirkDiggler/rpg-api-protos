@@ -66,7 +66,10 @@ message InteractResponse {
 message TakeActionRequest {
   string encounter_id = 1;
   string actor_entity_id = 2;
-  Ref action_ref = 3; // {module:"dnd5e", type:"action", id:"attack"}
+  // The toolkit's native action ref, two namespaces, not flattened:
+  // {module:"dnd5e", type:"combat_abilities", id:"attack"} (the intent verb) or
+  // {module:"dnd5e", type:"actions", id:"strike"} (a granted-capacity action).
+  Ref action_ref = 3;
   ActionTarget target = 4;
   // Future: spell level, ki spend, etc.
 }

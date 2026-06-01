@@ -14,7 +14,17 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 // Same payload → same event with a wider type, not a new event.
 message EncounterEvent {
   int64 sequence = 1; // monotonic per encounter
+  // Game-event time, stamped by the toolkit at publish (its event `occurred_at`),
+  // NOT wire-delivery time. The toolkit owns when an event happened; rpg-api copies
+  // it through, never restamps with its own wall clock (Invariant 5).
   google.protobuf.Timestamp timestamp = 2;
+  // Causation key (Invariant 8). Ties every effect of one action together: an
+  // ActionResolved and the AttackResolved / EntityDamaged / StatusApplied events it
+  // caused all share the same correlation_id, so the toolkit-owned combat log can be
+  // reassembled from the stream. Opaque runtime id the toolkit stamps per action, so
+  // it's a string (not a Ref). Empty for events with no causing action (snapshot,
+  // geometry reveal, etc.).
+  string correlation_id = 3;
 
   oneof event {
     // Lifecycle
@@ -33,6 +43,12 @@ message EncounterEvent {
     EntityRemoved entity_removed = 24;
     StatusApplied status_applied = 25;
     StatusRemoved status_removed = 26;
+    // The resolved-action triple (TakeAction wave). ActionResolved is the umbrella
+    // beat (actor, action, economy consumed); AttackResolved carries the per-attack
+    // roll detail (incl. MISS — the #594 fix). Both share the envelope correlation_id
+    // with the EntityDamaged they cause, so the web reassembles the full story.
+    ActionResolved action_resolved = 27;
+    AttackResolved attack_resolved = 28;
     ResourceChanged resource_changed = 61;
 
     // World interaction
@@ -48,6 +64,7 @@ message EncounterEvent {
     TurnStarted turn_started = 42;
     TurnEnded turn_ended = 43;
     EncounterEnded encounter_ended = 44;
+    TurnStateChanged turn_state_changed = 45;
 
     // Dialogue
     DialogueStarted dialogue_started = 50;
@@ -178,6 +195,60 @@ message ResourceChanged {
   int32 max = 4;
 }
 
+// ActionResolved is the umbrella beat for a player-facing action (TakeAction wave).
+// Every action a character takes emits exactly one of these as a first-class record —
+// not just its scattered effects (Invariant 9). It carries WHAT was done and WHAT it
+// cost; the roll/hit/miss detail of an attack lives on the correlated AttackResolved,
+// and any damage on the correlated EntityDamaged. The web reassembles the full story
+// from the shared envelope correlation_id.
+//
+// This is a uniform broadcast record — every viewer sees the same ActionResolved. The
+// actor's refreshed menu is NOT carried here; it rides the separate TurnStateChanged
+// event (projected for audience), keeping this a clean combat-log entry.
+message ActionResolved {
+  string actor_entity_id = 1; // who took the action
+  // The action the actor submitted, carried as the toolkit's native ref verbatim:
+  // {module:"dnd5e", type:"combat_abilities", id:"attack"} for an ability beat, or
+  // {module:"dnd5e", type:"actions", id:"strike"} for a granted-capacity action.
+  // The two `type` namespaces are the toolkit's two-level economy and are NOT flattened
+  // on the wire — rpg-api copies the triple through, never remaps it (Invariant 2).
+  Ref action_ref = 2;
+  string target_entity_id = 3; // "" for self/untargeted actions (Dodge, Dash)
+  EconomyConsumed economy_consumed = 4; // the real deduction the toolkit made
+}
+
+// EconomyConsumed is the action-economy delta one ActionResolved spent. Mirrors the
+// toolkit's two-level model: the primary slots plus the granted-capacity map (e.g.
+// {"attacks":1} when a strike consumes one granted attack, {"martial_arts_bonus":1}
+// for the Monk bonus strike). The web subtracts these from the economy it holds; the
+// authoritative refreshed snapshot still arrives on TurnStateChanged.
+message EconomyConsumed {
+  int32 actions = 1;
+  int32 bonus_actions = 2;
+  int32 reactions = 3;
+  int32 movement = 4; // in feet (toolkit-native unit), matches ActionEconomy.movement_remaining
+  map<string, int32> granted_consumed = 5; // toolkit capacity keys: "attacks", "martial_arts_bonus", ...
+}
+
+// AttackResolved carries the per-attack roll detail. Correlated to its umbrella
+// ActionResolved (and to the EntityDamaged it causes on a hit) via the shared envelope
+// correlation_id. The attack story is the correlated triple:
+// ActionResolved (umbrella + economy) → AttackResolved (roll, hit/miss/crit) →
+// EntityDamaged (HP, hit only).
+//
+// CRUCIAL: this fires on a MISS too (hit=false). That is the #594 fix — today a miss
+// emits nothing and the story silently drops. No damage is carried here; damage lives
+// on the separate EntityDamaged event published alongside on a hit.
+message AttackResolved {
+  string attacker_entity_id = 1;
+  string target_entity_id = 2;
+  bool hit = 3;
+  bool critical = 4;
+  int32 attack_roll = 5; // raw d20 result
+  int32 attack_bonus = 6; // to-hit modifier applied
+  int32 target_ac = 7; // the AC the roll was compared against
+}
+
 message DoorOpened {
   string door_entity_id = 1;
   repeated Hex revealed_hexes = 2; // full hex (terrain + zone) for newly-visible cells
@@ -225,6 +296,22 @@ message TurnStarted {
 
 message TurnEnded {
   string entity_id = 1;
+}
+
+// TurnStateChanged pushes the active actor's refreshed turn state after an action
+// mutates it — the economy decremented and the recomputed available-actions menu
+// (TakeAction wave, Invariant 12: the menu never goes silently stale; refresh is
+// pushed as a delta, the web never polls).
+//
+// Carried separately from ActionResolved on purpose: available_actions is the active
+// actor's menu, so this event is projected for audience (it goes to whoever needs the
+// menu), whereas ActionResolved is a uniform broadcast record. Correlated to the
+// triggering ActionResolved via the shared envelope correlation_id.
+//
+// The web swaps in this TurnState wholesale — toolkit computes it, rpg-api projects it
+// field-for-field, the web renders it. No availability is recomputed client-side.
+message TurnStateChanged {
+  TurnState turn_state = 1; // recomputed economy + available_actions
 }
 
 message EncounterEnded {

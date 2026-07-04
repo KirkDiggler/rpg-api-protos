@@ -247,6 +247,14 @@ message AttackResolved {
   int32 attack_roll = 5; // raw d20 result
   int32 attack_bonus = 6; // to-hit modifier applied
   int32 target_ac = 7; // the AC the roll was compared against
+  // Copied verbatim from the toolkit's AttackResolvedEvent (rulebook's AttackResult) —
+  // consumers must never recompute advantage/disadvantage from other fields.
+  bool has_advantage = 8;
+  bool has_disadvantage = 9;
+  // The granting/imposing condition(s) (e.g. {module:"dnd5e", type:"conditions",
+  // id:"dodging"}), for narration. Empty when has_advantage/has_disadvantage is false.
+  repeated Ref advantage_sources = 10;
+  repeated Ref disadvantage_sources = 11;
 }
 
 message DoorOpened {

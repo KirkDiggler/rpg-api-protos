@@ -50,6 +50,15 @@ message EncounterEvent {
     ActionResolved action_resolved = 27;
     AttackResolved attack_resolved = 28;
     ResourceChanged resource_changed = 61;
+    // The death-save arc (rpg-toolkit#742, wave KirkDiggler/rpg-project#75):
+    // DeathSaveRolled fires on EVERY roll (including auto-fails from damage
+    // while unconscious) so the combat log can narrate saves resolving in
+    // real time; EntityStabilized fires once at the 3-success terminal
+    // transition. Death itself still rides the existing EntityDied above —
+    // these two only cover the beats EntityDied doesn't. Tags are next-free
+    // (62/63, out of the 20s block), same convention as ResourceChanged=61.
+    DeathSaveRolled death_save_rolled = 62;
+    EntityStabilized entity_stabilized = 63;
 
     // World interaction
     DoorOpened door_opened = 30;
@@ -166,6 +175,39 @@ message EntityHealed {
 message EntityDied {
   string entity_id = 1;
   optional string killer_entity_id = 2;
+}
+
+// DeathSaveRolled carries a single death save roll for an unconscious
+// entity (rpg-toolkit#742). Fires on every roll, not just terminal ones —
+// roll is 0 when the failure came from taking damage while unconscious
+// rather than an actual d20 roll (mirrors the toolkit's own Roll==0
+// convention). successes/failures are the running totals toward 3;
+// stabilized/dead mark this roll as the one that crossed the respective
+// threshold (stabilized also fires EntityStabilized below in the same
+// correlated beat; dead also fires the existing EntityDied above).
+// regained_consciousness/hp_restored cover a natural 20 (2 successes plus
+// 1 HP and back up). All derived fields (is_critical_fail,
+// is_critical_success, stabilized, dead, regained_consciousness) are
+// copied verbatim from the toolkit's DeathSaveRolledEvent — consumers must
+// never re-derive them from roll/successes/failures.
+message DeathSaveRolled {
+  string entity_id = 1;
+  int32 roll = 2; // raw d20 result; 0 for a damage-while-unconscious auto-fail
+  int32 successes = 3; // running total toward 3
+  int32 failures = 4; // running total toward 3
+  bool is_critical_fail = 5; // natural 1 (counts as 2 failures)
+  bool is_critical_success = 6; // natural 20
+  bool stabilized = 7; // this roll was the 3rd success
+  bool dead = 8; // this roll was the 3rd failure
+  bool regained_consciousness = 9; // natural 20: back up with 1 HP
+  int32 hp_restored = 10; // HP granted by this roll (natural 20 only; 0 otherwise)
+}
+
+// EntityStabilized fires once when an unconscious entity accumulates 3
+// successful death saves (rpg-toolkit#742). No killer/causer concept —
+// mirrors EntityDied's shape minus the attacker.
+message EntityStabilized {
+  string entity_id = 1;
 }
 
 message EntityRemoved {

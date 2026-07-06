@@ -16,6 +16,16 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **LobbyService v1alpha1 (rpg-api-protos#176, 2026-07-06)** — new
+  `dnd5e/api/lobby/v1alpha1/` service: `CreateLobby`, `JoinLobby`, `SetReady`,
+  `LeaveLobby`, `StartEncounter`, `StreamLobby`. Party-assembly slice 1 of the
+  game-screen rebuild (`rpg-project#81`; design at
+  `rpg-project/ideas/game-screen-rebuild/lobby-surface.md`). Also removes
+  `EncounterService.CreateEncounter` (`dnd5e/api/v1alpha2/encounter/`) —
+  subsumed by `LobbyService.StartEncounter` — carried via the
+  `breaking-change-approved` label. Proto-only so far; no `rpg-api` handler
+  or `rpg-dnd5e-web` client yet (next legs of the same umbrella issue).
+
 - **PR #136 just merged (2026-04-03)** — unified entity state protos
   (`EntityState`, `CharacterDetails`, `MonsterDetails`, `ObstacleDetails`,
   `EncounterStateData`, `RoomLayout`). Currently no open PRs. Branch

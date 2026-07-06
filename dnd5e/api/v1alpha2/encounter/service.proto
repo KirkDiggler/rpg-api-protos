@@ -13,16 +13,6 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 // RPC request / response messages
 // =============================================================================
 
-message CreateEncounterRequest {
-  string campaign_id = 1;
-  EncounterMode initial_mode = 2;
-  // Future: party composition, dungeon ref, scenario ref
-}
-
-message CreateEncounterResponse {
-  Encounter encounter = 1;
-}
-
 message GetEncounterRequest {
   string encounter_id = 1;
 }
@@ -171,7 +161,11 @@ message ActivateFeatureResponse {
 
 service EncounterService {
   // Lifecycle
-  rpc CreateEncounter(CreateEncounterRequest) returns (CreateEncounterResponse);
+  //
+  // Encounter construction moved to lobby.v1alpha1.LobbyService.StartEncounter
+  // (rpg-api-protos#176): a solo lobby is the one-player start path, so the old
+  // single-caller CreateEncounter and the lobby's N-member seeding no longer
+  // need to coexist as two divergent construction paths.
   rpc GetEncounter(GetEncounterRequest) returns (GetEncounterResponse);
 
   // Stream — primary state delivery channel.

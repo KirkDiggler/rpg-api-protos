@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package dnd5e.api.lobby.v1alpha1;
+
+import "dnd5e/api/lobby/v1alpha1/types.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/lobby/v1alpha1;lobbypb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.lobby.v1alpha1";
+
+// LobbyEvent is the unit of state delivery on StreamLobby. Membership + presence
+// only — no combat-log envelope (sequence/timestamp/correlation_id) like
+// EncounterEvent, because the lobby has no causation chains to reassemble; the
+// stream is short-lived and ends the moment encounter_started fires.
+message LobbyEvent {
+  oneof event {
+    // snapshot is always the first event delivered on a new StreamLobby
+    // subscription — mirrors StreamEncounter's snapshot-then-deltas pattern so a
+    // reconnecting client never needs a separate "get current state" call.
+    LobbySnapshot snapshot = 1;
+    MemberJoined member_joined = 2;
+    MemberLeft member_left = 3;
+    MemberReady member_ready = 4;
+    MemberConnectionChanged member_connection_changed = 5;
+    HostChanged host_changed = 6;
+    // Terminal event. WAITING -> STARTED is a one-way transition: after this,
+    // clients drop the lobby stream and subscribe StreamEncounter(encounter_id)
+    // instead. No further LobbyEvent is delivered on this stream.
+    EncounterStarted encounter_started = 7;
+  }
+}
+
+message LobbySnapshot {
+  repeated LobbyMember members = 1;
+}
+
+message MemberJoined {
+  LobbyMember member = 1;
+}
+
+message MemberLeft {
+  string player_id = 1;
+}
+
+message MemberReady {
+  string player_id = 1;
+  bool ready = 2;
+}
+
+// MemberConnectionChanged reports presence, not membership. Fired when a
+// player's StreamLobby subscription opens (connected = true) or drops
+// (connected = false). The seat is retained either way; only LeaveLobby emits
+// member_left.
+message MemberConnectionChanged {
+  string player_id = 1;
+  bool connected = 2;
+}
+
+// HostChanged fires when the host leaves (LeaveLobbyRequest) and the role
+// migrates to the oldest remaining member, rather than dissolving the lobby.
+message HostChanged {
+  string player_id = 1;
+}
+
+// EncounterStarted announces the toolkit encounter is already persisted
+// (persist-then-emit ordering is load-bearing: a client reacting to this event
+// must find the encounter already readable via StreamEncounter).
+message EncounterStarted {
+  string encounter_id = 1;
+}

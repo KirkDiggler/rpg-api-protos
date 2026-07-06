@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package dnd5e.api.lobby.v1alpha1;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/lobby/v1alpha1;lobbypb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.lobby.v1alpha1";
+
+// LobbyMember is one player's seat in the lobby's party-assembly roster.
+//
+// character_name is server-enriched (looked up from the character store at
+// join/create time) — the web renders it, never fetches-and-computes. Later
+// party display fields (class, level) enrich the same way.
+//
+// is_connected is presence, not membership: a dropped StreamLobby subscription
+// flips is_connected false but keeps the seat. Only explicit LeaveLobby removes
+// a member (see LeaveLobbyRequest in service.proto).
+message LobbyMember {
+  string player_id = 1;
+  string character_id = 2;
+  string character_name = 3;
+  bool is_host = 4;
+  bool is_ready = 5;
+  bool is_connected = 6;
+}

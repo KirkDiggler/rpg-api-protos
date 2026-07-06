@@ -103,15 +103,15 @@ message StartEncounterResponse {
   string encounter_id = 1;
 }
 
-// StreamLobbyRequest subscribes to lobby membership events. player_id
-// identifies the subscriber for presence tracking (mirrors
-// StreamEncounterRequest's per-viewer field): subscribing flips this player's
+// StreamLobbyRequest subscribes to lobby membership events. The subscriber's
+// identity for presence tracking comes from the authenticated context, not a
+// request field (a client-supplied player_id would let a caller flip another
+// member's presence) — subscribing flips the authenticated caller's
 // is_connected true, the subscription dropping flips it false — broadcast
 // either way as MemberConnectionChanged. A dropped tab keeps its seat; only
 // LeaveLobby gives it up.
 message StreamLobbyRequest {
   string lobby_id = 1;
-  string player_id = 2;
 }
 
 // =============================================================================

@@ -34,6 +34,14 @@ rpg-api-protos/
     enums.proto                 # Race, Class, Skill, Spell, etc.
     choices.proto               # Choice, ChoiceSubmission, ChoiceData
     equipment_types.proto       # Equipment, WeaponData, ArmorData, GearData
+  dnd5e/api/v1alpha2/encounter/  # service-first layout; TakeAction-wave encounter contract
+    service.proto               # EncounterService — live; RPCs + request/response messages
+    types.proto                 # Ref, Position, Entity, Space, TurnState, ActionEconomy, ...
+    events.proto                # EncounterEvent stream — snapshot + deltas
+  dnd5e/api/lobby/v1alpha1/      # service-first layout; own version clock (rpg-project#80)
+    service.proto                # LobbyService — party-assembly RPCs; not yet consumed (rpg-api pending)
+    types.proto                  # LobbyMember
+    events.proto                 # LobbyEvent stream — snapshot + membership/presence deltas
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed
@@ -135,6 +143,15 @@ The override is intentional: alpha packages permit breaking changes, but
 each one requires explicit reviewer acknowledgment via the label, not a
 silent merge with a yellow x. Stable (v1+) services should bump the package
 version (`v1`→`v2`) instead of using the override.
+
+**Worked example: `EncounterService.CreateEncounter` removed (rpg-api-protos#176,
+2026-07-06).** The lobby service's `StartEncounter` subsumes it — a solo lobby
+is the one-player start path, so the old single-caller construction RPC and the
+lobby's N-member seeding no longer need to coexist as two divergent
+constructors. `CreateEncounterRequest`/`CreateEncounterResponse` were deleted
+outright (no `reserved`, since RPC removal isn't a message-field retirement);
+`buf breaking` flags it as expected, carried via the override label per the
+design in `rpg-project/ideas/game-screen-rebuild/lobby-surface.md`.
 
 ### Rule 3: Deprecated fields are retired in the same release as their replacement
 

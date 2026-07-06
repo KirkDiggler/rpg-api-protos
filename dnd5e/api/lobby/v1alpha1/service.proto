@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package dnd5e.api.lobby.v1alpha1;
+
+import "dnd5e/api/lobby/v1alpha1/events.proto";
+import "dnd5e/api/lobby/v1alpha1/types.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/lobby/v1alpha1;lobbypb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.lobby.v1alpha1";
+
+// =============================================================================
+// RPC request / response messages
+// =============================================================================
+
+// CreateLobbyRequest starts a new lobby in the WAITING state. The caller becomes
+// host and is bound to character_id as the first member — the same
+// belongs-to-the-authenticated-player validation JoinLobbyRequest documents
+// applies here too.
+message CreateLobbyRequest {
+  string campaign_id = 1;
+  string character_id = 2;
+}
+
+// CreateLobbyResponse returns the opaque join_ref new members present to
+// JoinLobby. One join mechanism, two carriers: the Discord Activity supplies
+// join_ref automatically (everyone in the Activity shares an instance, nobody
+// types a code); dev/playtest passes the same ref via URL param or displayed
+// short code. The mapping from Discord instance to join_ref is rpg-api
+// internal — invisible to this contract, which only ever deals in join_ref.
+message CreateLobbyResponse {
+  string lobby_id = 1;
+  string join_ref = 2;
+  string host_player_id = 3;
+}
+
+// JoinLobbyRequest joins the lobby that minted join_ref at CreateLobby.
+//
+// Idempotent and rebinding: a player already in the lobby who calls again —
+// reconnect retry, second tab, or picking a different character — has
+// character_id rebound rather than erroring. This is also the only way to
+// change character pre-start; there is no separate re-select RPC. The server
+// validates character_id belongs to the authenticated caller.
+//
+// Returns FailedPrecondition if the lobby has already transitioned to STARTED
+// (WAITING -> STARTED is terminal; mid-encounter join is a future
+// encounter-side concern, not a lobby one) or if the party is already at the
+// server-enforced cap (4, config knob — not a contract field).
+message JoinLobbyRequest {
+  string join_ref = 1;
+  string character_id = 2;
+}
+
+message JoinLobbyResponse {
+  string lobby_id = 1;
+  repeated LobbyMember members = 2;
+}
+
+// SetReadyRequest toggles the caller's ready flag. Broadcast to the lobby as a
+// member_ready LobbyEvent; this response is a lean ack.
+message SetReadyRequest {
+  string lobby_id = 1;
+  bool ready = 2;
+}
+
+message SetReadyResponse {}
+
+// LeaveLobbyRequest removes the caller from the lobby. Pre-start only — once
+// WAITING -> STARTED has happened there is no lobby membership left to leave
+// (the encounter is the unit of membership from that point on). Explicit leave
+// is the only way a seat is freed; a dropped connection alone does not (see
+// MemberConnectionChanged in events.proto).
+//
+// If the caller is the host, the host role migrates to the oldest remaining
+// member (broadcast as HostChanged) rather than dissolving the lobby for
+// everyone else. A lobby whose last member leaves simply expires via a
+// refreshed-on-activity TTL — no reaper process, no contract field.
+message LeaveLobbyRequest {
+  string lobby_id = 1;
+}
+
+message LeaveLobbyResponse {}
+
+// StartEncounterRequest is the host's go/no-go moment: builds the toolkit
+// encounter from the current member set and hands the party off to it.
+//
+// Host-only — a non-host caller gets PermissionDenied. All-ready gated —
+// returns FailedPrecondition if any member's is_ready is false. Snapshots the
+// member set atomically against a racing LeaveLobby: a leave either lands
+// before the snapshot (member excluded) or after (FailedPrecondition, lobby
+// already STARTED). Marks the WAITING -> STARTED transition, which is
+// terminal; no lobby state survives the handoff.
+message StartEncounterRequest {
+  string lobby_id = 1;
+}
+
+// StartEncounterResponse returns the encounter_id clients switch to. Ordering
+// is load-bearing: the encounter is persisted before EncounterStarted is
+// emitted on the lobby stream, so a client reacting to that event is
+// guaranteed to find the encounter already there when it subscribes
+// StreamEncounter(encounter_id).
+message StartEncounterResponse {
+  string encounter_id = 1;
+}
+
+// StreamLobbyRequest subscribes to lobby membership events. player_id
+// identifies the subscriber for presence tracking (mirrors
+// StreamEncounterRequest's per-viewer field): subscribing flips this player's
+// is_connected true, the subscription dropping flips it false — broadcast
+// either way as MemberConnectionChanged. A dropped tab keeps its seat; only
+// LeaveLobby gives it up.
+message StreamLobbyRequest {
+  string lobby_id = 1;
+  string player_id = 2;
+}
+
+// =============================================================================
+// Service
+// =============================================================================
+
+service LobbyService {
+  // CreateLobby starts a new WAITING lobby; the caller becomes host.
+  rpc CreateLobby(CreateLobbyRequest) returns (CreateLobbyResponse);
+
+  // JoinLobby is idempotent and rebinds character_id for an existing member.
+  // FailedPrecondition if the lobby already STARTED or the party is at cap.
+  rpc JoinLobby(JoinLobbyRequest) returns (JoinLobbyResponse);
+
+  // SetReady toggles the caller's ready flag; broadcast as member_ready.
+  rpc SetReady(SetReadyRequest) returns (SetReadyResponse);
+
+  // LeaveLobby removes the caller, pre-start only. Host leaving migrates the
+  // host role (host_changed); the last member leaving lets the lobby expire
+  // via TTL rather than dissolving explicitly.
+  rpc LeaveLobby(LeaveLobbyRequest) returns (LeaveLobbyResponse);
+
+  // StartEncounter is host-only and all-ready gated. Builds the toolkit
+  // encounter, persists it, then emits encounter_started. WAITING -> STARTED
+  // is terminal — this is the only way a lobby becomes an encounter, replacing
+  // EncounterService.CreateEncounter's single-caller construction path.
+  rpc StartEncounter(StartEncounterRequest) returns (StartEncounterResponse);
+
+  // StreamLobby is the primary state delivery channel — mirrors StreamEncounter's
+  // snapshot-then-deltas: the first event on subscribe is always a LobbySnapshot.
+  // Ends when EncounterStarted fires; clients then subscribe
+  // StreamEncounter(encounter_id) instead.
+  rpc StreamLobby(StreamLobbyRequest) returns (stream LobbyEvent);
+}

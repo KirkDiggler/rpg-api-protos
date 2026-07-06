@@ -156,6 +156,24 @@ extensible shape. `Cost` and `Weight` as separate messages with
 `quantity + unit` is overkill for D&D 5e (gp/sp/cp; lbs) but correct in
 spirit.
 
+## Newly defined, consumer PR pending
+
+### dnd5e.lobby.LobbyService — B+ (provisional)
+
+Landed 2026-07-06 (rpg-api-protos#176), no consumer yet — distinct from the
+"defined-but-not-consumed" bucket below because an `rpg-api` handler PR is
+the immediate next leg of the same umbrella issue (`rpg-project#81`), not
+speculative schema. Service-first layout (`service.proto`/`types.proto`/
+`events.proto`) matches the precedent `dnd5e/api/v1alpha2/encounter/` set.
+Six focused RPCs, one join mechanism (`join_ref`) with two carriers
+documented in comments rather than invented as separate contract paths.
+`LobbyEvent` deliberately skips `EncounterEvent`'s combat-log envelope
+(sequence/timestamp/correlation_id) since there's no causation chain to
+reassemble — right-sized rather than copy-pasted. Held below A by: no
+runtime validation this shape survives contact with the orchestrator layer
+yet, and `character_name` enrichment / party-cap config aren't verifiable
+from the proto alone. Re-grade once the rpg-api PR lands.
+
 ## Defined-but-not-consumed services
 
 These services compile, lint clean, and ship in the generated SDKs, but

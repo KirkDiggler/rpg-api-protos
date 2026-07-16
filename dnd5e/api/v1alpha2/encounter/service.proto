@@ -23,8 +23,14 @@ message GetEncounterResponse {
 
 message StreamEncounterRequest {
   string encounter_id = 1;
-  string player_id = 2;
-  optional int64 last_seen_sequence = 3; // for reconnect/replay
+  // player_id and last_seen_sequence were never read: viewer identity comes
+  // exclusively from the authenticated context (matching StreamLobbyRequest,
+  // which never carried a client-id field), and there is no incremental
+  // resume-by-sequence path today — every (re)connect gets a full resync.
+  // Real resume-by-sequence is a future feature, not a wiring gap; see
+  // rpg-api-protos#178.
+  reserved 2, 3;
+  reserved "player_id", "last_seen_sequence";
 }
 
 message MoveEntityRequest {
@@ -169,8 +175,11 @@ service EncounterService {
   rpc GetEncounter(GetEncounterRequest) returns (GetEncounterResponse);
 
   // Stream — primary state delivery channel.
-  // Server sends an initial snapshot as the first event, then deltas. Reconnects pass
-  // last_seen_sequence to resume; if gap is too large, server sends a fresh snapshot.
+  // Server sends an initial snapshot as the first event, then deltas. Every
+  // (re)connect gets a full snapshot resync — there is no incremental
+  // resume-by-sequence today (rpg-api-protos#178 removed the unimplemented
+  // last_seen_sequence field; a real resume-by-sequence design is future work,
+  // tracked separately).
   rpc StreamEncounter(StreamEncounterRequest) returns (stream EncounterEvent);
 
   // World actions — emit events on the stream. Caller-private follow-ups (skill check,

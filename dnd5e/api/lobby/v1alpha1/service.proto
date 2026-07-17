@@ -114,6 +114,39 @@ message StreamLobbyRequest {
   string lobby_id = 1;
 }
 
+// GetMyActiveLobbyRequest looks up the authenticated caller's own active
+// lobby — no request fields. Identity comes from the authenticated context,
+// matching StreamLobbyRequest's pattern: a client-supplied player_id would
+// let a caller query another player's lobby.
+//
+// Built for resume-after-refresh (rpg-dnd5e-web#444): a client that has lost
+// all in-memory session state (page reload, crash, cold Discord Activity
+// launch) calls this once to learn whether it should skip straight back into
+// a lobby or a running encounter instead of landing on Home.
+message GetMyActiveLobbyRequest {}
+
+// GetMyActiveLobbyResponse reports the caller's active lobby, if any.
+//
+// An empty lobby_id means "no active lobby" — this is the normal response,
+// not an error. Every player who is not currently in a lobby or encounter
+// gets this on every app-mount call, so error-as-control-flow would be the
+// wrong shape here.
+//
+// encounter_id is set if and only if lobby_status is STARTED AND the server
+// has verified the encounter is still live (exists and has not ended). A
+// STARTED lobby record is a one-way, terminal transition on the lobby side
+// (see LeaveLobbyRequest) — nothing marks it when the encounter it points to
+// later ends — so lobby_status alone cannot distinguish "still fighting"
+// from "this fight ended hours ago." Server implementations must check the
+// encounter's own live state before populating encounter_id; a STARTED
+// lobby whose encounter has ended returns encounter_id empty, same as "no
+// active lobby."
+message GetMyActiveLobbyResponse {
+  string lobby_id = 1;
+  string encounter_id = 2;
+  LobbyStatus lobby_status = 3;
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -145,4 +178,10 @@ service LobbyService {
   // Ends when EncounterStarted fires; clients then subscribe
   // StreamEncounter(encounter_id) instead.
   rpc StreamLobby(StreamLobbyRequest) returns (stream LobbyEvent);
+
+  // GetMyActiveLobby looks up the authenticated caller's own active lobby —
+  // resume-after-refresh support (rpg-dnd5e-web#444). Empty lobby_id means
+  // no active lobby, not an error. encounter_id is only populated when the
+  // lobby is STARTED and the encounter has been verified still live.
+  rpc GetMyActiveLobby(GetMyActiveLobbyRequest) returns (GetMyActiveLobbyResponse);
 }

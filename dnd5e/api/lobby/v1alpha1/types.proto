@@ -6,6 +6,17 @@ option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/lobb
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.lobby.v1alpha1";
 
+// LobbyStatus mirrors the lobby's server-side lifecycle: WAITING -> STARTED
+// is a one-way transition (see StartEncounterRequest in service.proto).
+// Exposed for GetMyActiveLobbyResponse — a STARTED lobby's encounter_id is
+// only trustworthy alongside this status, since STARTED does not by itself
+// mean the encounter is still running (see GetMyActiveLobbyResponse).
+enum LobbyStatus {
+  LOBBY_STATUS_UNSPECIFIED = 0;
+  LOBBY_STATUS_WAITING = 1;
+  LOBBY_STATUS_STARTED = 2;
+}
+
 // LobbyMember is one player's seat in the lobby's party-assembly roster.
 //
 // character_name is server-enriched (looked up from the character store at

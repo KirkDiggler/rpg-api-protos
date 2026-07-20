@@ -103,6 +103,25 @@ message StartEncounterResponse {
   string encounter_id = 1;
 }
 
+// AbandonEncounterRequest administratively ends the lobby's STARTED
+// encounter — host-only. The escape hatch for a stuck or unwanted encounter
+// (e.g. a FREE_ROAM deadlock) with no other way to end (rpg-api#663).
+//
+// Takes lobby_id, not encounter_id: host authority is modeled on the lobby
+// (host_player_id), matching StartEncounter — the caller doesn't separately
+// know or supply the encounter_id, the server resolves it from the lobby
+// record. Returns FailedPrecondition if the lobby hasn't started an
+// encounter yet (mirrors LeaveLobby's pre-start-only shape, inverted).
+message AbandonEncounterRequest {
+  string lobby_id = 1;
+}
+
+// AbandonEncounterResponse is a lean ack — the terminal transition
+// (EncounterEnded{reason:"abandoned"}) flows via the encounter's existing
+// StreamEncounter channel, the same terminal-transition shape a natural
+// victory/TPK end already uses, not a separate contract of its own.
+message AbandonEncounterResponse {}
+
 // StreamLobbyRequest subscribes to lobby membership events. The subscriber's
 // identity for presence tracking comes from the authenticated context, not a
 // request field (a client-supplied player_id would let a caller flip another
@@ -172,6 +191,13 @@ service LobbyService {
   // is terminal — this is the only way a lobby becomes an encounter, replacing
   // EncounterService.CreateEncounter's single-caller construction path.
   rpc StartEncounter(StartEncounterRequest) returns (StartEncounterResponse);
+
+  // AbandonEncounter administratively ends the lobby's STARTED encounter —
+  // host-only. Publishes EncounterEnded{reason:"abandoned"} on the
+  // encounter's own StreamEncounter channel, the same terminal-transition
+  // shape as a natural victory/TPK end. FailedPrecondition if the lobby
+  // hasn't started an encounter yet. rpg-api#663.
+  rpc AbandonEncounter(AbandonEncounterRequest) returns (AbandonEncounterResponse);
 
   // StreamLobby is the primary state delivery channel — mirrors StreamEncounter's
   // snapshot-then-deltas: the first event on subscribe is always a LobbySnapshot.

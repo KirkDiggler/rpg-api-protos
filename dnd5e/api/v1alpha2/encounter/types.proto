@@ -153,6 +153,9 @@ message Wall {
   Position from = 1;
   Position to = 2;
   WallKind kind = 3;
+  optional string id = 4; // present on interactable walls (doors); the web passes it as
+  // InteractRequest.target_entity_id to bridge a door click to Interact. Absent on plain
+  // solid/window walls, which have nothing to interact with.
 }
 
 // Zone is optional metadata attached to a region of hexes.

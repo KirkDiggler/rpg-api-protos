@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.encounter;
 
+import "api/v1alpha2/core/ref.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
@@ -9,20 +11,10 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 // =============================================================================
 // Common primitives
 // =============================================================================
-
-// Ref is a typed reference to a piece of toolkit content.
-// module/type/id triple disambiguates across rulebooks and prevents id collisions.
-// Used everywhere the wire identifies a typed thing (combat_abilities, actions, monster,
-// feature, condition, damage type, item, ...). NOT used for runtime instance ids
-// (encounter_id, entity_id) — those stay strings. The `type` field is open-ended; the
-// toolkit grows the vocabulary and the wire carries its native namespaces verbatim (e.g.
-// the two-level economy's combat_abilities:* intent and actions:* doing are both `type`
-// values — never flattened on the wire).
-message Ref {
-  string module = 1; // "dnd5e", future: "artificer", "homebrew-x"
-  string type = 2; // "monster", "feature", "condition", "combat_abilities", "actions", "spell", "item", "damage", ...
-  string id = 3; // "goblin", "rage", "dodging", "attack"
-}
+//
+// Ref (the typed module/type/id reference to toolkit content) relocated to
+// api.v1alpha2.core (rpg-api-protos#188) — it's generic, not dnd5e- or
+// encounter-specific, mirroring rpg-toolkit/core. Referenced below as `.api.v1alpha2.core.Ref`.
 
 // Position uses hex cube coordinates with the invariant x + y + z == 0.
 // Coordinates are dungeon-absolute on the wire — no room-local coords ever.
@@ -172,7 +164,7 @@ message Zone {
 // StatusEffect is the wire-shape of toolkit's core.Effect (called Condition in the dnd5e
 // rulebook). Carries display payload only; the reactive mechanism stays server-side.
 message StatusEffect {
-  Ref source = 1; // {module:"dnd5e", type:"condition", id:"poisoned"}
+  .api.v1alpha2.core.Ref source = 1; // {module:"dnd5e", type:"condition", id:"poisoned"}
   string display_name = 2;
   string icon_hint = 3; // UI category — actual asset path resolved web-side
   optional int32 duration_rounds = 4;
@@ -230,8 +222,8 @@ message Entity {
 // EquipItem/UnequipItem RPCs (dnd5e.api.v1alpha2.character.CharacterService) are for the
 // out-of-encounter sheet and return this same message — one shape, no conversion layer.
 message CharacterData {
-  Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
-  Ref race_ref = 2;
+  .api.v1alpha2.core.Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
+  .api.v1alpha2.core.Ref race_ref = 2;
   string player_id = 3; // who controls this character
   // level still TODO — see rpg-api-protos#183
 
@@ -239,7 +231,7 @@ message CharacterData {
   // strings to the web (defined by `slots` below). Item display fields are looked up by Ref
   // against `inventory`, which carries the same item's full entry — no separate
   // "EquippedItem" wrapper, one representation for an item whether worn or carried.
-  map<string, Ref> equipped = 4;
+  map<string, .api.v1alpha2.core.Ref> equipped = 4;
 
   // inventory is every item the character owns, INCLUDING currently equipped ones (an
   // equipped item's entry here is what `equipped[slot_key]` points at). Excluding equipped
@@ -279,7 +271,7 @@ message CharacterData {
 // vocabulary the toolkit and asset manifest own. The web renders these verbatim and never
 // derives them from rules data (no client-side damage dice, no client-side AC math).
 message Item {
-  Ref ref = 1; // {module:"dnd5e", type:"item", id:"longsword"}
+  .api.v1alpha2.core.Ref ref = 1; // {module:"dnd5e", type:"item", id:"longsword"}
   string name = 2;
   string stat_line = 3; // server-composed: "1d8 slashing · versatile", "AC 16 · heavy"
   string icon_key = 4; // reference key into the asset-owned manifest — keys, not enums
@@ -303,12 +295,12 @@ message ArmorClassDisplay {
 
 // MonsterData — server-controlled monster.
 message MonsterData {
-  Ref monster_ref = 1; // {module:"dnd5e", type:"monster", id:"goblin"}
+  .api.v1alpha2.core.Ref monster_ref = 1; // {module:"dnd5e", type:"monster", id:"goblin"}
 }
 
 // ObstacleData — boulder, table, statue, etc.
 message ObstacleData {
-  Ref obstacle_ref = 1;
+  .api.v1alpha2.core.Ref obstacle_ref = 1;
   bool blocks_movement = 2;
   bool blocks_line_of_sight = 3;
 }
@@ -317,20 +309,20 @@ message ObstacleData {
 // appears_as is the illusion mechanic: undetected traps report a different EntityType
 // to players who haven't perceived them. Server filters per player.
 message TrapData {
-  Ref trap_ref = 1; // {module:"dnd5e", type:"trap", id:"pit-trap"}
+  .api.v1alpha2.core.Ref trap_ref = 1; // {module:"dnd5e", type:"trap", id:"pit-trap"}
   TrapState state = 2;
   EntityType appears_as = 3; // FLOOR/PROP for undetected; same as `type` once perceived
 }
 
 // PropData — chest, lever, lootable, decoration.
 message PropData {
-  Ref prop_ref = 1;
+  .api.v1alpha2.core.Ref prop_ref = 1;
   bool interactable = 2;
 }
 
 // NpcData — non-hostile, non-monster characters (shopkeeper, quest-giver).
 message NpcData {
-  Ref npc_ref = 1;
+  .api.v1alpha2.core.Ref npc_ref = 1;
   bool hostile = 2; // can flip during encounter (e.g. betrayal)
 }
 
@@ -382,7 +374,7 @@ message ActionEconomy {
 // or {type:"actions", id:"strike"}); the two `type` namespaces are the toolkit's two-level
 // economy and are not flattened on the wire.
 message AvailableAction {
-  Ref ref = 1; // {module:"dnd5e", type:"combat_abilities", id:"attack"}
+  .api.v1alpha2.core.Ref ref = 1; // {module:"dnd5e", type:"combat_abilities", id:"attack"}
   string display_name = 2;
   bool available = 3;
   string unavailable_reason = 4; // user-facing: "no movement", "out of range", ...
@@ -404,7 +396,7 @@ message MovementInterruption {
   }
   Reason reason = 1;
   string description = 2;
-  optional Ref triggered_by = 3; // which trap, feature, ability caused it
+  optional .api.v1alpha2.core.Ref triggered_by = 3; // which trap, feature, ability caused it
 }
 
 // =============================================================================
@@ -433,7 +425,7 @@ message InputRequired {
 message SkillCheckPrompt {
   int32 dc = 1;
   string ability = 2; // 5e three-letter codes: "STR", "DEX", "INT", ...
-  optional Ref tool = 3; // {module:"dnd5e", type:"item", id:"thieves-tools"}
+  optional .api.v1alpha2.core.Ref tool = 3; // {module:"dnd5e", type:"item", id:"thieves-tools"}
 }
 
 message DialogueChoice {
@@ -463,7 +455,7 @@ message TargetSelect {
 message ReactionPrompt {
   // The reaction the reactor is being asked to take.
   // Examples: dnd5e:conditions:opportunity_attack, dnd5e:spells:shield
-  Ref reaction_ref = 1;
+  .api.v1alpha2.core.Ref reaction_ref = 1;
 
   // What triggered the reaction prompt. Mirrors the toolkit's TriggerKind enum
   // (rulebooks/dnd5e/events.TriggerKind): "movement_oa", "post_hit", "post_damage".

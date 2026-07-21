@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.encounter;
 
+import "api/v1alpha2/core/ref.proto";
 import "dnd5e/api/v1alpha2/encounter/types.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -135,7 +136,7 @@ message EntityMoved {
   Position from = 2;
   Position to = 3; // actual final position
   repeated Position actual_path = 4; // hex by hex, for animation
-  optional Ref movement_source = 5;
+  optional .api.v1alpha2.core.Ref movement_source = 5;
   optional MovementInterruption interruption = 6;
 }
 
@@ -149,14 +150,14 @@ message EntityMoved {
 message DamageComponent {
   string source = 1;
   int32 amount = 2;
-  Ref damage_type = 3;
+  .api.v1alpha2.core.Ref damage_type = 3;
   bool is_critical = 4;
 }
 
 message EntityDamaged {
   string entity_id = 1;
   int32 amount = 2;
-  Ref damage_type = 3; // {module:"dnd5e", type:"damage", id:"slashing"}
+  .api.v1alpha2.core.Ref damage_type = 3; // {module:"dnd5e", type:"damage", id:"slashing"}
   HitPoints hp_after = 4;
   optional string source_entity_id = 5;
   // Per-source breakdown. Empty when the resolver did not produce component
@@ -223,7 +224,7 @@ message StatusApplied {
 
 message StatusRemoved {
   string entity_id = 1;
-  Ref status_source = 2; // matches StatusEffect.source from earlier StatusApplied
+  .api.v1alpha2.core.Ref status_source = 2; // matches StatusEffect.source from earlier StatusApplied
 }
 
 // ResourceChanged reports a change in a tracked resource (e.g. rage charges,
@@ -232,7 +233,7 @@ message StatusRemoved {
 // Example: {module:"dnd5e", type:"resources", id:"rage_charges"}, new_current=1, max=2.
 message ResourceChanged {
   string entity_id = 1;
-  Ref resource_ref = 2; // e.g. {module:"dnd5e", type:"resources", id:"rage_charges"}
+  .api.v1alpha2.core.Ref resource_ref = 2; // e.g. {module:"dnd5e", type:"resources", id:"rage_charges"}
   int32 new_current = 3;
   int32 max = 4;
 }
@@ -254,7 +255,7 @@ message ActionResolved {
   // {module:"dnd5e", type:"actions", id:"strike"} for a granted-capacity action.
   // The two `type` namespaces are the toolkit's two-level economy and are NOT flattened
   // on the wire — rpg-api copies the triple through, never remaps it (Invariant 2).
-  Ref action_ref = 2;
+  .api.v1alpha2.core.Ref action_ref = 2;
   string target_entity_id = 3; // "" for self/untargeted actions (Dodge, Dash)
   EconomyConsumed economy_consumed = 4; // the real deduction the toolkit made
 }
@@ -295,8 +296,8 @@ message AttackResolved {
   bool has_disadvantage = 9;
   // The granting/imposing condition(s) (e.g. {module:"dnd5e", type:"conditions",
   // id:"dodging"}), for narration. Empty when has_advantage/has_disadvantage is false.
-  repeated Ref advantage_sources = 10;
-  repeated Ref disadvantage_sources = 11;
+  repeated .api.v1alpha2.core.Ref advantage_sources = 10;
+  repeated .api.v1alpha2.core.Ref disadvantage_sources = 11;
 }
 
 message DoorOpened {
@@ -314,7 +315,7 @@ message DoorClosed {
 
 message LootRevealed {
   string container_entity_id = 1;
-  repeated Ref items = 2; // {module:"dnd5e", type:"item", id:"longsword"}
+  repeated .api.v1alpha2.core.Ref items = 2; // {module:"dnd5e", type:"item", id:"longsword"}
 }
 
 message TrapTriggered {

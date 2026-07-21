@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.character;
 
+import "api/v1alpha2/core/ref.proto";
 import "dnd5e/api/v1alpha2/encounter/types.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/character;characterpb";
@@ -18,7 +19,7 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.character";
 // rules — the caller sends a Ref + slot key, nothing else.
 message EquipItemRequest {
   string character_id = 1;
-  dnd5e.api.v1alpha2.encounter.Ref item = 2; // item from inventory to equip
+  .api.v1alpha2.core.Ref item = 2; // item from inventory to equip
   string slot_key = 3; // which slot to equip it into
 }
 

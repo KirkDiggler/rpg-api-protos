@@ -233,6 +233,7 @@ message CharacterData {
   Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
   Ref race_ref = 2;
   string player_id = 3; // who controls this character
+  // level still TODO — see rpg-api-protos#183
 
   // equipped maps slot key -> the Ref of the item worn/wielded there. Slot keys are opaque
   // strings to the web (defined by `slots` below). Item display fields are looked up by Ref
@@ -255,11 +256,22 @@ message CharacterData {
   // (e.g. "16 chain mail + 2 shield", "10 + DEX + CON (Unarmored Defense)"). The toolkit
   // composes `note` as a display projection over EffectiveAC(); rpg-api and the web pass it
   // through verbatim — the web must never assemble an AC breakdown from rules data.
-  // Entity.armor_class (field 7 above) stays the flat total for quick display and for
-  // entity types (monsters) that carry no note; this field adds the breakdown for
-  // characters specifically. rpg-api keeps both in sync (armor_class_detail.total ==
-  // Entity.armor_class for the same snapshot).
+  //
+  // Why this duplicates Entity.armor_class (field 7 above) rather than replacing it: the
+  // character-scoped EquipItem/UnequipItem RPCs (dnd5e.api.v1alpha2.character) return a
+  // bare CharacterData with no surrounding Entity — armor_class_detail.total is the ONLY AC
+  // total available out-of-encounter, there's nowhere else to put it on that response.
+  // Inside an encounter snapshot, where CharacterData does ride inside an Entity, rpg-api
+  // keeps the two in sync (armor_class_detail.total == Entity.armor_class); Entity.armor_class
+  // stays the flat cross-entity value other entity types (monsters) use with no note at all.
   ArmorClassDisplay armor_class_detail = 7;
+
+  // main_hand_damage is the resolved main-hand damage display (contract §5) — occupancy-
+  // dependent (versatile/two-handed/off-hand vary the string) so it can't be read off
+  // Item.stat_line, which is the item's own static stat line. Server-composed, rendered
+  // verbatim, sibling of armor_class_detail. Toolkit's EquipmentView composes it; rpg-api
+  // passes it through.
+  string main_hand_damage = 8;
 }
 
 // Item is a display-ready piece of equipment or gear. Every field beyond `ref`/`name` is

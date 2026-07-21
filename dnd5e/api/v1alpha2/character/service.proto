@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.character;
+
+import "dnd5e/api/v1alpha2/encounter/types.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/character;characterpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.character";
+
+// =============================================================================
+// RPC request / response messages
+// =============================================================================
+
+// EquipItemRequest equips an item from inventory into a slot. Character-scoped, out of
+// combat (protos#187 design doc: encounter-scoped equip with an action-economy cost is
+// deferred to rpg-project#94). Two-handed occupancy and slot-swap semantics are toolkit
+// rules — the caller sends a Ref + slot key, nothing else.
+message EquipItemRequest {
+  string character_id = 1;
+  dnd5e.api.v1alpha2.encounter.Ref item = 2; // item from inventory to equip
+  string slot_key = 3; // which slot to equip it into
+}
+
+// EquipItemResponse carries the recomputed character view — same CharacterData shape the
+// encounter hydrates, so a client rendering both surfaces uses one type. equipped/
+// inventory/slots/armor_class_detail all reflect the post-equip state (including any
+// occupant the toolkit displaced back to inventory).
+message EquipItemResponse {
+  dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
+}
+
+// UnequipItemRequest clears a slot, returning its occupant to inventory.
+message UnequipItemRequest {
+  string character_id = 1;
+  string slot_key = 2;
+}
+
+// UnequipItemResponse carries the recomputed character view — see EquipItemResponse.
+message UnequipItemResponse {
+  dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
+}
+
+// =============================================================================
+// Service
+// =============================================================================
+
+// CharacterService is the out-of-encounter character surface. Equip/unequip here is for
+// sheet editing between encounters; the in-encounter equivalent (when it exists) rides the
+// encounter stream, not this service — see CharacterData's doc comment in
+// dnd5e/api/v1alpha2/encounter/types.proto.
+service CharacterService {
+  rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
+  rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);
+}

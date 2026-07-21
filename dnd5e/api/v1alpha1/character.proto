@@ -68,6 +68,10 @@ service CharacterService {
   rpc ListSpellsByLevel(ListSpellsByLevelRequest) returns (ListSpellsByLevelResponse);
 
   // Equipment management
+  // Deprecated: string-id + enum-slot equipment management. Use
+  // dnd5e.api.v1alpha2.character.CharacterService (EquipItem/UnequipItem) and
+  // dnd5e.api.v1alpha2.encounter.CharacterData (equipped/inventory/slots) instead —
+  // Ref-based, slots-as-data, display fields server-composed. See rpg-api-protos#187.
   rpc GetCharacterInventory(GetCharacterInventoryRequest) returns (GetCharacterInventoryResponse);
   rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
   rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);
@@ -1045,6 +1049,9 @@ message RollAssignments {
 }
 
 // Equipment slots for a character
+// Deprecated: enum-based fixed slot list. Use dnd5e.api.v1alpha2.encounter.CharacterData
+// (slots: repeated SlotDef, server-owned data, no fixed enum) instead. See
+// rpg-api-protos#187.
 message EquipmentSlots {
   // Combat equipment
   InventoryItem main_hand = 1;
@@ -1065,6 +1072,8 @@ message EquipmentSlots {
 }
 
 // An item in inventory (equipped or not)
+// Deprecated: use dnd5e.api.v1alpha2.encounter.Item (Ref-based, display fields
+// server-composed) instead. See rpg-api-protos#187.
 message InventoryItem {
   string item_id = 1; // Reference to Equipment.id
   int32 quantity = 2; // For stackable items
@@ -1170,6 +1179,8 @@ message EquipItemRequest {
 }
 
 // Equipment slot types
+// Deprecated: fixed enum taxonomy. Use dnd5e.api.v1alpha2.encounter.SlotDef (server-owned
+// data, open vocabulary) instead. See rpg-api-protos#187.
 enum EquipmentSlot {
   EQUIPMENT_SLOT_UNSPECIFIED = 0;
   EQUIPMENT_SLOT_MAIN_HAND = 1;

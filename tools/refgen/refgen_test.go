@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -43,6 +44,28 @@ func readOut(t *testing.T, root string, c Category) string {
 		t.Fatal(err)
 	}
 	return string(b)
+}
+
+// requireBuf skips the test if the buf CLI isn't on PATH — the compile-check
+// tests shell out to the real `buf build` to catch what number/name
+// bookkeeping alone can't: whether the generated proto is actually valid.
+func requireBuf(t *testing.T) string {
+	t.Helper()
+	path, err := exec.LookPath("buf")
+	if err != nil {
+		t.Skip("buf CLI not found on PATH; skipping compile-check")
+	}
+	return path
+}
+
+// bufBuild runs `buf build` against root (which setupRoot seeded with a
+// minimal buf.yaml) and returns its combined output alongside any error.
+func bufBuild(t *testing.T, bufPath, root string) (string, error) {
+	t.Helper()
+	cmd := exec.Command(bufPath, "build")
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 func TestGenerate_FirstRun_SortedByIDStartingAtOne(t *testing.T) {
@@ -207,6 +230,133 @@ func TestGenerate_RejectsDuplicateIDs(t *testing.T) {
 	c := testCategory("alpha", "alpha")
 	if err := Generate(root, c); err == nil {
 		t.Fatal("expected error for duplicate registry ids")
+	}
+}
+
+// TestGenerate_RemovedID_ProtoCompiles is a compile-check: bookkeeping
+// numbers matching what we expect isn't enough — the generated file has to
+// actually be valid protobuf. Runs the real `buf build`.
+func TestGenerate_RemovedID_ProtoCompiles(t *testing.T) {
+	bufPath := requireBuf(t)
+	root := setupRoot(t)
+
+	c := testCategory("alpha", "beta", "gamma")
+	if err := Generate(root, c); err != nil {
+		t.Fatal(err)
+	}
+	c2 := testCategory("alpha", "beta") // gamma removed
+	if err := Generate(root, c2); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := bufBuild(t, bufPath, root)
+	if err != nil {
+		t.Fatalf("generated proto does not compile after a removal:\n%s\n%s", readOut(t, root, c), out)
+	}
+}
+
+// TestGenerate_RemovedThenReintroducedID_ProtoCompiles is the tricky case a
+// pure number-bookkeeping test can miss entirely: if a retired id's OLD name
+// were reserved (not just its number), the id reappearing later would
+// regenerate that exact name and collide with its own reservation, and buf
+// build would fail even though the numbers all looked correct. This is a
+// regression test for that exact failure mode.
+func TestGenerate_RemovedThenReintroducedID_ProtoCompiles(t *testing.T) {
+	bufPath := requireBuf(t)
+	root := setupRoot(t)
+
+	c := testCategory("alpha", "beta")
+	if err := Generate(root, c); err != nil {
+		t.Fatal(err)
+	}
+	c2 := testCategory("alpha") // beta removed
+	if err := Generate(root, c2); err != nil {
+		t.Fatal(err)
+	}
+	c3 := testCategory("alpha", "beta") // beta reintroduced
+	if err := Generate(root, c3); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := bufBuild(t, bufPath, root)
+	if err != nil {
+		t.Fatalf("generated proto does not compile after remove+reintroduce:\n%s\n%s", readOut(t, root, c), out)
+	}
+}
+
+func TestGenerate_RejectsCollidingGeneratedNames(t *testing.T) {
+	root := setupRoot(t)
+	// "foo-bar" and "foo_bar" both normalize to WIDGET_FOO_BAR.
+	c := testCategory("foo-bar", "foo_bar")
+	if err := Generate(root, c); err == nil {
+		t.Fatal("expected error for ids that generate the same enum value name")
+	}
+}
+
+func TestGenerate_RejectsIDCollidingWithUnspecified(t *testing.T) {
+	root := setupRoot(t)
+	c := testCategory("unspecified")
+	if err := Generate(root, c); err == nil {
+		t.Fatal("expected error for an id that generates the UNSPECIFIED name")
+	}
+}
+
+// TestGenerate_TolerantOfCoalescedReservedForms guards parseExisting against
+// wedging on `reserved` statement shapes this tool never emits itself
+// (comma lists, "to" ranges) but that a future buf version or a hand-applied
+// fix might introduce.
+func TestGenerate_TolerantOfCoalescedReservedForms(t *testing.T) {
+	root := setupRoot(t)
+	c := testCategory("alpha")
+	proto := `// Code generated. DO NOT EDIT.
+
+syntax = "proto3";
+
+package test.widgets;
+
+option go_package = "example.com/gen/go/test/widgets;widgetspb";
+
+enum Widget {
+  WIDGET_UNSPECIFIED = 0; // unset
+
+  reserved 2, 3;
+  reserved 5 to 7;
+
+  WIDGET_ALPHA = 1; // alpha
+}
+`
+	if err := os.WriteFile(filepath.Join(root, c.OutFile), []byte(proto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, reserved, err := parseExisting(filepath.Join(root, c.OutFile), c)
+	if err != nil {
+		t.Fatalf("parseExisting rejected a valid coalesced reserved form: %v", err)
+	}
+	got := make(map[int32]bool, len(reserved))
+	for _, r := range reserved {
+		got[r.Number] = true
+	}
+	for _, want := range []int32{2, 3, 5, 6, 7} {
+		if !got[want] {
+			t.Errorf("expected reserved number %d to be parsed out of the coalesced forms, got %+v", want, reserved)
+		}
+	}
+
+	// And Generate() must keep those numbers off-limits for a brand new id.
+	c2 := testCategory("alpha", "beta")
+	if err := Generate(root, c2); err != nil {
+		t.Fatal(err)
+	}
+	values, _, err := parseExisting(filepath.Join(root, c.OutFile), c2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[values["beta"].Number] {
+		t.Fatalf("beta was assigned a number reserved via a coalesced form: %d", values["beta"].Number)
+	}
+	if values["beta"].Number != 8 {
+		t.Fatalf("expected beta to get number 8 (first free past the coalesced reservations), got %d", values["beta"].Number)
 	}
 }
 

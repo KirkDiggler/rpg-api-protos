@@ -6,6 +6,15 @@
 // keys. The core contract (see Generate) is enum-number stability: once a
 // registry id has a wire number, that number never changes, is never reused,
 // and is never assigned to a different id.
+//
+// The generated .proto file IS the number ledger — there is no separate
+// history file. Every past assignment is either an active value or a
+// `reserved <n>;` line; Generate() only ever reads that state back out of
+// the file it last wrote. This means the DO-NOT-EDIT header is doing real
+// work: hand-deleting a `reserved` line (or an active value, without going
+// through the registry) would let Generate() believe that number was never
+// used and hand it out again. Known limitation, not enforced by the tool —
+// don't hand-edit generated files.
 package main
 
 import (
@@ -65,8 +74,13 @@ type Category struct {
 	IDs []string
 }
 
-// reservedEntry is one retired enum value: its number and name are never
-// reused.
+// reservedEntry is one retired enum value: its number is never reused. Name
+// is the id's former enum value name, kept only as a human-readable trailing
+// comment — it is NOT emitted as a proto `reserved "name";` statement. Proto
+// value names are 1:1 with registry ids, so if a retired id later reappears
+// in the registry it regenerates that exact same name; reserving the name
+// itself would make the reappearing id's own value collide with the
+// reservation and fail to compile. Only the number is a permanent well.
 type reservedEntry struct {
 	Number int32
 	Name   string
@@ -161,16 +175,31 @@ func Generate(repoRoot string, c Category) error {
 	return nil
 }
 
+// validateCategory checks c is well-formed and that every id produces a
+// unique, non-conflicting enum value name — cheap to check up front since
+// value names are a pure function of Prefix + id, independent of any
+// existing file state.
 func validateCategory(c Category) error {
 	if c.Name == "" || c.EnumName == "" || c.Prefix == "" || c.OutFile == "" {
 		return fmt.Errorf("Name, EnumName, Prefix, and OutFile are required")
 	}
-	seen := make(map[string]bool, len(c.IDs))
+	unspecName := c.Prefix + "UNSPECIFIED"
+	seenIDs := make(map[string]bool, len(c.IDs))
+	nameOwner := make(map[string]string, len(c.IDs))
 	for _, id := range c.IDs {
-		if seen[id] {
+		if seenIDs[id] {
 			return fmt.Errorf("duplicate registry id %q", id)
 		}
-		seen[id] = true
+		seenIDs[id] = true
+
+		name := c.Prefix + upperSnake(id)
+		if name == unspecName {
+			return fmt.Errorf("id %q generates enum value name %s, which collides with the UNSPECIFIED value", id, unspecName)
+		}
+		if other, ok := nameOwner[name]; ok {
+			return fmt.Errorf("ids %q and %q both generate enum value name %s", other, id, name)
+		}
+		nameOwner[name] = id
 	}
 	return nil
 }
@@ -211,8 +240,11 @@ func render(c Category, values []valueEntry, reserved []reservedEntry) string {
 	if len(reserved) > 0 {
 		b.WriteString("\n")
 		for _, r := range reserved {
-			fmt.Fprintf(&b, "  reserved %d;\n", r.Number)
-			fmt.Fprintf(&b, "  reserved %q;\n", r.Name)
+			if r.Name != "" {
+				fmt.Fprintf(&b, "  reserved %d; // %s\n", r.Number, r.Name)
+			} else {
+				fmt.Fprintf(&b, "  reserved %d;\n", r.Number)
+			}
 		}
 	}
 
@@ -228,11 +260,47 @@ func render(c Category, values []valueEntry, reserved []reservedEntry) string {
 }
 
 var (
-	enumStartRe    = regexp.MustCompile(`^enum\s+(\w+)\s*\{\s*$`)
-	valueLineRe    = regexp.MustCompile(`^(\w+)\s*=\s*(-?\d+)\s*;\s*(?://\s*(.*))?$`)
-	reservedNumRe  = regexp.MustCompile(`^reserved\s+(\d+)\s*;\s*$`)
-	reservedNameRe = regexp.MustCompile(`^reserved\s+"([^"]*)"\s*;\s*$`)
+	enumStartRe = regexp.MustCompile(`^enum\s+(\w+)\s*\{\s*$`)
+	valueLineRe = regexp.MustCompile(`^(\w+)\s*=\s*(-?\d+)\s*;\s*(?://\s*(.*))?$`)
+	// reservedLineRe matches a numeric `reserved` statement — never a
+	// `reserved "NAME";` name statement (those start with a quote, not a
+	// digit, and are deliberately left unrecognized: this tool never emits
+	// them — see reservedEntry). Tolerates the comma/`to`-range forms buf
+	// format or a human might use, e.g. "2, 3" or "2 to 5".
+	reservedLineRe = regexp.MustCompile(`^reserved\s+(\d[^;]*);\s*(?://\s*(.*))?$`)
 )
+
+// parseReservedNumbers expands a reserved-statement body ("2", "2, 3", or
+// "2 to 5", freely mixed) into individual numbers.
+func parseReservedNumbers(spec string) ([]int32, error) {
+	var nums []int32
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if lo, hi, ok := strings.Cut(part, " to "); ok {
+			loN, err := strconv.ParseInt(strings.TrimSpace(lo), 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("parsing reserved range start %q: %w", lo, err)
+			}
+			hiN, err := strconv.ParseInt(strings.TrimSpace(hi), 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("parsing reserved range end %q: %w", hi, err)
+			}
+			for n := loN; n <= hiN; n++ {
+				nums = append(nums, int32(n))
+			}
+			continue
+		}
+		n, err := strconv.ParseInt(part, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("parsing reserved number %q: %w", part, err)
+		}
+		nums = append(nums, int32(n))
+	}
+	return nums, nil
+}
 
 // parseExisting reads outPath (if it exists) and extracts the current
 // id->value assignments and reserved entries for c's enum. A missing file is
@@ -248,7 +316,6 @@ func parseExisting(outPath string, c Category) (map[string]valueEntry, []reserve
 
 	values := map[string]valueEntry{}
 	var reserved []reservedEntry
-	var pendingReservedNum *int32
 
 	inEnum := false
 	unspecName := c.Prefix + "UNSPECIFIED"
@@ -271,21 +338,15 @@ func parseExisting(outPath string, c Category) (map[string]valueEntry, []reserve
 			continue
 		}
 
-		if m := reservedNumRe.FindStringSubmatch(line); m != nil {
-			n, err := strconv.ParseInt(m[1], 10, 32)
+		if m := reservedLineRe.FindStringSubmatch(line); m != nil {
+			nums, err := parseReservedNumbers(m[1])
 			if err != nil {
-				return nil, nil, fmt.Errorf("parsing reserved number %q: %w", line, err)
+				return nil, nil, fmt.Errorf("parsing reserved line %q: %w", line, err)
 			}
-			num := int32(n)
-			pendingReservedNum = &num
-			continue
-		}
-		if m := reservedNameRe.FindStringSubmatch(line); m != nil {
-			if pendingReservedNum == nil {
-				return nil, nil, fmt.Errorf("reserved name %q with no preceding reserved number", line)
+			comment := strings.TrimSpace(m[2])
+			for _, n := range nums {
+				reserved = append(reserved, reservedEntry{Number: n, Name: comment})
 			}
-			reserved = append(reserved, reservedEntry{Number: *pendingReservedNum, Name: m[1]})
-			pendingReservedNum = nil
 			continue
 		}
 
@@ -311,10 +372,6 @@ func parseExisting(outPath string, c Category) (map[string]valueEntry, []reserve
 				"value %s (id %q) doesn't match expected generated name %s — file may be hand-edited", name, id, wantName)
 		}
 		values[id] = valueEntry{ID: id, Name: name, Number: int32(n)}
-	}
-
-	if pendingReservedNum != nil {
-		return nil, nil, fmt.Errorf("reserved number %d has no matching reserved name statement", *pendingReservedNum)
 	}
 
 	return values, reserved, nil

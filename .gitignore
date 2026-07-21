@@ -1,15 +1,15 @@
 # Generated code
 gen/
 
+# refgen tool binary (built via `go build`, never committed)
+/tools/refgen/refgen
+
 # Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm
-
-# Go
-*.sum
 
 # IDE
 .vscode/

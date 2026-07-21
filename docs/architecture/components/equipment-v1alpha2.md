@@ -1,16 +1,18 @@
 ---
 name: Equipment (v1alpha2)
-description: Character-scoped equip/unequip RPCs and CharacterData's equipment fields — wire shape only, no live consumer yet
+description: Character-scoped equip/unequip RPCs and CharacterData's equipment fields — live in rpg-api since rpg-api#682, not yet adopted by rpg-dnd5e-web
 updated: 2026-07-21
-confidence: high — verified by reading dnd5e/api/v1alpha2/character/service.proto and encounter/types.proto end-to-end, and grepping rpg-api / rpg-dnd5e-web for consumers
+confidence: high — verified by reading dnd5e/api/v1alpha2/character/service.proto and encounter/types.proto end-to-end, and by grepping rpg-api / rpg-dnd5e-web **at origin/main** for consumers (see "Live consumers" for why that qualifier matters)
 ---
 
 # Equipment (v1alpha2)
 
 The equipment slice (rpg-api-protos#187 → PR #188) added a character-scoped
-equip/unequip RPC pair and five equipment fields on `CharacterData`. It's a
-proto-only contract today — see "Live consumers" below before assuming
-anything here is wired into a running server.
+equip/unequip RPC pair and five equipment fields on `CharacterData`. **This is
+live**: rpg-api serves both RPCs and populates every equipment field through
+the toolkit's rules engine, as of rpg-api#682 (merged 2026-07-21, closing
+rpg-api#680). rpg-dnd5e-web has not adopted it yet — see "Live consumers"
+below for exactly what that split means.
 
 ## File and shape
 
@@ -110,14 +112,24 @@ message ArmorClassDisplay {
 **`stat_line`, `note`, and `main_hand_damage` are server-composed strings,
 rendered verbatim.** The web never assembles a damage or AC breakdown from
 rules data — that would put game rules in the client, which the boundary
-rule forbids. The toolkit composes `ArmorClassDisplay.note` as a display
-projection over its effective-AC calculation; rpg-api and the web pass it
-through unchanged.
+rule forbids. Confirmed against rpg-api's actual composition code
+(`internal/handlers/dnd5e/v2/encounter/character_data.go`,
+`BuildEquipmentCharacterData`): every field is a pass-through or
+`Ref`-translation of `rpg-toolkit`'s `EquipmentView` — `ArmorClassDisplay`
+carries the toolkit's own `EffectiveAC()` result (`view.ACTotal`/
+`view.ACNote`), not a stored int. Per that file's doc comment, this fixed
+a named bug: before rpg-api#680, AC on the wire was "a straight copy of a
+stored int instead of EffectiveAC."
 
-**`icon_key` is currently unpopulated.** It's a reference key into an
-asset-owned manifest that doesn't exist yet — verified by grep, there is no
-`IconKey`/`icon_key` reference anywhere in rpg-api's orchestrator. The field
-is real contract, waiting on the asset-manifest mapping, not dead weight.
+**`icon_key` is currently unpopulated — a deliberate, cited Scope-decision,
+not an oversight.** From `character_data.go` (still true on `origin/main`
+as of rpg-api#682):
+
+> IconKey intentionally left empty (rpg-api#680 Scope-decision): no
+> toolkit/asset-manifest source exists yet for a bare sprite key — the
+> fixture data rpg-dnd5e-web#557 ships is a full sprite path, not a key.
+> Composing one in rpg-api would be exactly the kind of display-field
+> invention this slice exists to stop.
 
 `kind` and `slot_keys` are open vocabulary (plain strings), not enums — a
 different design choice than the typed `Weapon`/`Armor` enums described
@@ -159,29 +171,55 @@ open decision for Kirk — not yet resolved as of this writing.
 
 ## Live consumers
 
-**Neither consumer has picked up this contract yet.** Checked directly:
+**A note on method before the finding:** the first version of this doc got
+this section backwards, because the check ran against a stale local rpg-api
+clone (checked out well behind `origin/main`) instead of fetching first.
+Verify consumer state at `origin/main` — `git fetch origin` then
+`git grep ... origin/main`, or `git show origin/main:path` — never a local
+working copy, which routinely drifts behind in this workspace. The
+corrected finding, verified that way:
 
-- **rpg-api** pins `github.com/KirkDiggler/rpg-api-protos/gen/go` at a
-  pseudo-version (`v0.0.0-20260720043951-c3059bc89397`) whose commit
-  predates both PR #188 (equipment) and PR #191 (refgen) on the `generated`
-  branch (`git merge-base --is-ancestor` confirms both post-date the pin).
-  There is no `v1alpha2/character` or `characterpb` reference anywhere in
-  `rpg-api/internal` — the `EquipItem`/`UnequipItem` RPCs this doc describes
-  have no server-side handler.
-- **rpg-dnd5e-web** pins `@kirkdiggler/rpg-api-protos` at `v0.1.108` — the
-  same pre-#188/#191 commit. `src/api/equipmentHooks.ts` does call an
+- **rpg-api is live.** `go.mod` on `origin/main` pins
+  `github.com/KirkDiggler/rpg-api-protos/gen/go
+  v0.0.0-20260721173744-7212a2d922f3` — the commit is a strict superset of
+  both PR #188 (equipment) and PR #191 (refgen) on the `generated` branch,
+  not a predecessor. `internal/handlers/dnd5e/v2/character/handler.go`
+  implements `EquipItem`/`UnequipItem`, calling the **same orchestrator
+  method** (`internal/orchestrators/character`'s `EquipItem`/`UnequipItem`)
+  the v1alpha1 handler already used — occupancy and slot-compatibility rules
+  are enforced exactly once, in the toolkit, for both API surfaces.
+  `cmd/server/server.go:191` registers it on the gRPC server
+  (`characterv2pb.RegisterCharacterServiceServer`).
+  `internal/handlers/dnd5e/v2/encounter/integration_equipment_test.go`
+  exercises the full equip → snapshot flow: equip through the toolkit's
+  rules, assert `armor_class_detail.total` matches the toolkit's own
+  `EffectiveAC()`, assert `Entity.armor_class` stays in sync, assert
+  equipping a two-handed weapon clears `off_hand` as an occupancy side
+  effect. Landed as rpg-api#682 ("serve equipment on the wire — equip
+  through toolkit rules, real AC"), closing rpg-api#680, merged
+  2026-07-21T18:26:37Z.
+- **rpg-dnd5e-web has not adopted it.** `package.json` on `origin/main`
+  still pins `@kirkdiggler/rpg-api-protos` at `v0.1.108` — the same
+  pre-#188/#191 commit as before. `src/api/equipmentHooks.ts` does call an
   `EquipItem`/`UnequipItem` pair, but imports them from
   `dnd5e/api/v1alpha1/character_pb` — the **v1alpha1** service, not this
-  one.
+  one. Grepping `origin/main`'s `src/` for `v1alpha2/character` or
+  `v2/character` returns nothing. The web-side swap to this contract is
+  still ahead, not started.
 
 `CharacterData` itself is not new — its base fields (`class_ref`,
-`race_ref`, `player_id`) are already populated by the live encounter v2
-orchestrator (`rpg-api/internal/orchestrators/encounter/v2/`). Only the five
-equipment fields added in #188 are unconsumed.
+`race_ref`, `player_id`) were already populated by the live encounter v2
+orchestrator before this slice. What #188/#682 add is real population of the
+five equipment fields, shared between two call paths via one exported
+function (`BuildEquipmentCharacterData`, in
+`internal/handlers/dnd5e/v2/encounter/character_data.go`): the encounter
+snapshot path and the out-of-encounter `EquipItem`/`UnequipItem` responses
+compose `CharacterData`'s equipment fields identically, so a client reading
+both surfaces never sees them disagree.
 
-Next step for whoever picks this up: bump both repos past the #188/#191
-merge point before wiring handlers — otherwise the generated Go/TS types
-these RPCs need don't exist in the consumer's vendored SDK.
+Next step for whoever picks up the web side: bump `@kirkdiggler/rpg-api-protos`
+past `v0.1.108`, then build the v1alpha2-equivalent of `equipmentHooks.ts`
+against `dnd5e/api/v1alpha2/character`.
 
 ## Known rough edges
 
@@ -199,17 +237,24 @@ these RPCs need don't exist in the consumer's vendored SDK.
 
 - RPC shapes and message field numbers verified by direct read of
   `service.proto` and `types.proto`.
-- "No live consumer" claim verified by: (a) comparing each consumer's
-  pinned `rpg-api-protos` version against the `generated` branch's commit
-  history via `git merge-base --is-ancestor`; (b) grepping both consumer
-  repos for the new package/message names. A consumer outside this
-  workspace, or an in-flight branch not yet pushed, would invalidate this —
-  speak up if you find one.
-- `icon_key` unpopulated claim verified by grep across
-  `rpg-api/internal` for `IconKey`/`icon_key` — zero hits.
-- Have not verified the toolkit-side `EffectiveAC()`/equipment-view
-  composition logic this contract assumes exists — that's `rpg-toolkit`
-  territory, out of scope for a protos-repo doc.
+- "Live in rpg-api" claim verified against **`origin/main` after
+  `git fetch`**, not a local working copy: `go.mod`'s pin checked with
+  `git merge-base --is-ancestor` against PR #188/#191's commits (both are
+  ancestors of the pin, not descendants); handler, server wiring, and
+  integration test read directly via `git show origin/main:<path>` and
+  `git grep ... origin/main`. A consumer-side commit landed after this
+  doc's `updated:` date would invalidate it — speak up if you find one.
+- "Web has not adopted it" claim verified the same way, also at
+  `origin/main`: pin unchanged at `v0.1.108`, `equipmentHooks.ts` still
+  imports v1alpha1, zero grep hits for `v1alpha2/character`/`v2/character`
+  in `src/`.
+- `icon_key` unpopulated claim verified by reading
+  `character_data.go` at `origin/main` directly — the Scope-decision
+  comment quoted above is the actual source, not an inference from absence.
+- Have not independently verified the toolkit-side `EffectiveAC()`/
+  `EquipmentView` composition logic beyond what `character_data.go`'s
+  comments assert — that's `rpg-toolkit` territory, out of scope for a
+  protos-repo doc.
 
 ## See also
 

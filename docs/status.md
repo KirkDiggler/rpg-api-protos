@@ -18,25 +18,30 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 - **Typed content vocabulary, increment 1 (rpg-api-protos#190, PR #191,
   2026-07-20) + equipment on the wire (rpg-api-protos#187, PR #188,
-  2026-07-21)** — proto-only, no live consumer yet (verified: both rpg-api's
-  and rpg-dnd5e-web's pinned `rpg-api-protos` SDK versions predate both
-  merges on the `generated` branch). #190 adds `tools/refgen` (a codegen
-  tool, own `go.mod`, generates a proto enum 1-to-1 from a toolkit registry)
-  plus the first two generated enums, `dnd5e.api.v1alpha2.weapons.Weapon`
-  (38 values) and `dnd5e.api.v1alpha2.armor.Armor` (13 values) — see
+  2026-07-21)** — #190 adds `tools/refgen` (a codegen tool, own `go.mod`,
+  generates a proto enum 1-to-1 from a toolkit registry) plus the first two
+  generated enums, `dnd5e.api.v1alpha2.weapons.Weapon` (38 values) and
+  `dnd5e.api.v1alpha2.armor.Armor` (13 values) — see
   [how-to/regenerate-content-enums.md](how-to/regenerate-content-enums.md)
   for the number-stability contract, which shipped a real bug (caught in
   review, fixed before merge) worth reading before touching either enum.
-  #188 adds `dnd5e/api/v1alpha2/character/service.proto`
+  #190's enums are proto-only, deliberately not wired into `Item` yet —
+  `Item.ref` is still a plain untyped `Ref` today. #188 adds
+  `dnd5e/api/v1alpha2/character/service.proto`
   (`CharacterService.EquipItem`/`UnequipItem`, character-scoped,
   out-of-encounter) and five equipment fields on `CharacterData` — see
   [architecture/components/equipment-v1alpha2.md](architecture/components/equipment-v1alpha2.md).
-  Deliberately deferred by #188: relocating the `encounter`-owned `Ref`
-  primitive into a shared package (rpg-api-protos#189, open decision,
-  blocked on a coordinated api+web cut since the web imports `RefSchema`
-  from `encounter` directly today). Deliberately deferred by #190: wiring
-  the new `Weapon`/`Armor` enums into `Item` — `Item.ref` is still a plain
-  untyped `Ref` today.
+  **#188 is live**: rpg-api serves it as of rpg-api#682 (merged 2026-07-21,
+  closing rpg-api#680) — real toolkit-computed AC, shared composition
+  between the encounter snapshot and the character-service response.
+  rpg-dnd5e-web has not adopted it yet (still on v1alpha1 equip/unequip;
+  pin predates the merge). Verify consumer state like this at `origin/main`
+  after a fetch, never a local clone — this doc's first pass got the
+  rpg-api half backwards by checking a stale one. Deliberately deferred by
+  #188: relocating the `encounter`-owned `Ref` primitive into a shared
+  package (rpg-api-protos#189, open decision, blocked on a coordinated
+  api+web cut since the web imports `RefSchema` from `encounter` directly
+  today).
 
 - **LobbyService v1alpha1 (rpg-api-protos#176, 2026-07-06)** — new
   `dnd5e/api/lobby/v1alpha1/` service: `CreateLobby`, `JoinLobby`, `SetReady`,

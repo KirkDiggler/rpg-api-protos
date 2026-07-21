@@ -38,7 +38,7 @@ rpg-api-protos/
     service.proto               # EncounterService — live; RPCs + request/response messages
     types.proto                 # Ref, Position, Entity, Space, TurnState, ActionEconomy, CharacterData, Item, ...
     events.proto                # EncounterEvent stream — snapshot + deltas
-  dnd5e/api/v1alpha2/character/  # CharacterService — EquipItem/UnequipItem; proto-only, no live consumer yet (#188)
+  dnd5e/api/v1alpha2/character/  # CharacterService — EquipItem/UnequipItem; live in rpg-api (#188, rpg-api#682), web not yet
     service.proto
   dnd5e/api/v1alpha2/weapons/    # Weapon enum, refgen-generated from the toolkit registry (#190); not wired into Item yet
     weapons.proto

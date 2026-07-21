@@ -1,0 +1,56 @@
+// Code generated from rpg-toolkit/rulebooks/dnd5e/weapons (weapons.All). DO NOT EDIT.
+// Regenerate with: make refgen — source of truth is the toolkit registry.
+//
+// 1-to-1 with weapons.All (38 concrete weapons); category placeholders simple-weapon/martial-weapon/any-weapon are choice-requirement consts, not weapons, and are intentionally excluded — they aren't in the registry.
+
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.weapons;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/weapons;weaponspb";
+
+// Weapon is the typed identity of a dnd5e weapon on the wire.
+// Enum value = the toolkit WeaponID; the UI maps it to an asset/behavior.
+// Numbers are STABLE: append-only, never renumbered or reused (wire contract).
+enum Weapon {
+  WEAPON_UNSPECIFIED = 0; // unset; never a real weapon
+
+  WEAPON_BATTLEAXE = 1; // battleaxe
+  WEAPON_BLOWGUN = 2; // blowgun
+  WEAPON_CLUB = 3; // club
+  WEAPON_DAGGER = 4; // dagger
+  WEAPON_DART = 5; // dart
+  WEAPON_FLAIL = 6; // flail
+  WEAPON_GLAIVE = 7; // glaive
+  WEAPON_GREATAXE = 8; // greataxe
+  WEAPON_GREATCLUB = 9; // greatclub
+  WEAPON_GREATSWORD = 10; // greatsword
+  WEAPON_HALBERD = 11; // halberd
+  WEAPON_HAND_CROSSBOW = 12; // hand-crossbow
+  WEAPON_HANDAXE = 13; // handaxe
+  WEAPON_HEAVY_CROSSBOW = 14; // heavy-crossbow
+  WEAPON_JAVELIN = 15; // javelin
+  WEAPON_LANCE = 16; // lance
+  WEAPON_LIGHT_CROSSBOW = 17; // light-crossbow
+  WEAPON_LIGHT_HAMMER = 18; // light-hammer
+  WEAPON_LONGBOW = 19; // longbow
+  WEAPON_LONGSWORD = 20; // longsword
+  WEAPON_MACE = 21; // mace
+  WEAPON_MAUL = 22; // maul
+  WEAPON_MORNINGSTAR = 23; // morningstar
+  WEAPON_NET = 24; // net
+  WEAPON_PIKE = 25; // pike
+  WEAPON_QUARTERSTAFF = 26; // quarterstaff
+  WEAPON_RAPIER = 27; // rapier
+  WEAPON_SCIMITAR = 28; // scimitar
+  WEAPON_SHORTBOW = 29; // shortbow
+  WEAPON_SHORTSWORD = 30; // shortsword
+  WEAPON_SICKLE = 31; // sickle
+  WEAPON_SLING = 32; // sling
+  WEAPON_SPEAR = 33; // spear
+  WEAPON_TRIDENT = 34; // trident
+  WEAPON_UNARMED_STRIKE = 35; // unarmed-strike
+  WEAPON_WAR_PICK = 36; // war-pick
+  WEAPON_WARHAMMER = 37; // warhammer
+  WEAPON_WHIP = 38; // whip
+}

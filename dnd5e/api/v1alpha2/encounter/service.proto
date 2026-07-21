@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.encounter;
 
-import "api/v1alpha2/core/ref.proto";
 import "dnd5e/api/v1alpha2/encounter/events.proto";
 import "dnd5e/api/v1alpha2/encounter/types.proto";
 
@@ -40,7 +39,7 @@ message MoveEntityRequest {
   string entity_id = 2; // what's being moved
   Position destination = 3;
   repeated Position proposed_path = 4; // client's chosen path through the hex grid
-  optional .api.v1alpha2.core.Ref movement_source = 5; // spell, ability, item powering this
+  optional Ref movement_source = 5; // spell, ability, item powering this
 }
 
 message MoveEntityResponse {
@@ -67,7 +66,7 @@ message TakeActionRequest {
   // The toolkit's native action ref, two namespaces, not flattened:
   // {module:"dnd5e", type:"combat_abilities", id:"attack"} (the intent verb) or
   // {module:"dnd5e", type:"actions", id:"strike"} (a granted-capacity action).
-  .api.v1alpha2.core.Ref action_ref = 3;
+  Ref action_ref = 3;
   ActionTarget target = 4;
   // Future: spell level, ki spend, etc.
 }
@@ -142,7 +141,7 @@ message SetReactionReadyRequest {
   string character_id = 2;
   // Which reaction to toggle. Examples: dnd5e:conditions:opportunity_attack,
   // dnd5e:spells:shield
-  .api.v1alpha2.core.Ref reaction_ref = 3;
+  Ref reaction_ref = 3;
   // true = ready (will trigger prompts); false = unready (silent default)
   bool ready = 4;
 }
@@ -155,7 +154,7 @@ message SetReactionReadyResponse {
 message ActivateFeatureRequest {
   string encounter_id = 1;
   string character_id = 2;
-  .api.v1alpha2.core.Ref feature_ref = 3; // e.g., {module:"dnd5e", type:"features", id:"rage"}
+  Ref feature_ref = 3; // e.g., {module:"dnd5e", type:"features", id:"rage"}
 }
 
 message ActivateFeatureResponse {

@@ -1,0 +1,31 @@
+// Code generated from rpg-toolkit/rulebooks/dnd5e/armor (armor.All). DO NOT EDIT.
+// Regenerate with: make refgen — source of truth is the toolkit registry.
+//
+// 1-to-1 with armor.All (13 armor pieces).
+
+syntax = "proto3";
+
+package dnd5e.api.v1alpha2.armor;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/armor;armorpb";
+
+// Armor is the typed identity of a dnd5e armor piece on the wire.
+// Enum value = the toolkit ArmorID; the UI maps it to an asset/behavior.
+// Numbers are STABLE: append-only, never renumbered or reused (wire contract).
+enum Armor {
+  ARMOR_UNSPECIFIED = 0; // unset; never a real armor piece
+
+  ARMOR_BREASTPLATE = 1; // breastplate
+  ARMOR_CHAIN_MAIL = 2; // chain-mail
+  ARMOR_CHAIN_SHIRT = 3; // chain-shirt
+  ARMOR_HALF_PLATE = 4; // half-plate
+  ARMOR_HIDE = 5; // hide
+  ARMOR_LEATHER = 6; // leather
+  ARMOR_PADDED = 7; // padded
+  ARMOR_PLATE = 8; // plate
+  ARMOR_RING_MAIL = 9; // ring-mail
+  ARMOR_SCALE_MAIL = 10; // scale-mail
+  ARMOR_SHIELD = 11; // shield
+  ARMOR_SPLINT = 12; // splint
+  ARMOR_STUDDED_LEATHER = 13; // studded-leather
+}

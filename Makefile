@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format generate clean test push
+.PHONY: help install-tools lint format refgen generate clean test push
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -16,6 +16,10 @@ lint: ## Lint protobuf files
 	buf lint
 
 format: ## Format protobuf files
+	buf format -w
+
+refgen: ## Regenerate typed content enums (weapons, armor, ...) from the toolkit registry
+	cd tools/refgen && go run .
 	buf format -w
 
 generate: ## Generate Go and TypeScript code

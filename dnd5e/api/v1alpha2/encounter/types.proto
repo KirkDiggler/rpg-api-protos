@@ -220,11 +220,73 @@ message Entity {
 }
 
 // CharacterData — player-controlled character.
+//
+// Equipment on the wire (protos#187): equipped/inventory/slots/armor_class_detail ride
+// this message because the character HUD/sheet reads them off the same hydrated
+// CharacterData the encounter already snapshots — no separate fetch on popover open
+// (rpg-dnd5e-web#531 CONTRACT.md §8: a second source of truth would disagree with the
+// encounter's view of the character). In-encounter equip changes push updated
+// CharacterData on the encounter stream like any other state change; the character-scoped
+// EquipItem/UnequipItem RPCs (dnd5e.api.v1alpha2.character.CharacterService) are for the
+// out-of-encounter sheet and return this same message — one shape, no conversion layer.
 message CharacterData {
   Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
   Ref race_ref = 2;
   string player_id = 3; // who controls this character
-  // Additional fields (level, AC, equipment) added in later phases as orchestrator needs.
+
+  // equipped maps slot key -> the Ref of the item worn/wielded there. Slot keys are opaque
+  // strings to the web (defined by `slots` below). Item display fields are looked up by Ref
+  // against `inventory`, which carries the same item's full entry — no separate
+  // "EquippedItem" wrapper, one representation for an item whether worn or carried.
+  map<string, Ref> equipped = 4;
+
+  // inventory is every item the character owns, INCLUDING currently equipped ones (an
+  // equipped item's entry here is what `equipped[slot_key]` points at). Excluding equipped
+  // items would force the web to merge two lists to render a full owned-items view; this
+  // way one list is the source of truth and `equipped` is purely a slot index into it.
+  repeated Item inventory = 5;
+
+  // slots is the character's equip-socket taxonomy, server-owned so classes/homebrew can
+  // add slots without a web release. The web renders whatever arrives and filters by
+  // Item.slot_keys / SlotDef.accepts — it never hardcodes slot keys.
+  repeated SlotDef slots = 6;
+
+  // armor_class_detail is the sheet/HUD's AC readout: total plus a server-composed note
+  // (e.g. "16 chain mail + 2 shield", "10 + DEX + CON (Unarmored Defense)"). The toolkit
+  // composes `note` as a display projection over EffectiveAC(); rpg-api and the web pass it
+  // through verbatim — the web must never assemble an AC breakdown from rules data.
+  // Entity.armor_class (field 7 above) stays the flat total for quick display and for
+  // entity types (monsters) that carry no note; this field adds the breakdown for
+  // characters specifically. rpg-api keeps both in sync (armor_class_detail.total ==
+  // Entity.armor_class for the same snapshot).
+  ArmorClassDisplay armor_class_detail = 7;
+}
+
+// Item is a display-ready piece of equipment or gear. Every field beyond `ref`/`name` is
+// server-composed and opaque to the web: stat_line/icon_key/kind/slot_keys carry an open
+// vocabulary the toolkit and asset manifest own. The web renders these verbatim and never
+// derives them from rules data (no client-side damage dice, no client-side AC math).
+message Item {
+  Ref ref = 1; // {module:"dnd5e", type:"item", id:"longsword"}
+  string name = 2;
+  string stat_line = 3; // server-composed: "1d8 slashing · versatile", "AC 16 · heavy"
+  string icon_key = 4; // reference key into the asset-owned manifest — keys, not enums
+  string kind = 5; // "weapon" | "shield" | "armor" | "gear" — open vocabulary, not an enum
+  repeated string slot_keys = 6; // slot keys this item may occupy, e.g. ["main_hand", "off_hand"]
+}
+
+// SlotDef is one equip socket a character exposes. Server-owned data, not a client enum —
+// see CharacterData.slots.
+message SlotDef {
+  string key = 1; // "main_hand", "off_hand", "armor" — opaque to the web
+  string display_label = 2;
+  repeated string accepts = 3; // item kinds this slot accepts, e.g. ["weapon", "shield"]
+}
+
+// ArmorClassDisplay is the composed AC readout — see CharacterData.armor_class_detail.
+message ArmorClassDisplay {
+  int32 total = 1;
+  string note = 2; // server-composed breakdown, rendered verbatim
 }
 
 // MonsterData — server-controlled monster.

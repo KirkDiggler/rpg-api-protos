@@ -85,6 +85,9 @@ enum WallKind {
   WALL_KIND_DOOR_CLOSED = 2;
   WALL_KIND_DOOR_OPEN = 3;
   WALL_KIND_WINDOW = 4;
+  // A closed door that requires unlocking before it can be opened. Distinct from
+  // DOOR_CLOSED so the client can render locked-ness instead of discovering it on click.
+  WALL_KIND_DOOR_LOCKED = 5;
 }
 
 // TrapState is carried on TrapData entities so visible state matches what the player

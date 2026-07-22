@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-05-04
+updated: 2026-07-21
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -36,8 +36,14 @@ rpg-api-protos/
     equipment_types.proto       # Equipment, WeaponData, ArmorData, GearData
   dnd5e/api/v1alpha2/encounter/  # service-first layout; TakeAction-wave encounter contract
     service.proto               # EncounterService — live; RPCs + request/response messages
-    types.proto                 # Ref, Position, Entity, Space, TurnState, ActionEconomy, ...
+    types.proto                 # Ref, Position, Entity, Space, TurnState, ActionEconomy, CharacterData, Item, ...
     events.proto                # EncounterEvent stream — snapshot + deltas
+  dnd5e/api/v1alpha2/character/  # CharacterService — EquipItem/UnequipItem; live in rpg-api (#188, rpg-api#682), web not yet
+    service.proto
+  dnd5e/api/v1alpha2/weapons/    # Weapon enum, refgen-generated from the toolkit registry (#190); not wired into Item yet
+    weapons.proto
+  dnd5e/api/v1alpha2/armor/      # Armor enum, same pattern as weapons/ (#190)
+    armor.proto
   dnd5e/api/lobby/v1alpha1/      # service-first layout; own version clock (rpg-project#80)
     service.proto                # LobbyService — party-assembly RPCs; not yet consumed (rpg-api pending)
     types.proto                  # LobbyMember
@@ -45,9 +51,10 @@ rpg-api-protos/
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed
+  tools/refgen/                 # codegen tool: toolkit registry -> proto enum (own go.mod, #190)
   buf.yaml                      # lint: DEFAULT minus 2 exceptions; breaking: FILE
   buf.gen.yaml                  # Go + TS generation
-  .github/workflows/ci.yml      # lint, format, breaking, generate, publish
+  .github/workflows/ci.yml      # lint, format, breaking, generate, publish, refgen tests
 ```
 
 Total `.proto` content: ~9,400 lines. Of those, ~5,000 lines are defined but

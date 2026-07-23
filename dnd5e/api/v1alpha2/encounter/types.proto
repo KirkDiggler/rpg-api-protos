@@ -207,8 +207,9 @@ message Space {
   // theme is the dungeon-wide visual dressing family (e.g. "crypt"), carried once at the
   // Space level — opaque to this contract, not an enum; the asset/dressing layer owns the
   // vocabulary. Distinct from Zone.archetype: theme is one visual family for the whole
-  // encounter, archetype is per-zone generator-defined room function. "" means the
-  // generator did not tag a theme; consumers fall back to default/no dressing.
+  // encounter, archetype is per-zone room function drawn from the toolkit's fixed, shared
+  // vocabulary. "" means the generator did not tag a theme; consumers fall back to
+  // default/no dressing.
   string theme = 5;
 }
 

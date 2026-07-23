@@ -168,12 +168,16 @@ message Wall {
 message Zone {
   string id = 1;
   string name = 2;
-  // archetype is the generator-defined room function this zone plays in the dungeon layout
-  // (e.g. "entrance", "chamber", "corridor", "boss"). Open vocabulary, not an enum — the
-  // generator's archetype set can grow without a proto release. "" means the generator did
-  // not tag this zone with a function; consumers fall back to undifferentiated handling
-  // (no archetype-specific dressing or behavior). Distinct from Space.theme: archetype is
-  // per-zone role, theme is the dungeon-wide visual family.
+  // archetype identifies this zone's room function from the toolkit's fixed, reusable
+  // vocabulary (rpg-toolkit RegionArchetype: "entrance", "chamber", "corridor", "boss" —
+  // rpg-toolkit#814) — NOT a per-generator or per-theme ad hoc value. The vocabulary may
+  // grow additively through the toolkit contract over time, but individual generators
+  // select from that shared set rather than inventing their own values. String, not an
+  // enum, because the toolkit — not this proto — owns and versions the vocabulary. ""
+  // means the generator did not tag this zone with an archetype; consumers fall back to
+  // undifferentiated handling (no archetype-specific dressing or behavior). Distinct from
+  // Space.theme: archetype is per-zone role drawn from the fixed vocabulary, theme is the
+  // dungeon-wide opaque visual family with no fixed vocabulary at all.
   string archetype = 3;
   // Future ambient hooks (lighting profile ref, music cue ref, trigger refs) will be
   // added with new field numbers as needed.

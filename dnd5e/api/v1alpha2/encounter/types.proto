@@ -168,6 +168,13 @@ message Wall {
 message Zone {
   string id = 1;
   string name = 2;
+  // archetype is the generator-defined room function this zone plays in the dungeon layout
+  // (e.g. "entrance", "chamber", "corridor", "boss"). Open vocabulary, not an enum — the
+  // generator's archetype set can grow without a proto release. "" means the generator did
+  // not tag this zone with a function; consumers fall back to undifferentiated handling
+  // (no archetype-specific dressing or behavior). Distinct from Space.theme: archetype is
+  // per-zone role, theme is the dungeon-wide visual family.
+  string archetype = 3;
   // Future ambient hooks (lighting profile ref, music cue ref, trigger refs) will be
   // added with new field numbers as needed.
 }
@@ -182,7 +189,8 @@ message StatusEffect {
 }
 
 // Space is the player's current view of the world.
-// Continuous flat hex map — no rooms on the wire. Zones are optional metadata regions.
+// Continuous flat hex map — no rooms on the wire. Zones and theme are optional metadata;
+// neither structures the map for movement or rendering.
 // Visibility:
 //   - hexes and walls are sticky (explored geometry persists per character across the
 //     campaign)
@@ -192,6 +200,12 @@ message Space {
   repeated Wall walls = 2; // explored
   repeated Entity entities = 3; // currently visible (LOS-filtered)
   repeated Zone zones = 4; // optional metadata
+  // theme is the dungeon-wide visual dressing family (e.g. "crypt"), carried once at the
+  // Space level — opaque to this contract, not an enum; the asset/dressing layer owns the
+  // vocabulary. Distinct from Zone.archetype: theme is one visual family for the whole
+  // encounter, archetype is per-zone generator-defined room function. "" means the
+  // generator did not tag a theme; consumers fall back to default/no dressing.
+  string theme = 5;
 }
 
 // =============================================================================

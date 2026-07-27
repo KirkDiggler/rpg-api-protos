@@ -90,6 +90,25 @@ enum WallKind {
   WALL_KIND_DOOR_LOCKED = 5;
 }
 
+// HexState is what a viewer knows about one hex. Fog of war is expressed here and
+// nowhere else: knowledge is a property of the hex, not a separate overlay.
+//
+// UNSEEN is deliberately absent. A hex the viewer has never observed produces no
+// HexRecord at all — omission IS the third state, so it can never drift out of sync
+// with a value someone forgot to set. UNSPECIFIED means the producer failed to set a
+// state; treat it as a defect, not as unseen.
+//
+// There is likewise no removal/gone value. See HexRecord for why deletion does not
+// exist in this contract.
+enum HexState {
+  HEX_STATE_UNSPECIFIED = 0;
+  // Current authorized truth: the viewer observes this hex right now.
+  HEX_STATE_VISIBLE = 1;
+  // A frozen last observation, carried in full. What the viewer saw, not what is
+  // there now.
+  HEX_STATE_REMEMBERED = 2;
+}
+
 // TrapState is carried on TrapData entities so visible state matches what the player
 // should see.
 enum TrapState {
@@ -141,12 +160,57 @@ enum TargetKind {
 // Space — flat hex map with optional zones
 // =============================================================================
 
-// Hex is one cell of the player's view of the map.
-// Sticky once revealed: stays in Space.hexes for the rest of the campaign for that character.
-message Hex {
+// Placement is a thing occupying a hex, as observed. It names the occupant and how it
+// was oriented; the hex that carries it says where.
+//
+// entity_id resolves against the viewer's known entity set — entities disclosed in the
+// same message OR in an earlier one, because the entity vocabulary outlives current
+// disclosure (a remembered occupant still needs something to render as). A placement
+// that resolves against nothing MUST be dropped, never rendered as a placeholder: fail
+// closed. That is what keeps an undisclosed trap invisible to the viewer who failed the
+// perception check.
+//
+// facing rides HERE and not on Entity, and that placement is load-bearing. A record is
+// one viewer's observation: a viewer who saw a skeleton facing north and then lost sight
+// must keep facing north after the skeleton turns and a different viewer sees it face
+// south. On Entity, one viewer's sighting would rewrite every other viewer's memory.
+message Placement {
+  string entity_id = 1;
+  uint32 facing = 2; // hex-direction index 0-5
+}
+
+// HexRecord is one hex's complete authorized truth for one viewer, as observed at one
+// moment. It is the unit of truth in this contract: the client merges records by
+// position and renders what it holds. There is no separate visibility overlay, no
+// geometry list to re-associate, and no client-side line of sight.
+//
+// A VISIBLE record is TOTAL. `contents: []` is a positive claim that the hex is empty —
+// never "contents omitted". That totality is what lets a remembered occupant disappear
+// on re-sight with no forget message: the arriving record simply does not list it.
+// A producer that omits contents it cannot be bothered to compute is stating something
+// false, and the viewer will believe it.
+//
+// A REMEMBERED record carries its frozen observation IN FULL, rather than telling the
+// client to freeze what it already holds. The client therefore has exactly one behavior
+// — replace the entry for this position — and reconnect hydration is the same code path
+// as a live transition rather than a parallel one that can disagree.
+//
+// Records are idempotent: applying the same record twice leaves state identical.
+//
+// NOTHING IS EVER DELETED. There is no removal record and no tombstone. A witnessed
+// removal is a VISIBLE record that no longer lists the thing; a hidden removal is no
+// record at all. Deletion is the single operation a later observation cannot correct,
+// so this contract does not offer it.
+message HexRecord {
   Position position = 1;
-  TerrainType terrain = 2;
-  string zone_id = 3; // optional zone membership ("" if none)
+  HexState state = 2;
+  TerrainType terrain = 3;
+  string zone_id = 4; // optional zone membership ("" if none)
+  // Walls and doors on this hex's edges. Self-contained on purpose: the client never
+  // re-associates a global wall list with hexes, so remembered geometry can be drawn
+  // from the record alone.
+  repeated Wall edges = 5;
+  repeated Placement contents = 6;
 }
 
 // Wall is a barrier between two adjacent hexes.
@@ -192,17 +256,28 @@ message StatusEffect {
   optional int32 duration_rounds = 4;
 }
 
-// Space is the player's current view of the world.
+// Space is one viewer's knowledge of the world.
 // Continuous flat hex map — no rooms on the wire. Zones and theme are optional metadata;
 // neither structures the map for movement or rendering.
-// Visibility:
-//   - hexes and walls are sticky (explored geometry persists per character across the
-//     campaign)
-//   - entities are real-time LOS (server filters per player per event)
+//
+// Visibility lives entirely in the hex records. This message previously ran two
+// visibility models side by side — sticky geometry plus real-time-LOS entities — which
+// left no wire state between "explored" and "gone" and drew remembered geometry as
+// though it were currently observed. Fog of war was not renderable from it. Now a
+// snapshot is simply the viewer's accumulated records, so hydrating a reconnecting
+// client and applying a live HexKnowledgeChanged are the same operation on the same
+// shape.
 message Space {
-  repeated Hex hexes = 1; // explored, sticky
-  repeated Wall walls = 2; // explored
-  repeated Entity entities = 3; // currently visible (LOS-filtered)
+  reserved 2;
+  reserved "walls";
+
+  // This viewer's knowledge: VISIBLE and REMEMBERED records. Hexes the viewer has never
+  // observed are absent — omission is how UNSEEN is expressed.
+  repeated HexRecord hexes = 1;
+  // Authorized disclosure for this viewer: what each entity IS. Where each entity is
+  // comes from the records' contents, never from here. This is the vocabulary a
+  // remembered placement resolves against, so an entry outlives the entity's visibility.
+  repeated Entity entities = 3;
   repeated Zone zones = 4; // optional metadata
   // theme is the dungeon-wide visual dressing family (e.g. "crypt"), carried once at the
   // Space level — opaque to this contract, not an enum; the asset/dressing layer owns the
@@ -217,14 +292,25 @@ message Space {
 // Entity — common shape + typed data oneof
 // =============================================================================
 
-// Entity is anything that can occupy a position in the space.
-// Common shape (id, position, type, display_name, optional hp, armor_class,
-// status_effects) is what every entity carries because every entity is
-// destructible-or-not and has-or-doesn't-have visible statuses.
-// The oneof carries the type-specific rich data.
+// Entity is what a thing IS, as disclosed to one viewer. It is deliberately not where
+// that thing is: position was removed because HexRecord.contents is the only statement
+// of placement in this contract, and a second copy could only ever agree redundantly or
+// disagree dangerously. A viewer holding a remembered skeleton at one hex while the
+// server discloses the live skeleton elsewhere needs those to be different facts, not
+// one field fighting itself.
+//
+// Common shape (id, type, display_name, optional hp, armor_class, status_effects) is
+// what every entity carries because every entity is destructible-or-not and
+// has-or-doesn't-have visible statuses. The oneof carries the type-specific rich data.
+//
+// Every field here is authorized disclosure — a server decision, never client policy.
+// Withheld information is simply absent, and a viewer who failed a perception check
+// receives no Entity for the trap at all (and therefore no placement that resolves).
 message Entity {
+  reserved 2;
+  reserved "position";
+
   string id = 1; // runtime instance id; not a Ref
-  Position position = 2;
   EntityType type = 3;
   string display_name = 4;
   optional HitPoints hp = 5; // present only on destructibles

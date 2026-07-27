@@ -23,17 +23,22 @@ message EncounterEvent {
   // caused all share the same correlation_id, so the toolkit-owned combat log can be
   // reassembled from the stream. Opaque runtime id the toolkit stamps per action, so
   // it's a string (not a Ref). Empty for events with no causing action (snapshot,
-  // geometry reveal, etc.).
+  // ambient knowledge change, etc.).
   string correlation_id = 3;
+
+  // Retired with the fog-of-war contract (protos#197). GeometryRevealed was additive and
+  // sticky, so it could not express a visible/remembered partition; the two entity
+  // presence events are now statements a hex record makes. HexKnowledgeChanged at 13
+  // replaces all three.
+  reserved 10, 11, 12;
+  reserved "geometry_revealed", "entity_appeared", "entity_disappeared";
 
   oneof event {
     // Lifecycle
     SnapshotDelivered snapshot_delivered = 5;
 
-    // Geometry & visibility
-    GeometryRevealed geometry_revealed = 10;
-    EntityAppeared entity_appeared = 11;
-    EntityDisappeared entity_disappeared = 12;
+    // Knowledge & visibility
+    HexKnowledgeChanged hex_knowledge_changed = 13;
 
     // Entity state
     EntityMoved entity_moved = 20;
@@ -106,28 +111,32 @@ message SnapshotDelivered {
   Encounter encounter = 1;
 }
 
-// GeometryRevealed adds hexes/walls to the player's sticky map. Emitted when a door opens,
-// when the player moves into a previously-unseen area, or when a Reveal effect is cast.
-message GeometryRevealed {
-  repeated Hex hexes = 1;
-  repeated Wall walls = 2;
-}
-
-message EntityAppeared {
-  Entity entity = 1; // came into LOS
-  string reason = 2; // optional: "entered LOS", "spell reveal", "perception success"
-}
-
-message EntityDisappeared {
-  string entity_id = 1;
-  string reason = 2; // "left LOS", "invisibility cast"
-  // Per-viewer last-known position. Different viewers may have last seen the
-  // entity at different hexes (pass-through movement past two viewers in
-  // different positions), so the wire form is per-stream — the encounter
-  // server populates this for the specific subscriber receiving the event.
-  // Required for rendering "freeze marker at last-seen hex" without
-  // client-side game-state tracking.
-  Position last_known_position = 3;
+// HexKnowledgeChanged carries one viewer's slice of what changed about what they know.
+// It is the only event that moves fog of war, and it replaces the retired
+// GeometryRevealed / EntityAppeared / EntityDisappeared trio (protos#197).
+//
+// Hexes say WHERE; entities say WHAT. They travel in one message so a placement can
+// always resolve or fail closed — a client must never be asked to render an occupant it
+// has not been told the identity of.
+//
+// This event is a DIFF, and the absence of a record is meaningful: it means the viewer
+// learned nothing about that hex, so their existing knowledge stands untouched. A hidden
+// mutation — the world changing where this viewer cannot see — is therefore an empty
+// event or no event, never a special message. Applying it must change nothing at all.
+//
+// The client's entire behavior on receipt is: merge entities by id, then replace each
+// record by position. No freezing, no deriving, no line of sight. Everything else in
+// this contract exists to make that one sentence sufficient — see HexRecord for why a
+// visible record is total and why nothing is ever deleted.
+message HexKnowledgeChanged {
+  // Records to replace wholesale by position. Never a field-level merge: a record is a
+  // complete observation, and merging would resurrect contents the new observation
+  // deliberately omits.
+  repeated HexRecord hexes = 1;
+  // Authorized disclosure, this viewer only. Entities the viewer already knows may be
+  // resent (identity is stable, details may change); they are never un-sent, because the
+  // vocabulary must outlive visibility for remembered placements to still resolve.
+  repeated Entity entities = 2;
 }
 
 message EntityMoved {
@@ -299,13 +308,16 @@ message AttackResolved {
   repeated Ref disadvantage_sources = 11;
 }
 
+// DoorOpened is a pure notification — the beat for sound, animation and narration.
+// It carries no geometry (protos#197). A door opening changes what the viewer can see,
+// and what a viewer can see is stated by hex records; the newly-visible cells arrive as
+// a correlated HexKnowledgeChanged. Carrying reveal payloads here would have made the
+// door a second, competing source of map truth that only some viewers receive.
 message DoorOpened {
+  reserved 2, 3, 4;
+  reserved "revealed_hexes", "revealed_walls", "removed_walls";
+
   string door_entity_id = 1;
-  repeated Hex revealed_hexes = 2; // full hex (terrain + zone) for newly-visible cells
-  repeated Wall revealed_walls = 3;
-  repeated Wall removed_walls = 4; // walls no longer present (door itself transitions
-  // via DOOR_CLOSED → DOOR_OPEN; this is for any
-  // genuinely-removed barriers from the open action)
 }
 
 message DoorClosed {

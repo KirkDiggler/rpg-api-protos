@@ -92,6 +92,12 @@ message LeaveLobbyResponse {}
 // terminal; no lobby state survives the handoff.
 message StartEncounterRequest {
   string lobby_id = 1;
+  // dungeon_key selects which authored dungeon to build the encounter
+  // from. Empty uses the server's existing caller -> env -> default
+  // precedence (rpg-api's lobby orchestrator,
+  // StartEncounterInput.DungeonKey) -- additive, every existing caller
+  // is unaffected.
+  string dungeon_key = 2;
 }
 
 // StartEncounterResponse returns the encounter_id clients switch to. Ordering
@@ -166,6 +172,21 @@ message GetMyActiveLobbyResponse {
   LobbyStatus lobby_status = 3;
 }
 
+// ListDungeonsRequest has no fields -- ListDungeons returns every dungeon
+// key + display name the server can StartEncounter from.
+message ListDungeonsRequest {}
+
+// DungeonSummary is one authored dungeon's key + display name, as seen by
+// the lobby dropdown.
+message DungeonSummary {
+  string key = 1;
+  string name = 2;
+}
+
+message ListDungeonsResponse {
+  repeated DungeonSummary dungeons = 1;
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -210,4 +231,10 @@ service LobbyService {
   // no active lobby, not an error. encounter_id is only populated when the
   // lobby is STARTED and the encounter has been verified still live.
   rpc GetMyActiveLobby(GetMyActiveLobbyRequest) returns (GetMyActiveLobbyResponse);
+
+  // ListDungeons returns every dungeon key + display name the server
+  // can StartEncounter from. NOT behind the authoring gate -- reads
+  // content, mutates nothing; the lobby dropdown needs this with
+  // authoring off (design.md's post-approval correction, 2026-07-30).
+  rpc ListDungeons(ListDungeonsRequest) returns (ListDungeonsResponse);
 }

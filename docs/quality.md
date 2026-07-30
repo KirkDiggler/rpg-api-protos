@@ -172,7 +172,30 @@ documented in comments rather than invented as separate contract paths.
 reassemble — right-sized rather than copy-pasted. Held below A by: no
 runtime validation this shape survives contact with the orchestrator layer
 yet, and `character_name` enrichment / party-cap config aren't verifiable
-from the proto alone. Re-grade once the rpg-api PR lands.
+from the proto alone. Re-grade once the rpg-api PR lands. Grew a
+`dungeon_key` field on `StartEncounterRequest` and a `ListDungeons` RPC
+(rpg-api-protos#200, 2026-07-30, Dungeon Builder arc) — both additive,
+grade unchanged by this addition alone.
+
+### dnd5e.authoring.AuthoringService — B+ (provisional)
+
+Landed 2026-07-30 (rpg-api-protos#200), no consumer yet — same
+"consumer PR pending, not speculative" exception as LobbyService above:
+`rpg-api` (arc slice S1) and `rpg-dnd5e-web` (arc slices S4a-c) are both
+queued next legs of the same arc (`rpg-project#169`/`#170`), not
+schema-without-a-plan. One focused RPC (`PutDungeon`), own subpackage
+justified against the three-question checklist in
+`add-a-new-service.md` (own bounded context, live consumer queued).
+Reuses `dnd5e.api.v1alpha1.ValidationError` for `field_errors` rather
+than inventing a new error type — a deliberate, documented deviation
+from the repo's default `bool success + string error` pattern (see
+[authoring-service.md](components/authoring-service.md)). `FloorPlan`'s
+explicit `start_column`/`column`/`door_row` fields are a clean
+application of "server computes, client never re-derives." Held below A
+by: no runtime validation yet, and `field_errors` is honestly
+one-flat-entry-per-failure in v1 (documented, not hidden — the toolkit's
+`dungeonspec.Validate` doesn't return structured field paths today).
+Re-grade once the rpg-api PR lands.
 
 ## Defined-but-not-consumed services
 

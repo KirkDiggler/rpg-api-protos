@@ -278,7 +278,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.EncounterService` | Medium — works in production; carries two state shapes (legacy + unified), four deprecated RPCs, and many `reserved` slots. Highest churn, biggest cleanup debt |
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
-| `dnd5e.authoring.AuthoringService` | High — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, no consumer yet but one queued in the same arc (rpg-api S1) |
+| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

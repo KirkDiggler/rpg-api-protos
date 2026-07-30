@@ -190,9 +190,17 @@ Reuses `dnd5e.api.v1alpha1.ValidationError` for `field_errors` rather
 than inventing a new error type — a deliberate, documented deviation
 from the repo's default `bool success + string error` pattern (see
 [authoring-service.md](components/authoring-service.md)). `FloorPlan`'s
-explicit `start_column`/`column`/`door_row` fields are a clean
-application of "server computes, client never re-derives." Held below A
-by: no runtime validation yet, and `field_errors` is honestly
+explicit `start_column`/`column`/`door_row`/`entrance` fields are a clean
+application of "server computes, client never re-derives" — `entrance`
+was added in an Opus-gate revision (design.md names it as one of four
+required response elements; the initial cut had three). The gate's other
+finding on that same pass — design.md's `InvalidArgument` line being
+untransportable alongside a response body — is now a documented decision
+in the proto comments rather than an implicit assumption S1 and S4c could
+independently guess differently: transport-level `InvalidArgument` for
+malformed requests (no body exists), in-band `success=false` +
+`field_errors` for content that fails to compile. Held below A by: no
+runtime validation yet, and `field_errors` is honestly
 one-flat-entry-per-failure in v1 (documented, not hidden — the toolkit's
 `dungeonspec.Validate` doesn't return structured field paths today).
 Re-grade once the rpg-api PR lands.

@@ -12,6 +12,18 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.authoring.v1alpha1";
 // validate_only) compilation into the live registry. key must match the
 // YAML's own declared `key:` field exactly -- mismatch is InvalidArgument
 // (design.md's Key rules).
+//
+// Error-transport decision (Opus gate finding, S0 revision 2): a
+// malformed REQUEST -- key fails the `[a-z0-9-]` charset, or key/YAML
+// `key:` mismatch -- has no meaningful response body, so it fails at the
+// transport level: gRPC InvalidArgument status, PutDungeonResponse never
+// delivered. A well-formed request whose YAML CONTENT fails
+// dungeonspec's validate/compile step returns gRPC OK with
+// PutDungeonResponse{success: false, field_errors: [...], floor_plan:
+// unset} -- this is the editor's inline-error path, and a non-OK status
+// would drop the body entirely. validate_only affects persistence only;
+// it does not change which of these two paths a given input takes. See
+// PutDungeonResponse for the success side of this contract.
 message PutDungeonRequest {
   string key = 1;
   string yaml = 2;
@@ -43,6 +55,12 @@ message FloorPlanConnector {
   int32 column = 5;
 }
 
+// FloorPlanCell is an absolute [column, row] on the compiled grid.
+message FloorPlanCell {
+  int32 column = 1;
+  int32 row = 2;
+}
+
 // FloorPlan is the compiled layout an author's board renders. door_row
 // applies uniformly to every room (dungeonspec's height/2 reserved-row
 // invariant) -- carried explicitly, not hardcoded client-side, so a
@@ -53,8 +71,27 @@ message FloorPlan {
   repeated FloorPlanConnector connectors = 2;
   int32 height = 3;
   int32 door_row = 4;
+  // entrance is the generator-chosen party spawn anchor
+  // (SpaceData.Entrance) -- the one value here a client genuinely cannot
+  // compute; it is not a function of anything else on the wire.
+  // dungeonspec.Validate does not check placements against it, so the
+  // board is the only thing that can warn an author who blocks the
+  // party's spawn cell. The party seats along a line running outward
+  // from this cell (StartEncounter), so placements near it matter.
+  // Reading archetype == "entrance" on a FloorPlanRoom identifies the
+  // entrance ROOM, not this spawn cell -- both are meaningful and
+  // distinct.
+  FloorPlanCell entrance = 5;
 }
 
+// PutDungeonResponse is only ever delivered on a gRPC OK status -- see
+// PutDungeonRequest's error-transport decision for the InvalidArgument
+// (malformed-request, no body) side of this contract. Two shapes:
+//   - success = true: floor_plan is set, field_errors is empty.
+//   - success = false: the YAML failed dungeonspec's validate/compile
+//     step; field_errors is populated (see its own comment for the v1
+//     flat-error limitation) and floor_plan is unset. This is the
+//     editor's inline-error path.
 message PutDungeonResponse {
   bool success = 1;
   // field_errors is best-effort in v1: rpg-toolkit's

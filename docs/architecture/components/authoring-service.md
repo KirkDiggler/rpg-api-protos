@@ -26,7 +26,7 @@ queued).
 
 ## File and shape
 
-- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 5
+- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 6
   messages.
 - Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
   error type invented.
@@ -67,6 +67,39 @@ reconstruct with arithmetic:
   (dungeonspec's `height/2` invariant), carried explicitly so a future
   non-uniform toolkit change doesn't silently break a board that hardcoded
   the formula.
+- `FloorPlan.entrance` (`FloorPlanCell{column, row}`) — the
+  generator-chosen party spawn anchor (`SpaceData.Entrance`). Added in the
+  Opus gate's S0 revision: it's the one value in this contract a client
+  genuinely cannot compute (not a function of anything else on the wire),
+  and `dungeonspec.Validate` doesn't check placements against it — the
+  board is the only thing that can warn an author who blocks the party's
+  own spawn cell. Distinct from `FloorPlanRoom.archetype == "entrance"`,
+  which identifies the entrance *room*, not this cell.
+
+## Error transport — decided, not left to drift between S1 and S4c
+
+Opus gate finding on the first S0 revision: design.md's "returns
+structured errors (field-path-mapped, `InvalidArgument`)" describes two
+transports gRPC can't combine — a non-OK status never delivers the
+response body, so `field_errors`/`floor_plan` would be unreachable on an
+`InvalidArgument` return. Decided and documented in the proto comments
+(`PutDungeonRequest`/`PutDungeonResponse`) so S1 (produces this) and S4c
+(consumes it) can't independently guess different answers:
+
+- **Malformed request** (key fails `[a-z0-9-]`, or key/YAML `key:`
+  mismatch) — no meaningful body exists, so this is transport-level gRPC
+  `InvalidArgument`. `PutDungeonResponse` is never delivered.
+- **Well-formed request, YAML content fails dungeonspec
+  validate/compile** — gRPC `OK` with `PutDungeonResponse{success: false,
+  field_errors: [...], floor_plan: unset}`. This is the editor's inline
+  compile-error path; a non-OK status here would silently drop the one
+  message the v1 flat-error limitation already leaves an author with.
+- **Success** — `success: true`, `floor_plan` set, `field_errors` empty.
+- `validate_only` affects persistence only — it does not change which of
+  the above three paths a given input takes.
+- Gate off — `Unimplemented` (the RPC is unregistered; unaffected by any
+  of the above, and doesn't collide with the availability-probe pattern
+  S4a uses to distinguish "gate off" from "server unreachable").
 
 ## Error shape — a deliberate deviation from `bool success + string error`
 

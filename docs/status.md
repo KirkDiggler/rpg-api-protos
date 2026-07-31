@@ -16,6 +16,21 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Dungeon Builder: authoring contract (rpg-api-protos#200, S0 of the
+  Dungeon Builder arc, 2026-07-30)** — additive-only, one PR: `dungeon_key`
+  field on `StartEncounterRequest` (`dnd5e/api/lobby/v1alpha1/service.proto`);
+  `ListDungeons` RPC + `DungeonSummary`/`ListDungeonsResponse` on
+  `LobbyService`, deliberately ungated (reads content, mutates nothing —
+  the lobby dropdown needs it with authoring off); new `AuthoringService`
+  in its own subpackage `dnd5e/api/authoring/v1alpha1` with `PutDungeon`
+  (key/yaml/`validate_only`) returning a server-computed `FloorPlan` plus
+  best-effort `field_errors`. See
+  [architecture/components/authoring-service.md](architecture/components/authoring-service.md).
+  Proto-only — `rpg-api` (S1: `PutDungeon` orchestrator + shared registry;
+  S2: `dungeon_key` plumbing) and `rpg-dnd5e-web` (S3: lobby dropdown;
+  S4a-c: `/author` route) are both queued as the next legs of the same arc
+  (design: `rpg-project#170`, plan: `rpg-project/ideas/dungeon-builder/plan.md`).
+
 - **Typed content vocabulary, increment 1 (rpg-api-protos#190, PR #191,
   2026-07-20) + equipment on the wire (rpg-api-protos#187, PR #188,
   2026-07-21)** — #190 adds `tools/refgen` (a codegen tool, own `go.mod`,
@@ -263,6 +278,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.EncounterService` | Medium — works in production; carries two state shapes (legacy + unified), four deprecated RPCs, and many `reserved` slots. Highest churn, biggest cleanup debt |
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
+| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

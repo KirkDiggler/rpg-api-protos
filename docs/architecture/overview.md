@@ -45,9 +45,11 @@ rpg-api-protos/
   dnd5e/api/v1alpha2/armor/      # Armor enum, same pattern as weapons/ (#190)
     armor.proto
   dnd5e/api/lobby/v1alpha1/      # service-first layout; own version clock (rpg-project#80)
-    service.proto                # LobbyService — party-assembly RPCs; not yet consumed (rpg-api pending)
+    service.proto                # LobbyService — party-assembly RPCs; not yet consumed (rpg-api pending); also carries StartEncounterRequest.dungeon_key + ListDungeons (Dungeon Builder arc, rpg-project#169)
     types.proto                  # LobbyMember
     events.proto                 # LobbyEvent stream — snapshot + membership/presence deltas
+  dnd5e/api/authoring/v1alpha1/  # own subpackage; dev-gated dungeon authoring (Dungeon Builder arc, rpg-project#169)
+    service.proto                # AuthoringService — PutDungeon; not yet consumed (rpg-api S1 pending)
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed

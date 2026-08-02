@@ -26,8 +26,8 @@ queued).
 
 ## File and shape
 
-- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 6
-  messages.
+- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 7
+  messages, and 1 authoring-local edge enum.
 - Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
   error type invented.
 
@@ -75,6 +75,30 @@ reconstruct with arithmetic:
   board is the only thing that can warn an author who blocks the party's
   own spawn cell. Distinct from `FloorPlanRoom.archetype == "entrance"`,
   which identifies the entrance *room*, not this cell.
+- `FloorPlan.edges` — the generated canonical solid-wall and door edges.
+  `FloorPlanEdge{from, to, kind, door_id}` is authoring-local. A physical
+  edge is the **undirected** adjacent-cell pair `{from, to}`; the producer
+  emits exactly one record for each pair. Reversed endpoints are the same
+  edge, so duplicate or conflicting records are forbidden. `from`/`to` have
+  no canonical order and clients must not derive direction, ownership, or
+  any other meaning from their orientation. An exterior edge has one endpoint
+  outside the floor-plan bounds.
+
+  `door_id` is required, non-empty, and unique for `DOOR`; for a generated
+  connector door it exactly equals `FloorPlanConnector.door_id`. It is absent
+  for `SOLID`. These are semantic producer requirements, not validations a
+  proto parser/textproto fixture can enforce. At encounter startup, convert
+  each endpoint from FloorPlanCell's `[column, row]` pointy-top offset
+  coordinate into the runtime `Position` cube coordinate. The corresponding
+  runtime `Wall` represents the same unordered pair: `SOLID` becomes
+  `WALL_KIND_SOLID` without `Wall.id`; `DOOR` becomes an initially closed or
+  locked door wall with `Wall.id == door_id` (and may later be
+  `WALL_KIND_DOOR_OPEN`). This projects the generator's truth to runtime
+  `HexRecord.edges`; it deliberately does **not** reuse runtime
+  `dnd5e.api.v1alpha2.encounter.Wall` or `WallKind`, because those describe
+  live encounter state. The board renders and hit-tests this list directly;
+  it neither derives competing edges nor restores the retired flat
+  `Space.walls` field.
 
 ## Error transport — decided, not left to drift between S1 and S4c
 

@@ -61,6 +61,50 @@ message FloorPlanCell {
   int32 row = 2;
 }
 
+// FloorPlanEdgeKind describes the authoring meaning of a generated canonical
+// dungeon edge. It is deliberately local to FloorPlan: it is NOT runtime
+// dnd5e.api.v1alpha2.encounter.WallKind, whose values include live encounter
+// state that this read-only compiled-layout response does not carry.
+enum FloorPlanEdgeKind {
+  FLOOR_PLAN_EDGE_KIND_UNSPECIFIED = 0;
+  FLOOR_PLAN_EDGE_KIND_SOLID = 1;
+  FLOOR_PLAN_EDGE_KIND_DOOR = 2;
+}
+
+// FloorPlanEdge is one generated wall or door edge in the compiled authoring
+// layout. A physical edge is the undirected pair {from, to}: endpoints MUST
+// be distinct adjacent FloorPlanCells. FloorPlan.edges MUST emit exactly one
+// record for each physical edge. Reversing endpoints denotes the same edge,
+// so a reversed duplicate and records that conflict on kind or door_id are
+// forbidden.
+//
+// `from` and `to` are field names only; this contract defines no canonical
+// endpoint order and clients MUST NOT derive meaning from their orientation.
+// For an exterior edge, one endpoint may be outside the rendered floor-plan
+// bounds. Consumers render this one record and must not derive a competing
+// edge from adjacent rooms or cells.
+//
+// This read-only authoring projection maps to the runtime
+// HexRecord.edges representation after an encounter starts, but intentionally
+// does not import or reuse dnd5e.api.v1alpha2.encounter.Wall/WallKind:
+// runtime edges carry live encounter state, while this contract carries the
+// generator's authoring truth. To map an endpoint, convert its [column, row]
+// pointy-top offset coordinate to the runtime Position cube coordinate. The
+// resulting runtime Wall represents the same undirected pair: SOLID maps to
+// WALL_KIND_SOLID with no Wall.id; DOOR maps to a door Wall (initially
+// WALL_KIND_DOOR_CLOSED or WALL_KIND_DOOR_LOCKED) whose Wall.id is door_id,
+// and its runtime kind can later become WALL_KIND_DOOR_OPEN.
+message FloorPlanEdge {
+  FloorPlanCell from = 1;
+  FloorPlanCell to = 2;
+  FloorPlanEdgeKind kind = 3;
+  // Required, non-empty, and unique among DOOR edges. For a generated
+  // connector door it MUST equal that FloorPlanConnector.door_id, and maps to
+  // runtime Wall.id. It MUST be absent for SOLID edges. These are producer
+  // contract rules; proto parsing alone does not validate them.
+  optional string door_id = 4;
+}
+
 // FloorPlan is the compiled layout an author's board renders. door_row
 // applies uniformly to every room (dungeonspec's height/2 reserved-row
 // invariant) -- carried explicitly, not hardcoded client-side, so a
@@ -82,6 +126,10 @@ message FloorPlan {
   // entrance ROOM, not this spawn cell -- both are meaningful and
   // distinct.
   FloorPlanCell entrance = 5;
+  // Generated canonical wall and door truth for this compiled layout. This
+  // is the only edge list an authoring client renders or hit-tests; no flat
+  // runtime Space.walls field exists or may be reintroduced.
+  repeated FloorPlanEdge edges = 6;
 }
 
 // PutDungeonResponse is only ever delivered on a gRPC OK status -- see

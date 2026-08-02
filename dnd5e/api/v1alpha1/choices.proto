@@ -126,6 +126,12 @@ message EquipmentCategoryChoice {
   repeated ArmorCategory armor_categories = 3; // Armor categories to choose from
   repeated ToolCategory tool_categories = 4; // Tool categories to choose from
   string label = 5; // Description (e.g., "Choose two martial weapons")
+
+  // Concrete, eligible, enriched items this category resolves to (toolkit-computed
+  // via the same eligibility function the validator runs). Optional for backward
+  // compatibility: empty until the API populates it from the toolkit's resolution.
+  // See rpg-project#173 (ideas/equipment-enrichment/design.md).
+  repeated EquipmentItem options = 6;
 }
 
 // Languages that can be chosen

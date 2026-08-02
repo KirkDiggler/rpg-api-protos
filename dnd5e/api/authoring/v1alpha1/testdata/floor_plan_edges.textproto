@@ -4,7 +4,13 @@
 # three rooms (6 + 14 + 8 columns), two connector columns, height 8, and
 # door_row 4. It demonstrates the authoring projection without asking clients
 # to derive geometry: an exterior solid wall, an interior-facing solid segment,
-# and a door retaining the source identity generated for its connector.
+# and doors retaining their generated connector identities.
+#
+# Each listed unordered endpoint pair occurs exactly once. Reversing either
+# endpoint pair would describe the same physical edge and MUST NOT be emitted;
+# endpoint order itself has no meaning. This text fixture documents the
+# producer contract, but proto/textproto parsing does not enforce adjacency,
+# uniqueness, kind, or door_id semantics.
 height: 8
 door_row: 4
 rooms: {
@@ -38,7 +44,7 @@ connectors: {
   column: 21
 }
 edges: {
-  # Exterior wall: to.column -1 is outside this plan's [0, 29] floor bounds.
+  # Exterior wall: one endpoint is outside this plan's [0, 29] floor bounds.
   from: { column: 0 row: 0 }
   to: { column: -1 row: 0 }
   kind: FLOOR_PLAN_EDGE_KIND_SOLID
@@ -50,9 +56,16 @@ edges: {
   kind: FLOOR_PLAN_EDGE_KIND_SOLID
 }
 edges: {
-  # Door: source_id exactly retains the matching first connector's opaque ID.
+  # Door identity exactly matches the first connector's door_id.
   from: { column: 5 row: 4 }
   to: { column: 6 row: 4 }
   kind: FLOOR_PLAN_EDGE_KIND_DOOR
-  source_id: "showcase-door-antechamber-shrine"
+  door_id: "showcase-door-antechamber-shrine"
+}
+edges: {
+  # A distinct physical door edge has the second connector's unique door_id.
+  from: { column: 20 row: 4 }
+  to: { column: 21 row: 4 }
+  kind: FLOOR_PLAN_EDGE_KIND_DOOR
+  door_id: "showcase-door-shrine-vault"
 }

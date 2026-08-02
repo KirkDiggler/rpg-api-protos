@@ -71,26 +71,38 @@ enum FloorPlanEdgeKind {
   FLOOR_PLAN_EDGE_KIND_DOOR = 2;
 }
 
-// FloorPlanEdge is one generated canonical wall or door edge in the compiled
-// authoring layout. `from` and `to` are the toolkit's canonical, adjacent
-// cell endpoints; `to` may be outside the rendered floor-plan bounds for an
-// exterior edge. Consumers render this one record and must not derive a
-// competing edge from adjacent rooms or cells.
+// FloorPlanEdge is one generated wall or door edge in the compiled authoring
+// layout. A physical edge is the undirected pair {from, to}: endpoints MUST
+// be distinct adjacent FloorPlanCells. FloorPlan.edges MUST emit exactly one
+// record for each physical edge. Reversing endpoints denotes the same edge,
+// so a reversed duplicate and records that conflict on kind or door_id are
+// forbidden.
+//
+// `from` and `to` are field names only; this contract defines no canonical
+// endpoint order and clients MUST NOT derive meaning from their orientation.
+// For an exterior edge, one endpoint may be outside the rendered floor-plan
+// bounds. Consumers render this one record and must not derive a competing
+// edge from adjacent rooms or cells.
 //
 // This read-only authoring projection maps to the runtime
 // HexRecord.edges representation after an encounter starts, but intentionally
 // does not import or reuse dnd5e.api.v1alpha2.encounter.Wall/WallKind:
 // runtime edges carry live encounter state, while this contract carries the
-// generator's authoring truth.
+// generator's authoring truth. To map an endpoint, convert its [column, row]
+// pointy-top offset coordinate to the runtime Position cube coordinate. The
+// resulting runtime Wall represents the same undirected pair: SOLID maps to
+// WALL_KIND_SOLID with no Wall.id; DOOR maps to a door Wall (initially
+// WALL_KIND_DOOR_CLOSED or WALL_KIND_DOOR_LOCKED) whose Wall.id is door_id,
+// and its runtime kind can later become WALL_KIND_DOOR_OPEN.
 message FloorPlanEdge {
   FloorPlanCell from = 1;
   FloorPlanCell to = 2;
   FloorPlanEdgeKind kind = 3;
-  // source_id preserves the opaque, stable identity assigned by the canonical
-  // generator when available (currently a connector door). It is unset for
-  // generated solid edges without a source identity. Consumers use it to keep
-  // a door's identity across projections; they never synthesize an id.
-  optional string source_id = 4;
+  // Required, non-empty, and unique among DOOR edges. For a generated
+  // connector door it MUST equal that FloorPlanConnector.door_id, and maps to
+  // runtime Wall.id. It MUST be absent for SOLID edges. These are producer
+  // contract rules; proto parsing alone does not validate them.
+  optional string door_id = 4;
 }
 
 // FloorPlan is the compiled layout an author's board renders. door_row

@@ -26,8 +26,8 @@ queued).
 
 ## File and shape
 
-- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 6
-  messages.
+- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 7
+  messages, and 1 authoring-local edge enum.
 - Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
   error type invented.
 
@@ -75,6 +75,17 @@ reconstruct with arithmetic:
   board is the only thing that can warn an author who blocks the party's
   own spawn cell. Distinct from `FloorPlanRoom.archetype == "entrance"`,
   which identifies the entrance *room*, not this cell.
+- `FloorPlan.edges` — the generated canonical solid-wall and door edges.
+  `FloorPlanEdge{from, to, kind, source_id}` is authoring-local: its
+  endpoints use the toolkit's canonical ordering (and an exterior `to` may
+  be outside the floor-plan bounds), while `source_id` preserves the opaque
+  stable source identity where one exists, currently connector doors.
+  Solid edges have no source ID. This projects the generator's truth to the
+  runtime `HexRecord.edges` model after encounter startup; it deliberately
+  does **not** reuse runtime `dnd5e.api.v1alpha2.encounter.Wall` or
+  `WallKind`, because those describe live encounter state. The board renders
+  and hit-tests this list directly; it neither derives competing edges nor
+  restores the retired flat `Space.walls` field.
 
 ## Error transport — decided, not left to drift between S1 and S4c
 

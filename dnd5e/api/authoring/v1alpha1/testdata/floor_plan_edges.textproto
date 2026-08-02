@@ -1,0 +1,58 @@
+# Contract fixture for FloorPlan.edges (rpg-api-protos#205).
+#
+# This is the representative generated-edge excerpt for dungeon-content/showcase.yaml:
+# three rooms (6 + 14 + 8 columns), two connector columns, height 8, and
+# door_row 4. It demonstrates the authoring projection without asking clients
+# to derive geometry: an exterior solid wall, an interior-facing solid segment,
+# and a door retaining the source identity generated for its connector.
+height: 8
+door_row: 4
+rooms: {
+  id: "antechamber"
+  archetype: "entrance"
+  width: 6
+  start_column: 0
+}
+rooms: {
+  id: "shrine"
+  archetype: "chamber"
+  width: 14
+  start_column: 7
+}
+rooms: {
+  id: "vault"
+  archetype: "boss"
+  width: 8
+  start_column: 22
+}
+connectors: {
+  door_id: "showcase-door-antechamber-shrine"
+  from_room_id: "antechamber"
+  to_room_id: "shrine"
+  column: 6
+}
+connectors: {
+  door_id: "showcase-door-shrine-vault"
+  from_room_id: "shrine"
+  to_room_id: "vault"
+  column: 21
+}
+edges: {
+  # Exterior wall: to.column -1 is outside this plan's [0, 29] floor bounds.
+  from: { column: 0 row: 0 }
+  to: { column: -1 row: 0 }
+  kind: FLOOR_PLAN_EDGE_KIND_SOLID
+}
+edges: {
+  # Interior-facing solid segment: both endpoints are in the compiled layout.
+  from: { column: 3 row: 2 }
+  to: { column: 4 row: 2 }
+  kind: FLOOR_PLAN_EDGE_KIND_SOLID
+}
+edges: {
+  # Door: source_id exactly retains the matching first connector's opaque ID.
+  from: { column: 5 row: 4 }
+  to: { column: 6 row: 4 }
+  kind: FLOOR_PLAN_EDGE_KIND_DOOR
+  source_id: "showcase-door-antechamber-shrine"
+}

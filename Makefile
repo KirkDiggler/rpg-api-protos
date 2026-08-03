@@ -36,7 +36,7 @@ test: ## Run tests (lint + format check + generate + mocks + placement presence)
 	$(MAKE) test-placement-facing-presence
 
 test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.facing presence
-	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod tidy
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
 	cd tests/placement-facing/go && go test -mod=readonly ./...
 	rm -rf tests/placement-facing/ts/out
 	npx tsc --project tests/placement-facing/ts/tsconfig.json
@@ -71,7 +71,7 @@ breaking: ## Check for breaking changes against main branch
 	buf breaking --disable-symlinks --against 'https://github.com/KirkDiggler/rpg-api-protos.git#branch=main'
 
 compile-go: ## Test Go compilation
-	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod tidy && go build ./...
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy && go build ./...
 
 compile-ts: ## Test TypeScript compilation
 	npx tsc --noEmit --project tsconfig.json

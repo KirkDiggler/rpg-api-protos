@@ -277,6 +277,23 @@ TakeAction wave. A full v1alpha2 component doc is owed once the package
 stops moving (tracked drift — the rest of v1alpha2 is not yet documented
 here).
 
+## Placement facing presence (Dungeon Builder slice rpg-project #178)
+
+`Placement.facing` (`types.proto`, field 2) is an **optional** runtime-rendering
+override. Its field number and `uint32` wire type remain unchanged. Absence means
+there is no authored override, so a renderer retains the prop model's default
+orientation. A present value is one of `E=0`, `NE=1`, `NW=2`, `W=3`, `SW=4`, or
+`SE=5`. In particular, absent and explicit `E=0` both have a numeric read of zero
+in non-presence-aware code, but only explicit `E=0` has field presence; consumers
+must never use zero as an absence sentinel.
+
+This is deliberately on the existing viewer-scoped runtime `Placement`, not on an
+entity and not in `dnd5e.api.authoring.v1alpha1.FloorPlan`. The authoring
+`FloorPlan` remains compiled geometry/legality only: this slice adds no placement
+field, delta, or facing echo to that package. The #178 toolkit/API follow-up must
+persist and project the optional value verbatim; neither layer may default, map, or
+reinterpret it.
+
 ## TakeAction event contract (Chapter 2, wave umbrella rpg-project #54)
 
 A character's action streams as a **correlated family** of events tied

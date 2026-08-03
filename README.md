@@ -70,7 +70,7 @@ rpg-api-protos/
 ### Prerequisites
 
 - [Buf CLI](https://docs.buf.build/installation)
-- Go 1.21+
+- Go 1.25+ (matches generated Go SDK dependencies and CI)
 - Node.js 18+
 
 ### Setup

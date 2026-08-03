@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format refgen generate clean test push
+.PHONY: help install-tools lint format refgen generate clean test test-placement-facing-presence push
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -13,26 +13,37 @@ install-tools: ## Install required development tools
 	@npm install
 
 lint: ## Lint protobuf files
-	buf lint
+	buf lint --disable-symlinks
 
 format: ## Format protobuf files
-	buf format -w
+	buf format -w --disable-symlinks
 
 refgen: ## Regenerate typed content enums (weapons, armor, ...) from the toolkit registry
 	cd tools/refgen && go run .
-	buf format -w
+	buf format -w --disable-symlinks
 
 generate: ## Generate Go and TypeScript code
-	buf generate
+	buf generate --disable-symlinks
 
 clean: ## Clean generated files
 	rm -rf gen/
 
-test: ## Run tests (lint + format check + generate + mocks)
-	buf lint
-	buf format --diff --exit-code
-	buf generate
+test: ## Run tests (lint + format check + generate + mocks + placement presence)
+	buf lint --disable-symlinks
+	buf format --diff --exit-code --disable-symlinks
+	buf generate --disable-symlinks
 	$(MAKE) mocks
+	$(MAKE) test-placement-facing-presence
+
+test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.facing presence
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod tidy
+	cd tests/placement-facing/go && go test -mod=readonly ./...
+	rm -rf tests/placement-facing/ts/out
+	npx tsc --project tests/placement-facing/ts/tsconfig.json
+	mkdir -p tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata
+	cp dnd5e/api/v1alpha2/encounter/testdata/placement-facing-*.json tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata/
+	printf '{"type":"module"}\n' > tests/placement-facing/ts/out/package.json
+	node tests/placement-facing/ts/out/tests/placement-facing/ts/placement_facing.mjs
 
 mocks: ## Generate mocks for gRPC services
 	# D&D 5e services
@@ -57,10 +68,10 @@ mocks: ## Generate mocks for gRPC services
 	mockgen -source=gen/go/sandbox/api/v1alpha1/sandbox_room_grpc.pb.go -destination=gen/go/sandbox/api/v1alpha1/mocks/sandbox_room_service.go -package=mocks
 
 breaking: ## Check for breaking changes against main branch
-	buf breaking --against '.git#branch=main'
+	buf breaking --disable-symlinks --against 'https://github.com/KirkDiggler/rpg-api-protos.git#branch=main'
 
 compile-go: ## Test Go compilation
-	cd gen/go && go mod init github.com/KirkDiggler/rpg-api-protos/gen/go && go mod tidy && go build ./...
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod tidy && go build ./...
 
 compile-ts: ## Test TypeScript compilation
 	npx tsc --noEmit --project tsconfig.json

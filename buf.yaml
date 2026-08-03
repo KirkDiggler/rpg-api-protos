@@ -3,6 +3,7 @@ modules:
   - path: .
     excludes:
       - .claude
+      - .worktrees
 breaking:
   use:
     - FILE

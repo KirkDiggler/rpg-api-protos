@@ -50,7 +50,7 @@ jobs:
       
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
       
       - uses: actions/setup-node@v4
         with:
@@ -82,6 +82,9 @@ jobs:
       - name: Install TypeScript dependencies
         run: npm ci
       
+      - name: Verify Placement facing presence
+        run: make test-placement-facing-presence
+
       - name: Test TypeScript compilation
         run: |
           npx tsc --noEmit --project tsconfig.json
@@ -104,7 +107,7 @@ jobs:
       
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
       
       - uses: actions/setup-node@v4
         with:

@@ -174,9 +174,15 @@ enum TargetKind {
 // one viewer's observation: a viewer who saw a skeleton facing north and then lost sight
 // must keep facing north after the skeleton turns and a different viewer sees it face
 // south. On Entity, one viewer's sighting would rewrite every other viewer's memory.
+//
+// facing is an optional authored override for this runtime placement. When absent, no
+// authored override exists and the renderer keeps the prop's default orientation. When
+// present, its hex-direction index is E=0, NE=1, NW=2, W=3, SW=4, or SE=5. Presence
+// distinguishes absent from explicit E=0; consumers MUST NOT treat zero as absent.
+// This runtime field is not an authoring FloorPlan placement field or facing echo.
 message Placement {
   string entity_id = 1;
-  uint32 facing = 2; // hex-direction index 0-5
+  optional uint32 facing = 2;
 }
 
 // HexRecord is one hex's complete authorized truth for one viewer, as observed at one

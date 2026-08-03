@@ -126,6 +126,7 @@ message EquipmentCategoryChoice {
   repeated ArmorCategory armor_categories = 3; // Armor categories to choose from
   repeated ToolCategory tool_categories = 4; // Tool categories to choose from
   string label = 5; // Description (e.g., "Choose two martial weapons")
+  repeated EquipmentItem options = 6; // Concrete, enriched, eligible options (optional for backward compatibility)
 }
 
 // Languages that can be chosen

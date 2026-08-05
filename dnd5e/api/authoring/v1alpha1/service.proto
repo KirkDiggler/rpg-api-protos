@@ -55,7 +55,8 @@ message FloorPlanConnector {
   int32 column = 5;
 }
 
-// FloorPlanCell is an absolute [column, row] on the compiled grid.
+// FloorPlanCell is an absolute pointy-top odd-q offset [column, row] on the
+// compiled grid.
 message FloorPlanCell {
   int32 column = 1;
   int32 row = 2;
@@ -130,6 +131,15 @@ message FloorPlan {
   // is the only edge list an authoring client renders or hit-tests; no flat
   // runtime Space.walls field exists or may be reintroduced.
   repeated FloorPlanEdge edges = 6;
+  // The compiled canvas width. In canvas mode, rooms is empty and width plus
+  // height bound the canvas; dimensions alone do not describe its floor.
+  int32 width = 7;
+  // Complete canonical structural floor for this plan. Each cell is an
+  // absolute pointy-top odd-q [column, row] coordinate and producers emit
+  // cells in ascending lexicographic (column, row) order. This is required
+  // even in canvas mode: clients MUST render this list, not infer floor from
+  // width and height.
+  repeated FloorPlanCell floor_cells = 8;
 }
 
 // PutDungeonResponse is only ever delivered on a gRPC OK status -- see

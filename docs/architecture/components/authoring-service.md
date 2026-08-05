@@ -1,7 +1,7 @@
 ---
 name: AuthoringService
 description: Dev-gated dungeon authoring surface — PutDungeon compiles and (unless validate_only) persists a dungeonspec YAML, returning a server-computed floor plan
-updated: 2026-07-30
+updated: 2026-08-05
 confidence: high — verified by reading dnd5e/api/authoring/v1alpha1/service.proto end-to-end; no consumer yet (rpg-api S1 is the immediate next leg of the same arc)
 ---
 
@@ -67,6 +67,13 @@ reconstruct with arithmetic:
   (dungeonspec's `height/2` invariant), carried explicitly so a future
   non-uniform toolkit change doesn't silently break a board that hardcoded
   the formula.
+- `FloorPlan.width` and existing `height` — canvas dimensions. In the
+  RATIFIED Dungeon YAML Spec v0.3 Wave 0 canvas projection, `rooms` is empty;
+  width/height are bounds, not a substitute for floor geometry.
+- `FloorPlan.floor_cells` — the complete canonical structural floor, using
+  `FloorPlanCell`'s absolute pointy-top odd-q `[column, row]` coordinates.
+  Producers emit ascending lexicographic `(column, row)` order. The board
+  renders this explicit list and MUST NOT infer a floor from dimensions.
 - `FloorPlan.entrance` (`FloorPlanCell{column, row}`) — the
   generator-chosen party spawn anchor (`SpaceData.Entrance`). Added in the
   Opus gate's S0 revision: it's the one value in this contract a client

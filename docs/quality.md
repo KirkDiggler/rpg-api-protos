@@ -190,8 +190,10 @@ Reuses `dnd5e.api.v1alpha1.ValidationError` for `field_errors` rather
 than inventing a new error type — a deliberate, documented deviation
 from the repo's default `bool success + string error` pattern (see
 [authoring-service.md](components/authoring-service.md)). `FloorPlan`'s
-explicit `start_column`/`column`/`door_row`/`entrance` fields are a clean
-application of "server computes, client never re-derives" — `entrance`
+explicit `start_column`/`column`/`door_row`/`width`/`floor_cells`/`entrance`
+fields are a clean application of "server computes, client never re-derives" —
+`floor_cells` is the complete canonical structural floor, so canvas dimensions
+alone never ask a client to infer geometry; `entrance`
 was added in an Opus-gate revision (design.md names it as one of four
 required response elements; the initial cut had three). The gate's other
 finding on that same pass — design.md's `InvalidArgument` line being

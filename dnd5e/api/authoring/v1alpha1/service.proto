@@ -62,6 +62,22 @@ message FloorPlanCell {
   int32 row = 2;
 }
 
+// FloorPlanRegion is one declared YAML region projected for authoring. id is
+// semantically required: it MUST be non-empty and unique among declared regions.
+// Proto3 scalar parsing does not enforce those producer requirements.
+message FloorPlanRegion {
+  // The non-empty unique declared YAML regions[].id.
+  string id = 1;
+  // This declared region's complete absolute pointy-top odd-q extent. Producers
+  // emit cells in ascending lexicographic (column, row) order. It is neither a
+  // rectangle nor a runtime/global membership index.
+  repeated FloorPlanCell cells = 2;
+  // Toolkit-derived direct declared parent ID. Present only when a direct
+  // declared parent exists; absent means root. An explicitly present empty value
+  // is invalid producer output.
+  optional string parent_id = 3;
+}
+
 // FloorPlanEdgeKind describes the authoring meaning of a generated canonical
 // dungeon edge. It is deliberately local to FloorPlan: it is NOT runtime
 // dnd5e.api.v1alpha2.encounter.WallKind, whose values include live encounter
@@ -140,6 +156,10 @@ message FloorPlan {
   // even in canvas mode: clients MUST render this list, not infer floor from
   // width and height.
   repeated FloorPlanCell floor_cells = 8;
+  // Declared regions only, in YAML declaration order. The implicit unpainted
+  // root is omitted. Parent references impose no ordering, so a child may
+  // precede its parent. See FloorPlanRegion.cells for its stable cell order.
+  repeated FloorPlanRegion regions = 9;
 }
 
 // PutDungeonResponse is only ever delivered on a gRPC OK status -- see

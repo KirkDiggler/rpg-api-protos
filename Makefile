@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format refgen generate clean test test-placement-facing-presence push
+.PHONY: help install-tools lint format refgen generate clean test test-placement-facing-presence test-region-projection-presence push
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -28,12 +28,25 @@ generate: ## Generate Go and TypeScript code
 clean: ## Clean generated files
 	rm -rf gen/
 
-test: ## Run tests (lint + format check + generate + mocks + placement presence)
+test: ## Run tests (lint + format check + generate + mocks + generated-SDK presence checks)
 	buf lint --disable-symlinks
 	buf format --diff --exit-code --disable-symlinks
 	buf generate --disable-symlinks
 	$(MAKE) mocks
 	$(MAKE) test-placement-facing-presence
+	$(MAKE) test-region-projection-presence
+
+test-region-projection-presence: ## Verify generated Go/TS preserve region parent presence
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
+	cd tests/regions/go && go test -mod=readonly ./...
+	rm -rf tests/regions/ts/out
+	npx tsc --project tests/regions/ts/tsconfig.json
+	mkdir -p tests/regions/ts/out/dnd5e/api/v1alpha2/encounter/testdata
+	cp dnd5e/api/v1alpha2/encounter/testdata/zone-parent.json tests/regions/ts/out/dnd5e/api/v1alpha2/encounter/testdata/
+	printf '{"type":"module"}\n' > tests/regions/ts/out/package.json
+	# buf's extensionless relative imports are valid to bundlers; make Node's emitted-test loader explicit.
+	find tests/regions/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
+	node tests/regions/ts/out/tests/regions/ts/region_projection.mjs
 
 test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.facing presence
 	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy

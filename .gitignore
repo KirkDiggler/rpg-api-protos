@@ -27,3 +27,6 @@ Thumbs.db
 
 # Worktrees (isolated agent workspaces)
 .worktrees/
+
+# Compiled generated-SDK contract-test output
+tests/*/ts/out/

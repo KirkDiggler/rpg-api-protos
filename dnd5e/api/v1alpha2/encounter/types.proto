@@ -211,7 +211,9 @@ message HexRecord {
   Position position = 1;
   HexState state = 2;
   TerrainType terrain = 3;
-  string zone_id = 4; // optional zone membership ("" if none)
+  // Innermost declared region ID for this authorized cell. "" means the
+  // cell belongs only to the implicit root.
+  string zone_id = 4;
   // Walls and doors on this hex's edges. Self-contained on purpose: the client never
   // re-associates a global wall list with hexes, so remembered geometry can be drawn
   // from the record alone.
@@ -231,10 +233,11 @@ message Wall {
   // solid/window walls, which have nothing to interact with.
 }
 
-// Zone is optional metadata attached to a region of hexes.
-// Used for ambient cues (lighting, music), narration moments ("you entered the throne
-// room"), and scripted triggers. Zones do NOT structure the map for movement or rendering
-// — that's all flat-hex.
+// Zone is viewer-authorized metadata for a declared region. For disclosed hexes,
+// Space.zones may expose the disclosed innermost Zone (whose ID equals
+// HexRecord.zone_id) and its required ancestor chain only. It never exposes cells,
+// extents, or a global cell-to-zone membership map. Zones do NOT structure the map for
+// movement or rendering — that's all flat-hex.
 message Zone {
   string id = 1;
   string name = 2;
@@ -249,6 +252,9 @@ message Zone {
   // Space.theme: archetype is per-zone role drawn from the fixed vocabulary, theme is the
   // dungeon-wide opaque visual family with no fixed vocabulary at all.
   string archetype = 3;
+  // Direct declared parent ID. Present only when that parent exists; absent
+  // means root. Producers MUST NOT use an empty-string root sentinel.
+  optional string parent_id = 4;
   // Future ambient hooks (lighting profile ref, music cue ref, trigger refs) will be
   // added with new field numbers as needed.
 }
@@ -284,7 +290,9 @@ message Space {
   // comes from the records' contents, never from here. This is the vocabulary a
   // remembered placement resolves against, so an entry outlives the entity's visibility.
   repeated Entity entities = 3;
-  repeated Zone zones = 4; // optional metadata
+  // Viewer-authorized zone metadata only: disclosed innermost zones and their
+  // required ancestor chains. No hidden/unseen zones, extents, or global index.
+  repeated Zone zones = 4;
   // theme is the dungeon-wide visual dressing family (e.g. "crypt"), carried once at the
   // Space level — opaque to this contract, not an enum; the asset/dressing layer owns the
   // vocabulary. Distinct from Zone.archetype: theme is one visual family for the whole

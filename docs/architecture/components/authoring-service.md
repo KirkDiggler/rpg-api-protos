@@ -26,7 +26,7 @@ queued).
 
 ## File and shape
 
-- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 7
+- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 8
   messages, and 1 authoring-local edge enum.
 - Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
   error type invented.
@@ -74,6 +74,14 @@ reconstruct with arithmetic:
   `FloorPlanCell`'s absolute pointy-top odd-q `[column, row]` coordinates.
   Producers emit ascending lexicographic `(column, row)` order. The board
   renders this explicit list and MUST NOT infer a floor from dimensions.
+- `FloorPlan.regions` — declared regions only, preserving YAML declaration order
+  even when a child precedes its parent. Each `FloorPlanRegion` projects the
+  non-empty unique declared ID, its complete absolute odd-q extent (cells in
+  ascending `(column,row)` order), and a toolkit-derived optional direct
+  `parent_id`. Root-parented declared regions omit `parent_id`; producers must
+  not emit an explicit empty value. The implicit unpainted root is omitted.
+  This intentionally carries no authoring `name`, `archetype`, or
+  resolution/omission discriminator: those remain YAML/toolkit semantics.
 - `FloorPlan.entrance` (`FloorPlanCell{column, row}`) — the
   generator-chosen party spawn anchor (`SpaceData.Entrance`). Added in the
   Opus gate's S0 revision: it's the one value in this contract a client

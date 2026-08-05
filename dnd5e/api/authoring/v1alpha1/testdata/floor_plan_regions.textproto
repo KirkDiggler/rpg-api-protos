@@ -1,0 +1,22 @@
+# Declared regions preserve YAML order: a child can precede its parent.
+regions: {
+  id: "inner-sanctum"
+  # Complete extent, ascending (column,row).
+  cells: { column: 2 row: 1 }
+  cells: { column: 2 row: 2 }
+  parent_id: "outer-hall"
+}
+regions: {
+  id: "outer-hall"
+  cells: { column: 1 row: 1 }
+  cells: { column: 1 row: 2 }
+  cells: { column: 2 row: 1 }
+  cells: { column: 2 row: 2 }
+  # Absent parent_id: declared root.
+}
+regions: {
+  id: "root-sibling"
+  cells: { column: 5 row: 0 }
+  cells: { column: 5 row: 1 }
+  # Absent parent_id: declared root.
+}

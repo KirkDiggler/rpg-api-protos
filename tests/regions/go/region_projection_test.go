@@ -65,6 +65,50 @@ func TestAuthoringRegionParentPresenceSurvivesTextprotoJSONAndBinary(t *testing.
 	}
 }
 
+func TestAuthoringFloorSourceAndEntrancePresenceSurviveGeneratedRoundTrips(t *testing.T) {
+	regionFloor := readAuthoringFixture(t, "floor_plan_region_floor.textproto")
+	assertResolvedRegionFloor(t, regionFloor)
+
+	canonicalJSON, err := protojson.Marshal(regionFloor)
+	if err != nil {
+		t.Fatalf("marshal region floor JSON: %v", err)
+	}
+	var jsonRoundTrip authoring.FloorPlan
+	if err := protojson.Unmarshal(canonicalJSON, &jsonRoundTrip); err != nil {
+		t.Fatalf("unmarshal region floor JSON: %v", err)
+	}
+	assertResolvedRegionFloor(t, &jsonRoundTrip)
+
+	binary, err := proto.Marshal(regionFloor)
+	if err != nil {
+		t.Fatalf("marshal region floor binary: %v", err)
+	}
+	var binaryRoundTrip authoring.FloorPlan
+	if err := proto.Unmarshal(binary, &binaryRoundTrip); err != nil {
+		t.Fatalf("unmarshal region floor binary: %v", err)
+	}
+	assertResolvedRegionFloor(t, &binaryRoundTrip)
+
+	tinyDraft := readAuthoringFixture(t, "floor_plan_tiny_draft.textproto")
+	assertResolvedSource(t, tinyDraft, authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_REGIONS)
+	if tinyDraft.Entrance != nil || tinyDraft.ProtoReflect().Has(tinyDraft.ProtoReflect().Descriptor().Fields().ByName("entrance")) {
+		t.Fatalf("tiny validate-only draft entrance = %v, want absent", tinyDraft.Entrance)
+	}
+	if len(tinyDraft.FloorCells) != 2 {
+		t.Fatalf("tiny validate-only draft floor cells = %d, want 2", len(tinyDraft.FloorCells))
+	}
+	assertEntranceAbsentAfterRoundTrips(t, tinyDraft)
+
+	bounds := authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_BOUNDS
+	resolvedOmission := &authoring.FloorPlan{FloorSource: &bounds}
+	assertResolvedSource(t, resolvedOmission, authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_BOUNDS)
+
+	olderProducer := &authoring.FloorPlan{}
+	if olderProducer.FloorSource != nil || olderProducer.ProtoReflect().Has(olderProducer.ProtoReflect().Descriptor().Fields().ByName("floor_source")) {
+		t.Fatal("unset older-producer floor_source unexpectedly has presence")
+	}
+}
+
 func TestRuntimeZoneParentChainAndNoExtents(t *testing.T) {
 	input := &encounter.Space{}
 	if err := protojson.Unmarshal(readFixture(t, "dnd5e", "api", "v1alpha2", "encounter", "testdata", "zone-parent.json"), input); err != nil {
@@ -107,6 +151,69 @@ func TestRuntimeZoneParentChainAndNoExtents(t *testing.T) {
 	if binaryRoundTrip.Zones[0].ParentId == nil || *binaryRoundTrip.Zones[0].ParentId != "outer-hall" || binaryRoundTrip.Zones[1].ParentId != nil {
 		t.Fatal("zone parent presence did not survive round trips")
 	}
+}
+
+func readAuthoringFixture(t *testing.T, name string) *authoring.FloorPlan {
+	t.Helper()
+	plan := &authoring.FloorPlan{}
+	text := readFixture(t, "dnd5e", "api", "authoring", "v1alpha1", "testdata", name)
+	if err := prototext.Unmarshal(text, plan); err != nil {
+		t.Fatalf("unmarshal %s: %v", name, err)
+	}
+	return plan
+}
+
+func assertResolvedRegionFloor(t *testing.T, plan *authoring.FloorPlan) {
+	t.Helper()
+	assertResolvedSource(t, plan, authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_REGIONS)
+	if plan.Entrance == nil || !plan.ProtoReflect().Has(plan.ProtoReflect().Descriptor().Fields().ByName("entrance")) {
+		t.Fatalf("region floor entrance = %v, want present", plan.Entrance)
+	}
+	if plan.Entrance.Column != 0 || plan.Entrance.Row != 0 {
+		t.Fatalf("region floor entrance = (%d,%d), want (0,0)", plan.Entrance.Column, plan.Entrance.Row)
+	}
+	if len(plan.FloorCells) != 8 {
+		t.Fatalf("region floor cells = %d, want 8", len(plan.FloorCells))
+	}
+	if len(plan.Edges) != 2 || plan.Edges[0].From.Column != 1 || plan.Edges[0].From.Row != 1 || plan.Edges[1].To.Column != -1 {
+		t.Fatalf("representative void/off-canvas pairs changed: %#v", plan.Edges)
+	}
+}
+
+func assertResolvedSource(t *testing.T, plan *authoring.FloorPlan, want authoring.FloorPlanFloorSource) {
+	t.Helper()
+	field := plan.ProtoReflect().Descriptor().Fields().ByName("floor_source")
+	if plan.FloorSource == nil || !plan.ProtoReflect().Has(field) || *plan.FloorSource != want {
+		t.Fatalf("floor_source = %v (present=%v), want present %v", plan.FloorSource, plan.ProtoReflect().Has(field), want)
+	}
+}
+
+func assertEntranceAbsentAfterRoundTrips(t *testing.T, plan *authoring.FloorPlan) {
+	t.Helper()
+	json, err := protojson.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var jsonRoundTrip authoring.FloorPlan
+	if err := protojson.Unmarshal(json, &jsonRoundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if jsonRoundTrip.Entrance != nil {
+		t.Fatalf("JSON round trip invented entrance: %v", jsonRoundTrip.Entrance)
+	}
+	binary, err := proto.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var binaryRoundTrip authoring.FloorPlan
+	if err := proto.Unmarshal(binary, &binaryRoundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if binaryRoundTrip.Entrance != nil {
+		t.Fatalf("binary round trip invented entrance: %v", binaryRoundTrip.Entrance)
+	}
+	assertResolvedSource(t, &jsonRoundTrip, authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_REGIONS)
+	assertResolvedSource(t, &binaryRoundTrip, authoring.FloorPlanFloorSource_FLOOR_PLAN_FLOOR_SOURCE_REGIONS)
 }
 
 func assertRegion(t *testing.T, region *authoring.FloorPlanRegion, wantParent string) {

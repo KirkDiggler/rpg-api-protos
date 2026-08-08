@@ -36,7 +36,7 @@ test: ## Run tests (lint + format check + generate + mocks + generated-SDK prese
 	$(MAKE) test-placement-facing-presence
 	$(MAKE) test-region-projection-presence
 
-test-region-projection-presence: ## Verify generated Go/TS preserve region parent presence
+test-region-projection-presence: ## Verify generated Go/TS preserve region, floor-source, and entrance presence
 	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
 	cd tests/regions/go && go test -mod=readonly ./...
 	rm -rf tests/regions/ts/out

@@ -1,8 +1,8 @@
 ---
 name: AuthoringService
 description: Dev-gated dungeon authoring surface — PutDungeon compiles and (unless validate_only) persists a dungeonspec YAML, returning a server-computed floor plan
-updated: 2026-08-05
-confidence: high — verified by reading dnd5e/api/authoring/v1alpha1/service.proto end-to-end; no consumer yet (rpg-api S1 is the immediate next leg of the same arc)
+updated: 2026-08-08
+confidence: high — verified by schema plus generated Go/TypeScript presence round trips; provider population remains downstream rpg-api/toolkit Wave A work
 ---
 
 # AuthoringService
@@ -27,7 +27,7 @@ queued).
 ## File and shape
 
 - `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 8
-  messages, and 1 authoring-local edge enum.
+  messages, and 2 authoring-local enums.
 - Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
   error type invented.
 
@@ -70,6 +70,13 @@ reconstruct with arithmetic:
 - `FloorPlan.width` and existing `height` — canvas dimensions. In the
   RATIFIED Dungeon YAML Spec v0.3 Wave 0 canvas projection, `rooms` is empty;
   width/height are bounds, not a substitute for floor geometry.
+- `FloorPlan.floor_source` — optional-presence
+  `FloorPlanFloorSource{UNSPECIFIED, BOUNDS, REGIONS}`. A successful current
+  provider always emits present `BOUNDS` or `REGIONS`; omitted YAML
+  `canvas.floor_source` resolves to present `BOUNDS`. Absent/`UNSPECIFIED`
+  identifies an older or incomplete producer, so generated clients hard-stop
+  rather than infer topology from mask shape. This discriminator is authoring-
+  only and adds no runtime topology wire.
 - `FloorPlan.floor_cells` — the complete canonical structural floor, using
   `FloorPlanCell`'s absolute pointy-top odd-q `[column, row]` coordinates.
   Producers emit ascending lexicographic `(column, row)` order. The board
@@ -80,16 +87,16 @@ reconstruct with arithmetic:
   ascending `(column,row)` order), and a toolkit-derived optional direct
   `parent_id`. Root-parented declared regions omit `parent_id`; producers must
   not emit an explicit empty value. The implicit unpainted root is omitted.
-  This intentionally carries no authoring `name`, `archetype`, or
-  resolution/omission discriminator: those remain YAML/toolkit semantics.
-- `FloorPlan.entrance` (`FloorPlanCell{column, row}`) — the
-  generator-chosen party spawn anchor (`SpaceData.Entrance`). Added in the
-  Opus gate's S0 revision: it's the one value in this contract a client
-  genuinely cannot compute (not a function of anything else on the wire),
-  and `dungeonspec.Validate` doesn't check placements against it — the
-  board is the only thing that can warn an author who blocks the party's
-  own spawn cell. Distinct from `FloorPlanRoom.archetype == "entrance"`,
-  which identifies the entrance *room*, not this cell.
+  This intentionally carries no authoring `name`, `archetype`, or region-
+  archetype resolution/omission discriminator: those remain YAML/toolkit
+  semantics.
+- `FloorPlan.entrance` (`FloorPlanCell{column, row}`) — existing message
+  presence is normative. A successful validate-only structural draft may omit
+  it when no PartyCap anchor qualifies; a present `(0,0)` is a real entrance,
+  never an absence sentinel. Strict runnable validity and anchor derivation are
+  provider behavior, not new proto fields. It remains distinct from
+  `FloorPlanRoom.archetype == "entrance"`, which identifies the entrance
+  *room*, not this cell.
 - `FloorPlan.edges` — the generated canonical solid-wall and door edges.
   `FloorPlanEdge{from, to, kind, door_id}` is authoring-local. A physical
   edge is the **undirected** adjacent-cell pair `{from, to}`; the producer
@@ -111,8 +118,11 @@ reconstruct with arithmetic:
   `WALL_KIND_DOOR_OPEN`). This projects the generator's truth to runtime
   `HexRecord.edges`; it deliberately does **not** reuse runtime
   `dnd5e.api.v1alpha2.encounter.Wall` or `WallKind`, because those describe
-  live encounter state. The board renders and hit-tests this list directly;
-  it neither derives competing edges nor restores the retired flat
+  live encounter state. Region-union envelopes retain this same flat pair
+  wire, including an in-canvas void or actual off-canvas coordinate as the
+  non-floor endpoint; ownership comes only from `floor_cells` membership, not
+  pair orientation. The board renders and hit-tests this list directly; it
+  neither derives competing edges nor restores the retired flat
   `Space.walls` field.
 
 ## Error transport — decided, not left to drift between S1 and S4c

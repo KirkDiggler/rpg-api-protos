@@ -1,0 +1,39 @@
+# Generated-SDK serialization fixture for a resolved region-union authoring plan.
+# It exercises representative flat pairs; provider topology completeness belongs
+# to toolkit/API tests, not this wire fixture.
+width: 3
+height: 3
+floor_source: FLOOR_PLAN_FLOOR_SOURCE_REGIONS
+floor_cells: { column: 0 row: 0 }
+floor_cells: { column: 0 row: 1 }
+floor_cells: { column: 0 row: 2 }
+floor_cells: { column: 1 row: 0 }
+floor_cells: { column: 1 row: 2 }
+floor_cells: { column: 2 row: 0 }
+floor_cells: { column: 2 row: 1 }
+floor_cells: { column: 2 row: 2 }
+# Present at the scalar-zero coordinate; message presence is authoritative.
+entrance: { column: 0 row: 0 }
+edges: {
+  # In-canvas center void first: endpoint order does not imply ownership.
+  from: { column: 1 row: 1 }
+  to: { column: 1 row: 0 }
+  kind: FLOOR_PLAN_EDGE_KIND_SOLID
+}
+edges: {
+  # Actual off-canvas endpoint is retained in the flat pair.
+  from: { column: 0 row: 0 }
+  to: { column: -1 row: 0 }
+  kind: FLOOR_PLAN_EDGE_KIND_SOLID
+}
+regions: {
+  id: "ring"
+  cells: { column: 0 row: 0 }
+  cells: { column: 0 row: 1 }
+  cells: { column: 0 row: 2 }
+  cells: { column: 1 row: 0 }
+  cells: { column: 1 row: 2 }
+  cells: { column: 2 row: 0 }
+  cells: { column: 2 row: 1 }
+  cells: { column: 2 row: 2 }
+}

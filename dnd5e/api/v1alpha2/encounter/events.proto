@@ -266,6 +266,14 @@ message ActionResolved {
   Ref action_ref = 2;
   string target_entity_id = 3; // "" for self/untargeted actions (Dodge, Dash)
   EconomyConsumed economy_consumed = 4; // the real deduction the toolkit made
+  // Reference explaining why this target was chosen. Vocabulary today:
+  // "dnd5e:targeting:lowest-hp" | "dnd5e:targeting:lowest-ac" |
+  // "dnd5e:targeting:closest". Empty = no rationale recorded (player
+  // actions, and non-attack actions, emit empty). This is a reference the
+  // client maps to presentation — never prose.
+  // Refs are open strings for now; expected to firm into an explicit enum
+  // vocabulary the toolkit and game share in a later version.
+  string target_rationale = 5;
 }
 
 // EconomyConsumed is the action-economy delta one ActionResolved spent. Mirrors the

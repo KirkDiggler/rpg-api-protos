@@ -2,7 +2,7 @@
 name: AuthoringService
 description: Dev-gated dungeon authoring surface — PutDungeon compiles and (unless validate_only) persists a dungeonspec YAML, returning a server-computed floor plan
 updated: 2026-08-08
-confidence: high — verified by schema plus generated Go/TypeScript presence round trips; provider population remains downstream rpg-api/toolkit Wave A work
+confidence: high — verified by schema, buf compatibility checks, and generated Go/TypeScript compilation; provider population remains downstream rpg-api/toolkit Wave A work
 ---
 
 # AuthoringService

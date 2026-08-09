@@ -1,8 +1,8 @@
 ---
 name: AuthoringService
 description: Dev-gated dungeon authoring surface — PutDungeon compiles and (unless validate_only) persists a dungeonspec YAML, returning a server-computed floor plan
-updated: 2026-08-08
-confidence: high — verified by schema, buf compatibility checks, and generated Go/TypeScript compilation; provider population remains downstream rpg-api/toolkit Wave A work
+updated: 2026-08-09
+confidence: high — verified by schema, buf compatibility checks, and generated Go/TypeScript compilation; provider population remains downstream rpg-api/toolkit Wave B work
 ---
 
 # AuthoringService
@@ -26,10 +26,11 @@ queued).
 
 ## File and shape
 
-- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 8
+- `dnd5e/api/authoring/v1alpha1/service.proto` — 1 service, 1 RPC, 9
   messages, and 2 authoring-local enums.
-- Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` — no new
-  error type invented.
+- Imports `dnd5e/api/v1alpha1/common.proto` for `ValidationError` and the
+  narrowly shared `PlacementOffset` transport — no duplicate service-local
+  vector or new error type invented.
 
 ## RPC
 
@@ -97,6 +98,16 @@ reconstruct with arithmetic:
   provider behavior, not new proto fields. It remains distinct from
   `FloorPlanRoom.archetype == "entrance"`, which identifies the entrance
   *room*, not this cell.
+- `FloorPlan.placements` — the complete compiled placement projection for
+  room/canvas props, room/canvas monsters, and the room boss. Each
+  `FloorPlanPlacement` carries submitted `ref`, absolute `at`, optional facing,
+  blockers, canonical source path, and optional shared `PlacementOffset`.
+  Offset message presence distinguishes omission from explicit `[0,0,0]`;
+  its finite x/y/z components are canonical game-world-axis values relative to
+  the placement origin and are never rotated by facing. The provider validates
+  exact YAML triple shape/finiteness before this projection; proto supplies the
+  exact three named transport components rather than a repeated or generic
+  transform field.
 - `FloorPlan.edges` — the generated canonical solid-wall and door edges.
   `FloorPlanEdge{from, to, kind, door_id}` is authoring-local. A physical
   edge is the **undirected** adjacent-cell pair `{from, to}`; the producer

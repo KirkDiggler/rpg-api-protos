@@ -29,6 +29,22 @@ message AbilityScores {
   int32 charisma = 6;
 }
 
+// PlacementOffset is an optional cosmetic translation relative to a placement's
+// canonical game-world origin. Its x, y, and z components are canonical
+// game-world-axis values and MUST each be finite. Facing never rotates or
+// reinterprets this vector. Message presence distinguishes omission from an
+// explicitly authored [0,0,0]. Shape and finiteness are validated by the
+// dungeonspec provider before this transport is produced.
+//
+// This is deliberately a placement offset, not a generic transform: it carries
+// no facing, scale, matrix, quaternion, catalog identity, anchor, or gameplay
+// meaning.
+message PlacementOffset {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
 // Common error details for D&D 5e validation
 message ValidationError {
   // Field that failed validation

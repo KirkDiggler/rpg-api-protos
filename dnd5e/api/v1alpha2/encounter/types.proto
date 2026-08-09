@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.encounter;
 
+import "dnd5e/api/v1alpha1/common.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
@@ -180,9 +182,16 @@ enum TargetKind {
 // present, its hex-direction index is E=0, NE=1, NW=2, W=3, SW=4, or SE=5. Presence
 // distinguishes absent from explicit E=0; consumers MUST NOT treat zero as absent.
 // This runtime field is not an authoring FloorPlan placement field or facing echo.
+//
+// offset is the same optional cosmetic PlacementOffset carried by the authoring
+// FloorPlan placement. It is frozen with each authorized VISIBLE or REMEMBERED
+// observation: omission differs from explicit [0,0,0], all values are canonical
+// game-world axes/units relative to the current placement origin, and facing
+// never rotates or reinterprets them.
 message Placement {
   string entity_id = 1;
   optional uint32 facing = 2;
+  dnd5e.api.v1alpha1.PlacementOffset offset = 3;
 }
 
 // HexRecord is one hex's complete authorized truth for one viewer, as observed at one

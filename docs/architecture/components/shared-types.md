@@ -1,8 +1,8 @@
 ---
 name: Shared types (common, enums, choices, equipment_types)
 description: D&D 5e cross-service types — ability scores, validation, choices, conditions, enums, equipment data
-updated: 2026-05-02
-confidence: high — verified by reading every shared file end-to-end
+updated: 2026-08-09
+confidence: high — shared PlacementOffset verified by schema and generated Go/TypeScript compilation; remaining inventory last audited 2026-05-02
 ---
 
 # Shared types
@@ -14,7 +14,7 @@ they're roughly 2,400 lines of contract:
 | File | Lines | Contents |
 |---|---|---|
 | `dnd5e/api/v1alpha1/enums.proto` | 896 | All dnd5e enums |
-| `dnd5e/api/v1alpha1/common.proto` | 209 | AbilityScores, DiceRoll, Modifier, Resource, Condition, ValidationResult, SourceRef |
+| `dnd5e/api/v1alpha1/common.proto` | 210 | AbilityScores, PlacementOffset, validation types, Modifier, Resource, Condition, SourceRef |
 | `dnd5e/api/v1alpha1/choices.proto` | 262 | Choice, ChoiceSubmission, ChoiceData, options, selections |
 | `dnd5e/api/v1alpha1/equipment_types.proto` | 66 | Equipment, WeaponData, ArmorData, GearData, Cost, Weight |
 
@@ -55,6 +55,16 @@ since proto3).
 Six fields: strength, dexterity, constitution, intelligence, wisdom,
 charisma. Used everywhere — character creation, monster definitions,
 saving throws, etc. Stable; no churn expected.
+
+### `PlacementOffset` (line 42)
+
+The narrow cross-service cosmetic placement translation shared by authoring
+v1alpha1 and encounter v1alpha2: exactly three `double` fields `x`, `y`, and
+`z`. Message presence distinguishes omission from explicit zero. Values are
+finite canonical game-world-axis components relative to the current placement
+origin and facing never rotates them. Dungeonspec owns source-array cardinality
+and finiteness validation; this is intentionally not a generic transform and
+carries no catalog, anchor, scale, rotation, or gameplay meaning.
 
 ### `DiceRoll` (line 45)
 

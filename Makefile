@@ -56,6 +56,8 @@ test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.fac
 	mkdir -p tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata
 	cp dnd5e/api/v1alpha2/encounter/testdata/placement-facing-*.json tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata/
 	printf '{"type":"module"}\n' > tests/placement-facing/ts/out/package.json
+	# buf's extensionless relative imports are valid to bundlers; make Node's emitted-test loader explicit.
+	find tests/placement-facing/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
 	node tests/placement-facing/ts/out/tests/placement-facing/ts/placement_facing.mjs
 
 mocks: ## Generate mocks for gRPC services

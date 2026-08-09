@@ -65,6 +65,11 @@ git add .
 git commit -m "feat: add new message"
 ```
 
+### Do Not Re-test Generated Protobuf Mechanics
+Do not write bespoke tests that re-test `protoc`, Buf, or generated Go/TypeScript serialization, field presence, descriptors, or other mechanical generated-code behavior. Rely on the repository's normal proto lint, breaking-change, generation, and Go/TypeScript compile gates for those guarantees.
+
+Tests are justified only for project-specific generator/plugin logic or a non-mechanical project invariant. Keep any such test minimal and discriminating; do not add fixture matrices or round-trip harnesses that merely restate the schema.
+
 ### Use Existing Common Types
 When creating new protos, check `api/v1alpha1/room_common.proto` for reusable types:
 - `Position` - 2D/3D coordinates

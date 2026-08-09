@@ -2,7 +2,7 @@
 name: Shared types (common, enums, choices, equipment_types)
 description: D&D 5e cross-service types — ability scores, validation, choices, conditions, enums, equipment data
 updated: 2026-08-09
-confidence: high — shared PlacementOffset verified by schema and generated Go/TypeScript binary/JSON compatibility tests; remaining inventory last audited 2026-05-02
+confidence: high — shared PlacementOffset verified by schema and generated Go/TypeScript compilation; remaining inventory last audited 2026-05-02
 ---
 
 # Shared types

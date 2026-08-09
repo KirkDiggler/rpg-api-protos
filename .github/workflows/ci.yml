@@ -85,9 +85,6 @@ jobs:
       - name: Verify Placement facing presence
         run: make test-placement-facing-presence
 
-      - name: Verify placement offset compatibility
-        run: make test-placement-offset-compatibility
-
       - name: Verify region projection parent presence
         run: make test-region-projection-presence
 

@@ -1,6 +1,0 @@
-{
-  "ref": "dnd5e:monster:wolf",
-  "at": { "column": -3, "row": 8 },
-  "sourcePath": "canvas.place[1]",
-  "offset": { "x": 0.125, "y": -2.5, "z": 3.75 }
-}

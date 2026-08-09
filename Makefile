@@ -50,8 +50,9 @@ test-region-projection-presence: ## Verify generated Go/TS preserve region paren
 	node tests/regions/ts/out/tests/regions/ts/region_projection.mjs
 
 test-placement-offset-compatibility: ## Verify authoring/runtime offset shape, presence, and binary/JSON compatibility
+	test -z "$$(gofmt -l tests/placement-offset/go/*.go)"
 	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
-	cd tests/placement-offset/go && go test -mod=readonly ./...
+	cd tests/placement-offset/go && go test -count=1 -mod=readonly ./...
 	rm -rf tests/placement-offset/ts/out
 	npx tsc --project tests/placement-offset/ts/tsconfig.json
 	printf '{"type":"module"}\n' > tests/placement-offset/ts/out/package.json

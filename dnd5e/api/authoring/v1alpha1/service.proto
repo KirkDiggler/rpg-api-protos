@@ -78,6 +78,22 @@ message FloorPlanRegion {
   optional string parent_id = 3;
 }
 
+// FloorPlanFloorSource identifies the topology source the provider resolved for
+// this authoring plan. It describes authoring projection only and does not add a
+// runtime topology contract.
+enum FloorPlanFloorSource {
+  // Invalid on a successful current-provider response. This value plus
+  // FloorPlan.floor_source presence lets generated consumers detect an older or
+  // incomplete producer instead of guessing from floor_cells.
+  FLOOR_PLAN_FLOOR_SOURCE_UNSPECIFIED = 0;
+  // The complete floor mask was resolved from the canvas bounds. Providers MUST
+  // emit this value when canvas.floor_source was omitted as well as when bounds
+  // was authored explicitly.
+  FLOOR_PLAN_FLOOR_SOURCE_BOUNDS = 1;
+  // The complete floor mask was resolved from the union of declared region cells.
+  FLOOR_PLAN_FLOOR_SOURCE_REGIONS = 2;
+}
+
 // FloorPlanEdgeKind describes the authoring meaning of a generated canonical
 // dungeon edge. It is deliberately local to FloorPlan: it is NOT runtime
 // dnd5e.api.v1alpha2.encounter.WallKind, whose values include live encounter
@@ -132,20 +148,20 @@ message FloorPlan {
   repeated FloorPlanConnector connectors = 2;
   int32 height = 3;
   int32 door_row = 4;
-  // entrance is the generator-chosen party spawn anchor
-  // (SpaceData.Entrance) -- the one value here a client genuinely cannot
-  // compute; it is not a function of anything else on the wire.
-  // dungeonspec.Validate does not check placements against it, so the
-  // board is the only thing that can warn an author who blocks the
-  // party's spawn cell. The party seats along a line running outward
-  // from this cell (StartEncounter), so placements near it matter.
-  // Reading archetype == "entrance" on a FloorPlanRoom identifies the
-  // entrance ROOM, not this spawn cell -- both are meaningful and
-  // distinct.
+  // entrance is the provider-resolved party spawn anchor and carries message
+  // presence. It is present only when the compiled candidate has a qualifying
+  // PartyCap anchor. A successful validate-only structural draft can therefore
+  // omit it when no anchor qualifies. A present FloorPlanCell{column: 0, row: 0}
+  // is a real entrance and MUST NOT be treated as absent. Reading
+  // archetype == "entrance" on a FloorPlanRoom identifies the entrance ROOM,
+  // not this spawn cell -- both are meaningful and distinct.
   FloorPlanCell entrance = 5;
   // Generated canonical wall and door truth for this compiled layout. This
-  // is the only edge list an authoring client renders or hit-tests; no flat
-  // runtime Space.walls field exists or may be reintroduced.
+  // remains one flat list of undirected endpoint pairs. It includes envelope
+  // pairs whose non-floor endpoint is an in-canvas void or an off-canvas
+  // coordinate. Clients determine envelope ownership from floor_cells
+  // membership, never endpoint order, and do not invent a competing edge list.
+  // No flat runtime Space.walls field exists or may be reintroduced.
   repeated FloorPlanEdge edges = 6;
   // The compiled canvas width. In canvas mode, rooms is empty and width plus
   // height bound the canvas; dimensions alone do not describe its floor.
@@ -160,6 +176,12 @@ message FloorPlan {
   // root is omitted. Parent references impose no ordering, so a child may
   // precede its parent. See FloorPlanRegion.cells for its stable cell order.
   repeated FloorPlanRegion regions = 9;
+  // Presence-safe resolved authoring floor source. Every successful current-
+  // provider response MUST set this to BOUNDS or REGIONS. In particular, an
+  // omitted YAML canvas.floor_source resolves to present BOUNDS. Absent or
+  // UNSPECIFIED means the response came from an older or incomplete producer;
+  // consumers MUST NOT infer a value from floor_cells, width, or regions.
+  optional FloorPlanFloorSource floor_source = 10;
 }
 
 // PutDungeonResponse is only ever delivered on a gRPC OK status -- see

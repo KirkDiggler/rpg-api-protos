@@ -1,0 +1,6 @@
+{
+  "ref": "dnd5e:props:bookcase",
+  "at": { "column": 3, "row": 2 },
+  "sourcePath": "rooms[0].place[0]",
+  "offset": { "x": 0, "y": 0, "z": 0 }
+}

@@ -138,6 +138,25 @@ message FloorPlanEdge {
   optional string door_id = 4;
 }
 
+// FloorPlanPlacement is one compiled authored placement. It covers room and
+// canvas props, room and canvas monsters, and a room boss without introducing
+// separate shapes for those source locations. at is the absolute compiled cell;
+// source_path identifies the exact authored YAML location. ref, applicable
+// facing presence, and blocker values are copied from provider truth.
+//
+// offset has the canonical PlacementOffset semantics: omission differs from an
+// explicitly authored [0,0,0], values are preserved verbatim in canonical
+// game-world axes/units, and facing never rotates or reinterprets them.
+message FloorPlanPlacement {
+  string ref = 1;
+  FloorPlanCell at = 2;
+  optional uint32 facing = 3;
+  bool blocks_movement = 4;
+  bool blocks_los = 5;
+  string source_path = 6;
+  dnd5e.api.v1alpha1.PlacementOffset offset = 7;
+}
+
 // FloorPlan is the compiled layout an author's board renders. door_row
 // applies uniformly to every room (dungeonspec's height/2 reserved-row
 // invariant) -- carried explicitly, not hardcoded client-side, so a
@@ -182,6 +201,10 @@ message FloorPlan {
   // UNSPECIFIED means the response came from an older or incomplete producer;
   // consumers MUST NOT infer a value from floor_cells, width, or regions.
   optional FloorPlanFloorSource floor_source = 10;
+  // All compiled room/canvas prop and monster placements plus the room boss,
+  // in provider-defined deterministic order. Consumers render/project this
+  // provider truth and do not recover placements from rooms or source YAML.
+  repeated FloorPlanPlacement placements = 11;
 }
 
 // PutDungeonResponse is only ever delivered on a gRPC OK status -- see

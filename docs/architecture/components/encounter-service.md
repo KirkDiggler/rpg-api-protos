@@ -287,12 +287,28 @@ orientation. A present value is one of `E=0`, `NE=1`, `NW=2`, `W=3`, `SW=4`, or
 in non-presence-aware code, but only explicit `E=0` has field presence; consumers
 must never use zero as an absence sentinel.
 
-This is deliberately on the existing viewer-scoped runtime `Placement`, not on an
-entity and not in `dnd5e.api.authoring.v1alpha1.FloorPlan`. The authoring
-`FloorPlan` remains compiled geometry/legality only: this slice adds no placement
-field, delta, or facing echo to that package. The #178 toolkit/API follow-up must
-persist and project the optional value verbatim; neither layer may default, map, or
-reinterpret it.
+Facing remains on the viewer-scoped runtime `Placement`, not on `Entity`.
+Dungeon YAML v0.4 Wave B subsequently added the authoring projection described
+below without changing these facing semantics.
+
+## Placement offset presence (Dungeon YAML v0.4 Wave B)
+
+Shared `dnd5e.api.v1alpha1.PlacementOffset` is deliberately narrow: exactly
+`double x = 1`, `double y = 2`, and `double z = 3`. It is carried with message
+presence by authoring `FloorPlanPlacement.offset` (field 7) and authorized
+runtime `Placement.offset` (field 3). Omission is distinct from an explicitly
+present all-zero message in generated Go (`*PlacementOffset`) and TypeScript
+(`offset?: PlacementOffset`). Values use canonical game-world axes/units
+relative to the current placement origin and facing never rotates or
+reinterprets them.
+
+Runtime placement lives inside `HexRecord.contents`, so the same optional
+presence/value travels in reconnect snapshots and `HexKnowledgeChanged.hexes` live
+updates, including frozen REMEMBERED observations. The proto does not encode
+YAML array cardinality or game rules: dungeonspec owns exact-three and finite
+source validation, while this named three-field message prevents variable
+wire cardinality. No catalog, anchor, wall/support, scale/yaw, matrix/quaternion,
+generic transform, or gameplay field is introduced.
 
 ## TakeAction event contract (Chapter 2, wave umbrella rpg-project #54)
 

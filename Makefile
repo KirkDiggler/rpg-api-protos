@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format refgen generate clean test test-placement-facing-presence test-region-projection-presence push
+.PHONY: help install-tools lint format refgen generate clean test test-placement-facing-presence test-placement-offset-compatibility test-region-projection-presence push
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -34,6 +34,7 @@ test: ## Run tests (lint + format check + generate + mocks + generated-SDK prese
 	buf generate --disable-symlinks
 	$(MAKE) mocks
 	$(MAKE) test-placement-facing-presence
+	$(MAKE) test-placement-offset-compatibility
 	$(MAKE) test-region-projection-presence
 
 test-region-projection-presence: ## Verify generated Go/TS preserve region parent presence
@@ -48,6 +49,16 @@ test-region-projection-presence: ## Verify generated Go/TS preserve region paren
 	find tests/regions/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
 	node tests/regions/ts/out/tests/regions/ts/region_projection.mjs
 
+test-placement-offset-compatibility: ## Verify authoring/runtime offset shape, presence, and binary/JSON compatibility
+	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
+	cd tests/placement-offset/go && go test -mod=readonly ./...
+	rm -rf tests/placement-offset/ts/out
+	npx tsc --project tests/placement-offset/ts/tsconfig.json
+	printf '{"type":"module"}\n' > tests/placement-offset/ts/out/package.json
+	# buf's extensionless relative imports are valid to bundlers; make Node's emitted-test loader explicit.
+	find tests/placement-offset/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
+	node tests/placement-offset/ts/out/tests/placement-offset/ts/placement_offset.mjs
+
 test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.facing presence
 	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
 	cd tests/placement-facing/go && go test -mod=readonly ./...
@@ -56,6 +67,8 @@ test-placement-facing-presence: ## Verify generated Go/TS preserve Placement.fac
 	mkdir -p tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata
 	cp dnd5e/api/v1alpha2/encounter/testdata/placement-facing-*.json tests/placement-facing/ts/out/dnd5e/api/v1alpha2/encounter/testdata/
 	printf '{"type":"module"}\n' > tests/placement-facing/ts/out/package.json
+	# buf's extensionless relative imports are valid to bundlers; make Node's emitted-test loader explicit.
+	find tests/placement-facing/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
 	node tests/placement-facing/ts/out/tests/placement-facing/ts/placement_facing.mjs
 
 mocks: ## Generate mocks for gRPC services

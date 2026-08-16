@@ -50,8 +50,8 @@ rpg-api-protos/
     events.proto                 # LobbyEvent stream — snapshot + membership/presence deltas
   dnd5e/api/authoring/v1alpha1/  # own subpackage; dev-gated dungeon authoring (Dungeon Builder arc, rpg-project#169)
     service.proto                # AuthoringService — PutDungeon; not yet consumed (rpg-api S1 pending)
-  dnd5e/api/session/v1alpha1/    # service-first layout; field-for-field transcription of rpg-toolkit rulebooks/dnd5e/session @ v0.12.0 — one map, no room IDs on the seam (rpg-project#227)
-    service.proto                # SessionService — 13 RPCs mirroring the SDK verbs (no Traverse: a walk crosses a doorway); not yet consumed (rpg-api W2 in flight)
+  dnd5e/api/session/v1alpha1/    # service-first layout; field-for-field transcription of rpg-toolkit rulebooks/dnd5e/session @ v0.13.0 — one map, no room IDs on the seam (rpg-project#227)
+    service.proto                # SessionService — 14 RPCs mirroring the SDK verbs (no Traverse: a walk crosses a doorway; GetWhere answers "where am I"); not yet consumed (rpg-api W2 in flight)
     types.proto                  # Position (double x/y, mirrors spatial.Position), Member, CharacterState, Sighting, AtlasDoorway/Boundary, SaveReport, ...
     events.proto                 # Event stream — flat per-recipient envelope + EventKind; no snapshot, GetStory is the resync path
   sandbox/api/v1alpha1/

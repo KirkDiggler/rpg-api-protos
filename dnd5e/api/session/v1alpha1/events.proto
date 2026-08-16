@@ -12,9 +12,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // a string enum rather than free-form prose precisely because "it maps directly
 // onto a proto enum", and it is the field clients branch on.
 //
-// Read from session/v0.12.0. The vocabulary is UNCHANGED across v0.9.0 ->
-// v0.12.0 — all 13 kinds survive the one-map reshape, TRAVERSED included (see
-// below).
+// Read from session/v0.13.0. The vocabulary is UNCHANGED across v0.9.0 ->
+// v0.13.0 — all 13 kinds survive both the one-map reshape (TRAVERSED included,
+// see below) and the arrival of the Where read, which adds no beat.
 //
 // The vocabulary is OPEN TO GROWTH, which is a property of proto3 enums rather
 // than something this file has to build: an unrecognised number is PRESERVED on

@@ -2,7 +2,7 @@
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
 updated: 2026-08-16
-confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.12.0 read from the tag
+confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.13.0 read from the tag
 ---
 
 # SessionService
@@ -14,8 +14,9 @@ Package `dnd5e.api.session.v1alpha1`.
 
 Design doc: `rpg-project/ideas/session-api/design.md`. Umbrella:
 `KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) against
-session/v0.9.0, then re-transcribed by #226 (issue #225) against
-**session/v0.12.0**, which is the version this doc describes.
+session/v0.9.0, re-transcribed by #226 (issue #225) against
+**session/v0.12.0**, and extended by #228 (issue #227) with `GetWhere` at
+**session/v0.13.0**, which is the version this doc describes.
 
 ## What makes this service different from every other one here
 
@@ -56,6 +57,7 @@ seam's **state**, delivered across three toolkit releases:
 | `session/v0.10.0` | the Atlas became one map — no per-room decomposition, one grid for the field, cells sorted by coordinate |
 | `session/v0.11.0` | joins, placements and outcomes went roomless — `Member` trades its room ID for an absolute `position` |
 | `session/v0.12.0` | a walk crosses a doorway; the `Traverse` verb retires |
+| `session/v0.13.0` | a client can ask where it stands — the `Where` read arrives (purely additive) |
 
 Consequences for this contract, all live:
 
@@ -68,7 +70,7 @@ Consequences for this contract, all live:
 
 ## RPCs
 
-Thirteen, mirroring the SDK verbs one-for-one.
+Fourteen, mirroring the SDK verbs one-for-one.
 
 | RPC | SDK verb | Request:Response | Notes |
 |---|---|---|---|
@@ -82,7 +84,8 @@ Thirteen, mirroring the SDK verbs one-for-one.
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
 | `GetStatus` | `Status` | `GetStatusRequest:GetStatusResponse` | Encounter-wide, never per-member |
 | `GetStory` | `Story` | `GetStoryRequest:GetStoryResponse` | The resync source of truth |
-| `GetView` | `View` | `GetViewRequest:GetViewResponse` | Sightings. Skips self — see the known gap below |
+| `GetView` | `View` | `GetViewRequest:GetViewResponse` | Sightings — what this member perceives of *others*. Skips self by design; `GetWhere` answers self |
+| `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | The caller's own cell, answerable cold. Deliberately singular — no roster read exists |
 | `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Static; cache per encounter, never per frame |
 | `StreamEvents` | `EventStream` | `StreamEventsRequest:stream Event` | Per-recipient projections |
 
@@ -107,6 +110,14 @@ The SDK gives that refusal its own sentinel (`ErrNoCrossing`, *"no doorway
 joins those cells"*), kept deliberately distinct from `ErrBrokenPath` (the two
 cells are not adjacent at all) and `ErrBadPosition` (there is no cell there).
 Three different author mistakes, three different places to look.
+
+> **Do not trust the SDK's `MoveInput` godoc here.** It still carries a
+> paragraph reading *"A WALK STILL DOES NOT CROSS A DOORWAY"* — stale since
+> v0.12.0, contradicted by its own code ~320 lines below, and **still present at
+> v0.13.0**. Filed as rpg-toolkit#1052; the fix is sitting on an unmerged
+> branch. This contract is transcribed from the code, which crosses. If you are
+> reading the SDK to check this page, read `move.go`'s validation, not its
+> comment.
 
 ## The Atlas
 
@@ -190,15 +201,37 @@ re-derive it from the geometry.
   automatically — never as a second RPC. The SDK seals its `DissolveCause`
   interface with an unexported method to make that structural.
 
+## Reconnect, and the gap that closed
+
+Design rule 11 asked that a cold client be able to learn its own position from
+reads alone. Through v0.12.0 it could not: `GetView` reports what a member
+perceives and *skips self*, `GetStatus` is encounter-wide, and while `Member`
+gained an absolute position at v0.11.0, no read returned a `Member`. A client
+knew its own cell only by remembering the last `Move` it made — which holds
+right up until the moment it matters: a reconnect, a fresh tab, a second
+device, a response it never received.
+
+**`session/v0.13.0` closed it, and `GetWhere` is that read on the wire.** A
+cold client's reconnect is now three reads with no replay dependency for
+position:
+
+1. `GetWhere` — where am I
+2. `GetAtlas` — what does the map look like (cache it; construction truth)
+3. `GetStory` — what did I miss, from my last known `seq`
+
+`GetStory` still matters, because story replay is how a client recovers *events*
+it missed. What changed is that position is no longer derived from it.
+
+**Why there is no roster read**, and this is the part worth not "improving"
+later: a read returning everybody's positions would hand a client the cells of
+members it has never perceived — around a corner, in a room it has not entered,
+behind a door it has not opened. That is precisely the fog-of-war leak design
+rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
+`GetView` reports only what the observer actually holds. The singular shape of
+`GetWhere` is the design, not a first cut.
+
 ## Known gaps, inherited and stated rather than papered over
 
-- **A cold client still cannot learn its own position from a read.** This
-  narrowed at v0.11.0 without closing: `Member` now carries an absolute
-  `position`, so a `Join` tells you where you are — but no *read* returns a
-  `Member`. `GetView` reports what a member perceives and skips self;
-  `GetStatus` is encounter-wide. So a client that reconnects still leans on
-  `GetStory` replay. The fix is SDK-first (design rule 11, rpg-toolkit#933) and
-  is explicitly not a gate on this package.
 - **`Attack` is character-attackers-only, and nothing spends.** Both are the
   SDK's stated scope — a monster's action can declare a save gate the seam has
   no vocabulary for, and the economy that would spend an action sits above this

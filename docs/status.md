@@ -16,6 +16,18 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Session contract: `GetWhere` at `session/v0.13.0` (rpg-api-protos#228,
+  issue #227, 2026-08-16)** — purely additive, `buf breaking` green, no label.
+  Adds `rpc GetWhere(GetWhereRequest) returns (GetWhereResponse)` mirroring the
+  SDK's `Where` verb: the caller's own cell in dungeon-absolute space.
+  **This closes design rule 11 on the wire** — a cold client can learn its own
+  position from a read, so reconnect is `GetWhere` + `GetAtlas` + `GetStory`
+  rather than story replay carrying position. Deliberately singular: there is
+  no roster-of-positions read, because one would leak the cells of members a
+  client has never perceived. The v0.12.0 -> v0.13.0 surface diff was verified
+  in full and is additive-only — two new types, zero field changes on existing
+  ones, sentinels unchanged at 35, all enums unchanged. 14 RPCs.
+
 - **Session contract re-transcribed against `session/v0.12.0`
   (rpg-api-protos#226, issue #225, W1 of the API session integration,
   2026-08-16)** — the
@@ -302,7 +314,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
-| `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, re-transcribed against session/v0.12.0 in #226, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
+| `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, re-transcribed against session/v0.12.0 in #226, `GetWhere` added at v0.13.0 in #228, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

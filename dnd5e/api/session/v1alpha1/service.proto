@@ -10,7 +10,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
-// package — one verb surface, transcribed (shapes read from session/v0.12.0).
+// package — one verb surface, transcribed (shapes read from session/v0.13.0).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -389,6 +389,40 @@ message GetViewResponse {
   repeated Sighting sightings = 1;
 }
 
+// GetWhereRequest asks where one member stands.
+//
+// Added with session/v0.13.0 (toolkit#1051), and it closes design rule 11 on
+// the wire: a cold client can now learn its own position from a read. Before
+// this, a client knew its own cell only by remembering the last Move it made —
+// which holds right up until the moment it matters: a reconnect, a fresh tab, a
+// second device, a response it never received.
+//
+// NOT_FOUND if the session, encounter or member is absent.
+message GetWhereRequest {
+  string session = 1;
+  // The member whose own placement is being asked for.
+  string member = 2;
+}
+
+// GetWhereResponse mirrors session.WhereOutput.
+//
+// ONE MEMBER'S OWN PLACEMENT, and the singular is the design rather than a
+// first cut. There is deliberately no read that returns everybody's positions:
+// a roster would hand a client the cells of members it has never perceived —
+// around a corner, in a room it has not entered, behind a door it has not
+// opened — which is the one thing perception exists to prevent, and exactly the
+// fog-of-war leak design rule 4 keeps rpg-api away from. Where somebody ELSE
+// is, is GetView's answer, and GetView reports only what the observer holds.
+//
+// A LIVE READ, not a stored one: the position comes from the composition's
+// roster, which projects each member's cell when asked. A member who has walked
+// is reported where they are now.
+message GetWhereResponse {
+  // The cell they stand on, dungeon-absolute — the same coordinates the Atlas
+  // draws and every verb takes.
+  Position position = 1;
+}
+
 // GetAtlasRequest asks for a session's static world map.
 message GetAtlasRequest {
   string session = 1;
@@ -497,6 +531,11 @@ service SessionService {
 
   // GetView reports what one member currently perceives.
   rpc GetView(GetViewRequest) returns (GetViewResponse);
+
+  // GetWhere reports the cell one member stands on — the caller's own
+  // position, answerable cold. Deliberately singular; a roster read would leak
+  // the cells of members the client has never perceived.
+  rpc GetWhere(GetWhereRequest) returns (GetWhereResponse);
 
   // GetAtlas returns the static world map. Construction truth; cache per
   // encounter.

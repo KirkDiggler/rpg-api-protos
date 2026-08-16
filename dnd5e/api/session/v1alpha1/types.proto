@@ -7,7 +7,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
-// `rulebooks/dnd5e/session` package (read from session/v0.12.0). Every message
+// `rulebooks/dnd5e/session` package (read from session/v0.13.0). Every message
 // here mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and
 // a field with no SDK counterpart is a design change that goes through
 // rpg-project/ideas/session-api/design.md first (rule 1).

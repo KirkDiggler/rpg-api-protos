@@ -212,7 +212,9 @@ Re-grade once the rpg-api PR lands.
 Landed 2026-08-16 (rpg-api-protos#222) against `session/v0.9.0`, re-transcribed
 the same day against `session/v0.12.0` (#226, issue #225) after Kirk ruled the
 contract should track the latest SDK rather than the version it was first
-written from. No consumer yet — same "consumer PR
+written from, then extended to `session/v0.13.0` with `GetWhere` (#228, issue
+#227) — three SDK versions tracked in one day, each within hours of the tag.
+No consumer yet — same "consumer PR
 pending, not speculative" exception as the two above: `rpg-api` (W2) and
 `rpg-dnd5e-web` (W3) are the queued next legs of `rpg-project#227`.
 
@@ -248,9 +250,19 @@ same pass took room IDs off the seam entirely, so the per-field coordinate frame
 (absolute in the Atlas, room-scoped in placements) that a client could plausibly
 have confused is gone too.
 
-That re-transcription is also the first evidence this contract tracks its source
-rather than drifting from it, which is the property the whole transcription
-argument rests on.
+**And the v0.13.0 pass removed a second.** Design rule 11 — a cold client can
+learn its own position from reads alone — was listed as an open gap through
+v0.12.0. `GetWhere` closes it on the wire: reconnect is now `GetWhere` +
+`GetAtlas` + `GetStory` rather than story replay carrying position. The shape is
+also right rather than merely present — singular by design, because a roster
+read would leak the cells of members a client has never perceived, which is the
+fog-of-war failure the whole visibility rule exists to prevent.
+
+Those two passes together are the strongest evidence this contract tracks its
+source rather than drifting from it, which is the property the entire
+transcription argument rests on. Three SDK versions in one day, each transcribed
+from the tag and machine-verified, with the surface diff computed rather than
+assumed.
 
 Still held below A by: no runtime validation this shape survives an orchestrator
 yet, and the minted third `Position`, which is correct here but is still a name

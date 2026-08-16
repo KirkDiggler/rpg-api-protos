@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos quality scorecard
 description: Per-service grade with rationale — a graded scorecard the janitor will update over time
-updated: 2026-05-04
+updated: 2026-08-16
 confidence: low-medium — first draft grades from a read-through of every .proto file plus grep against rpg-api / rpg-dnd5e-web; expect Kirk to adjust
 ---
 
@@ -205,6 +205,41 @@ malformed requests (no body exists), in-band `success=false` +
 runtime validation yet, and `field_errors` is honestly
 one-flat-entry-per-failure in v1 (documented, not hidden — the toolkit's
 `dungeonspec.Validate` doesn't return structured field paths today).
+Re-grade once the rpg-api PR lands.
+
+### dnd5e.session.SessionService — A- (provisional)
+
+Landed 2026-08-16 (rpg-api-protos#222), no consumer yet — same "consumer PR
+pending, not speculative" exception as the two above: `rpg-api` (W2) and
+`rpg-dnd5e-web` (W3) are the queued next legs of `rpg-project#227`.
+
+Graded a notch above its two neighbours for a reason that is structural rather
+than stylistic: **it is the only service in the repo whose shape is not a
+judgement call.** It transcribes the toolkit's `rulebooks/dnd5e/session`
+exported surface field-for-field, and that claim was verified by script — 39
+message↔struct pairs compared field-by-field in declaration order, zero
+mismatches — rather than asserted in a review. The usual failure mode for a new
+contract here (rpg-api quietly inventing vocabulary the toolkit does not have,
+which is what the Boundary Rule exists to prevent) is closed by construction,
+and the design doc makes it explicit: a field with no SDK counterpart is a
+design change, not a proto edit.
+
+Other strengths:
+- Service-first layout matching the `encounter`/`lobby` precedent.
+- `Event` is flat and non-polymorphic because the SDK shaped it that way *for*
+  this mapping — no oneof of 26 variants to legend, which is the single biggest
+  readability drag on `EncounterEvent`.
+- Real decisions are recorded where the next reader hits them, not in a PR
+  body: why `Position` is minted rather than reused, why `UNSPECIFIED` and
+  `UNKNOWN` are different values, why `Turn` takes a member and `GetStatus`
+  must never, why `Traverse` is transitional.
+- Known gaps are stated in the proto (self-position on reads, character-only
+  attackers, nothing spends) rather than discovered at runtime.
+
+Held below A by: no runtime validation this shape survives an orchestrator yet;
+`Traverse` is knowingly transitional, so part of the surface is scheduled to be
+removed; and the minted third `Position` is correct here but is still a name
+collision the repo carries until the v1alpha2 encounter package is deleted.
 Re-grade once the rpg-api PR lands.
 
 ## Defined-but-not-consumed services

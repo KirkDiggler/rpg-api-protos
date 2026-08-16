@@ -48,7 +48,9 @@ enum ClockKind {
 // the SDK adding one, exactly as the seal intends.
 enum DissolveKind {
   DISSOLVE_KIND_UNSPECIFIED = 0;
-  // A fight its members chose to walk away from (session.ByDecision).
+  // A fight its members chose to walk away from. Named after the SDK constant
+  // it mirrors, session.DissolveByDecision — whose own string value is
+  // "decision", and which session.ByDecision() is the cause constructor for.
   DISSOLVE_KIND_BY_DECISION = 1;
 }
 

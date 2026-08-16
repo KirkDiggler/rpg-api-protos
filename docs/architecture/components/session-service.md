@@ -96,10 +96,12 @@ A walk crosses a doorway because the far side of a doorway is simply the next
 cell along. That is what made `Traverse` unnecessary.
 
 But **adjacency is not permission**, and this is the part worth knowing before
-writing a client. Two rooms may *touch* without a door between them, so a pair
-of cells can be perfectly adjacent and still have nothing to walk through. That
-case is invisible to a client reading only `GetAtlasResponse.cells` — it is in
-`doorways` or it is nowhere. A route planner must consult both.
+writing a client. A pair of cells can be perfectly adjacent and still have
+nothing to walk through. The composition's internal chambers are what create
+those gaps, but a client never sees chambers and does not need to — the
+observable rule is entirely about cells: the joint is in
+`GetAtlasResponse.doorways` or it is nowhere. A route planner must consult that
+list as well as `cells`.
 
 The SDK gives that refusal its own sentinel (`ErrNoCrossing`, *"no doorway
 joins those cells"*), kept deliberately distinct from `ErrBrokenPath` (the two

@@ -17,7 +17,8 @@ shape and consumer drift, it shows up here as a "rough edge."
 ## Active work
 
 - **Session contract re-transcribed against `session/v0.12.0`
-  (rpg-api-protos#225, W1 of the API session integration, 2026-08-16)** — the
+  (rpg-api-protos#226, issue #225, W1 of the API session integration,
+  2026-08-16)** — the
   one-map contract. #222 landed `dnd5e/api/session/v1alpha1/` against
   `session/v0.9.0`; #226 re-transcribes it in place against `session/v0.12.0`
   after Kirk's ruling (*"we should be going off the latest session version.

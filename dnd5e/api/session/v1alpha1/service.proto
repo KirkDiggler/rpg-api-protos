@@ -130,17 +130,19 @@ message ExitResponse {
 // the same size as any other and needs no separate verb — which is why the
 // Traverse RPC is gone rather than deprecated.
 //
-// ADJACENCY IS NOT PERMISSION, though, and this is the trap worth knowing: two
-// rooms may TOUCH without a door between them, so a pair of cells can be
-// perfectly adjacent and still have nothing to walk through. That case is
-// invisible to a client reading only GetAtlasResponse.cells — it is in
-// `doorways` or it is nowhere. The SDK refuses it with its own sentinel
-// (ErrNoCrossing, "no doorway joins those cells"), kept distinct from a path
-// that is not a walk at all.
+// ADJACENCY IS NOT PERMISSION, though, and this is the trap worth knowing: a
+// pair of cells can be perfectly adjacent and still have nothing to walk
+// through. Two cells are walkable between only if a doorway joins them or they
+// sit in open floor; the composition's internal chambers are what create the
+// gap, but a client never sees those and does not need to — the observable
+// rule is about cells. That case is invisible to a client reading only
+// GetAtlasResponse.cells: the joint is in `doorways` or it is nowhere. The SDK
+// refuses it with its own sentinel (ErrNoCrossing, "no doorway joins those
+// cells"), kept distinct from a path that is not a walk at all.
 //
-// INVALID_ARGUMENT for an empty or broken path, a bad position, or a cross-room
-// step with no doorway joining it; FAILED_PRECONDITION if the member is in a
-// fight (fights have their own turn structure, which this surface does not
+// INVALID_ARGUMENT for an empty or broken path, a bad position, or a step
+// between two cells that nothing joins; FAILED_PRECONDITION if the member is in
+// a fight (fights have their own turn structure, which this surface does not
 // expose yet) or the encounter is closed.
 message MoveRequest {
   string session = 1;

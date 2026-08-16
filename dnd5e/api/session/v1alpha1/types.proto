@@ -355,10 +355,10 @@ message AtlasBoundary {
 // — the far side of a doorway is simply the next cell along.
 //
 // It is also load-bearing for movement rather than decorative: ADJACENCY IS NOT
-// PERMISSION. Two rooms may touch without a door between them, so a pair of
-// cells can be perfectly adjacent and still have nothing to walk through. A
-// client planning a route must consult this list, not just `cells` — a
-// cross-room step with no doorway is refused with the SDK's ErrNoCrossing.
+// PERMISSION. A pair of cells can be perfectly adjacent and still have nothing
+// to walk through. A client planning a route must consult this list and not
+// just `cells` — a step between two cells that no doorway joins is refused with
+// the SDK's ErrNoCrossing.
 message AtlasDoorway {
   // 2..5 were from/from_cell/to/to_cell — a room-pair plus a cell in each —
   // until session v0.10.0 made a doorway two absolute cells. `from` and `to`

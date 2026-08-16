@@ -1,8 +1,8 @@
 ---
 name: SessionService
-description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; the surface that replaces the v1alpha2 encounter stack
+description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
 updated: 2026-08-16
-confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.9.0
+confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.12.0 read from the tag
 ---
 
 # SessionService
@@ -13,8 +13,9 @@ Defined in `dnd5e/api/session/v1alpha1/` (service-first layout:
 Package `dnd5e.api.session.v1alpha1`.
 
 Design doc: `rpg-project/ideas/session-api/design.md`. Umbrella:
-`KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) as W1
-of that initiative.
+`KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) against
+session/v0.9.0, then re-transcribed by #226 (issue #225) against
+**session/v0.12.0**, which is the version this doc describes.
 
 ## What makes this service different from every other one here
 
@@ -42,16 +43,38 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   Promoting them to enums would be inventing a closed vocabulary the toolkit
   has not committed to.
 
+## One map — the ruling arrived
+
+Design §0 recorded Kirk's ruling that *"the encounter has rooms but projects
+the absolute geo of the dungeon so the session package sees it as all one
+map."* When #222 landed, that was still the seam's **destination**, and the
+contract carried room IDs plus a transitional `Traverse` RPC. It is now the
+seam's **state**, delivered across three toolkit releases:
+
+| release | what changed |
+|---|---|
+| `session/v0.10.0` | the Atlas became one map — no per-room decomposition, one grid for the field, cells sorted by coordinate |
+| `session/v0.11.0` | joins, placements and outcomes went roomless — `Member` trades its room ID for an absolute `position` |
+| `session/v0.12.0` | a walk crosses a doorway; the `Traverse` verb retires |
+
+Consequences for this contract, all live:
+
+- **No `Traverse` RPC.** It is gone, not deprecated — there is no SDK verb
+  behind it. A doorway crossing is an ordinary step of `Move`.
+- **No room ID anywhere on the seam.** `JoinRequest`, `Member`,
+  `MemberOutcome` and `AtlasDoorway` all speak cells.
+- **Every position is dungeon-absolute**, uniformly. There is no room-local
+  frame left on this contract to get wrong.
+
 ## RPCs
 
-Fourteen, mirroring the SDK verbs one-for-one.
+Thirteen, mirroring the SDK verbs one-for-one.
 
 | RPC | SDK verb | Request:Response | Notes |
 |---|---|---|---|
-| `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Character is loaded before placement, so a member with no loadable sheet never joins |
+| `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Takes an absolute cell — a caller places somebody on the map, not in a chamber |
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
-| `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination. Fewer `steps` than requested `path` is an answer, not an error — the reason is in `outcome` or `formed` |
-| `Traverse` | `Traverse` | `TraverseRequest:TraverseResponse` | **Transitional.** See below |
+| `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error |
 | `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1; nothing spends yet |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
@@ -65,15 +88,45 @@ Fourteen, mirroring the SDK verbs one-for-one.
 
 **No `StartSession` and no `Spawn`**, though the SDK exposes both. Creation is
 the lobby's: `LobbyService.StartEncounter` calls them in-process (design rule
-5). There is no creation RPC on this service in v1 or after.
+5). There is no creation RPC here, in v1 or after.
+
+## Movement, and the trap in it
+
+A walk crosses a doorway because the far side of a doorway is simply the next
+cell along. That is what made `Traverse` unnecessary.
+
+But **adjacency is not permission**, and this is the part worth knowing before
+writing a client. Two rooms may *touch* without a door between them, so a pair
+of cells can be perfectly adjacent and still have nothing to walk through. That
+case is invisible to a client reading only `GetAtlasResponse.cells` — it is in
+`doorways` or it is nowhere. A route planner must consult both.
+
+The SDK gives that refusal its own sentinel (`ErrNoCrossing`, *"no doorway
+joins those cells"*), kept deliberately distinct from `ErrBrokenPath` (the two
+cells are not adjacent at all) and `ErrBadPosition` (there is no cell there).
+Three different author mistakes, three different places to look.
+
+## The Atlas
+
+`GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
+every `cell` sorted by coordinate, the `occluders` subset that blocks sight,
+every `boundary`, and every `doorway` as a crossable cell pair.
+
+The sort order is load-bearing rather than cosmetic — the SDK sorts by
+coordinate specifically so the flattening does not leak the old room grouping
+back through iteration order. A map that still came out room-by-room would be
+the old shape wearing a new type.
+
+Construction truth: unchanged by movement, joins, exits or endings. Fetch it
+once per encounter and cache it; never per frame.
 
 ## The event spine
 
 `Event` (`events.proto`) mirrors `session.Event` exactly — `session`, `seq`,
 `at`, `correlation`, `recipient`, `kind`, `payload`. The SDK's own godoc says
 it was shaped flat and non-polymorphic *for this mapping*: no interface-valued
-fields, no type switches on the wire, no payload shape that varies by kind in
-a way a generated client cannot express.
+fields, no type switches on the wire, and no payload shape that varies by kind
+in a way a generated client cannot express.
 
 Three properties worth holding onto:
 
@@ -90,10 +143,11 @@ Three properties worth holding onto:
   obligation, which is why there is no snapshot-then-deltas pattern here — the
   shape `StreamEncounter` and `StreamLobby` both use.
 
-`EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`. It is
-**open to growth by construction**: proto3 preserves an unrecognised enum
-number rather than dropping it, so a kind added later (rpg-toolkit#959) reaches
-an old client intact and that client's `seq` accounting keeps working.
+`EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`, and the
+vocabulary is **unchanged from v0.9.0 through v0.12.0**. It is **open to growth
+by construction**: proto3 preserves an unrecognised enum number rather than
+dropping it, so a kind added later (rpg-toolkit#959) reaches an old client
+intact and that client's `seq` accounting keeps working.
 
 `EVENT_KIND_UNSPECIFIED` (0) and `EVENT_KIND_UNKNOWN` (100) are deliberately
 different: 0 means the producer failed to set a kind (a defect), while
@@ -102,14 +156,14 @@ version* does not recognise, delivered on purpose so the recipient still learns
 its sequence advanced. Same distinction `HexState` draws in the v1alpha2
 encounter package.
 
-## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
+**`EVENT_KIND_TRAVERSED` outlived the verb it was named for.** There is no
+Traverse RPC any more, but the kind stayed distinct from `MOVED` through the
+reshape, and the SDK is explicit about why: *one map does not mean one
+narration.* A client renders a doorway differently from a corridor, and the
+composition still knows which happened; collapsing them would make a client
+re-derive it from the geometry.
 
-- **`Traverse` is transitional.** Per design §0, Kirk's ruling is that the
-  encounter has rooms but projects dungeon-absolute geometry, so the session
-  package sees one map. At that destination a doorway crossing is an ordinary
-  `Move` step, and a client cannot tell a doorway from a corridor. The RPC
-  exists while the SDK exposes the verb and retires when the SDK's
-  absolute-projection convergence retires it. New clients should prefer `Move`.
+## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
 
 - **`Turn` is asked of a member, never of the session.** Several clocks can run
   at once — a fight in the crypt while the rest of the party explores the hall
@@ -124,10 +178,9 @@ encounter package.
   single-player included. This is why the stream is not optional.
 
 - **`Formed` appears on every verb that can put two sides in sight of each
-  other** (`Join`, `Move`, `Traverse`). A fight is *news*, not a decision: the
-  composition detects contact wherever sight changes and starts the fight
-  itself. A client renders "roll for initiative" from this; it never asks for
-  one.
+  other** (`Join`, `Move`). A fight is *news*, not a decision: the composition
+  detects contact wherever sight changes and starts the fight itself. A client
+  renders "roll for initiative" from this; it never asks for one.
 
 - **`Dissolve` covers only half of ending a fight.** The party deciding to
   disengage is a verb. Defeat is a fact the world notices, and when the
@@ -137,17 +190,20 @@ encounter package.
 
 ## Known gaps, inherited and stated rather than papered over
 
-- **A cold client cannot yet learn its own position from reads.** `GetView`
-  reports what a member perceives and skips self; `GetStatus` carries no member
-  positions. The fix is SDK-first (design rule 11, rpg-toolkit#933) and is
-  explicitly **not** a gate on this package. Until it lands, reconnect leans on
-  `GetStory` replay.
+- **A cold client still cannot learn its own position from a read.** This
+  narrowed at v0.11.0 without closing: `Member` now carries an absolute
+  `position`, so a `Join` tells you where you are — but no *read* returns a
+  `Member`. `GetView` reports what a member perceives and skips self;
+  `GetStatus` is encounter-wide. So a client that reconnects still leans on
+  `GetStory` replay. The fix is SDK-first (design rule 11, rpg-toolkit#933) and
+  is explicitly not a gate on this package.
 - **`Attack` is character-attackers-only, and nothing spends.** Both are the
   SDK's stated scope — a monster's action can declare a save gate the seam has
   no vocabulary for, and the economy that would spend an action sits above this
   seam and does not exist. They arrive with the work that calls for them.
-- **No door state or locks.** Fork-independent gap, arriving with its own
-  capability work.
+- **No door state or locks.** A doorway is crossable or absent; there is no
+  closed/locked state on the wire yet. Fork-independent gap, arriving with its
+  own capability work.
 
 ## Relationship to the v1alpha2 encounter service
 
@@ -164,7 +220,8 @@ same swap), per the versioning trigger in `rpg-project/CLAUDE.md`.
 
 ## Status
 
-Proto-only as of this doc. No `rpg-api` handler/orchestrator/repository yet
-(W2 of `rpg-project#227`, the immediate next leg) and no `rpg-dnd5e-web` client
-usage (W3). Not a "live" service by this repo's usual definition — re-grade
-once the rpg-api PR lands.
+Proto-only as of this doc. rpg-api's implementation (W2 of `rpg-project#227`)
+is in flight and was written against the v0.9.0 shapes, so it absorbs this
+reshape — the Traverse handler goes away and placements become cells. No
+`rpg-dnd5e-web` client usage yet (W3). Not a "live" service by this repo's
+usual definition — re-grade once the rpg-api PR lands.

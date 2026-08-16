@@ -7,7 +7,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
-// `rulebooks/dnd5e/session` package (read from session/v0.9.0). Every message
+// `rulebooks/dnd5e/session` package (read from session/v0.12.0). Every message
 // here mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and
 // a field with no SDK counterpart is a design change that goes through
 // rpg-project/ideas/session-api/design.md first (rule 1).
@@ -18,6 +18,14 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 //     combat, clock, intel or record types.
 //   - Every string enum the SDK owns exists BECAUSE it maps onto a proto enum
 //     (its words). Each one is transcribed as an enum below, not as a string.
+//
+// ONE MAP. Design §0's ruling — "the encounter has rooms but projects the
+// absolute geo of the dungeon so the session package sees it as all one map" —
+// is no longer a destination this contract is waiting on. It ARRIVED across
+// session v0.10.0 (the Atlas became one map), v0.11.0 (joins, placements and
+// outcomes went roomless) and v0.12.0 (a walk crosses a doorway; Traverse
+// retired). Room IDs no longer cross this seam anywhere, and every position on
+// it is dungeon-absolute.
 
 // =============================================================================
 // Enums
@@ -54,13 +62,16 @@ enum DissolveKind {
   DISSOLVE_KIND_BY_DECISION = 1;
 }
 
-// GridKind names a room's coordinate family. Mirrors session.GridKind
+// GridKind names the map's coordinate family. Mirrors session.GridKind
 // ("square" / "hex").
 //
 // The SDK models this as a string rather than mirroring spatial's iota, for the
 // reason it gives: an iota is an in-process enumeration order, not a wire
 // contract, and reordering it upstream would silently reinterpret every stored
 // and transmitted value. A named proto enum has the same property.
+//
+// ONE VALUE FOR THE WHOLE MAP, not one per room (v0.10.0). A field has a single
+// grid family by law, so a per-room grid was the same answer repeated.
 enum GridKind {
   GRID_KIND_UNSPECIFIED = 0;
   // Square grid, where distance is Chebyshev.
@@ -88,6 +99,12 @@ enum MemberKind {
 // the session SDK lets across its boundary, and therefore the one this contract
 // must match rather than choose.
 //
+// EVERY POSITION ON THIS SEAM IS DUNGEON-ABSOLUTE. That is now uniform rather
+// than per-field: as of session v0.11.0 a member's placement is a cell on the
+// map, not a cell within a named room, so the Atlas, JoinRequest, MoveRequest,
+// Member, MemberOutcome and Step all speak the same coordinates. There is no
+// room-local frame left on this contract to get wrong.
+//
 // Minted here rather than reusing an existing Position, deliberately, and both
 // candidates were checked:
 //
@@ -98,12 +115,6 @@ enum MemberKind {
 //     lives in the package the cutover deletes. Importing it would create a
 //     path between SessionService and the old encounter stack, which rule 9
 //     forbids outright.
-//
-// The FRAME is per-field, not global, because the SDK's is: Atlas coordinates
-// are dungeon-absolute, while a member's placement (JoinRequest.position,
-// MemberOutcome.position) is scoped to the room named alongside it. Design §0's
-// ruling — the session package speaks one map — is the destination the SDK
-// converges on; the protos follow each reshape rather than pre-declaring it.
 message Position {
   double x = 1;
   double y = 2;
@@ -113,22 +124,35 @@ message Position {
 // Roster
 // =============================================================================
 
-// Member is one participant's placement in the encounter. Mirrors
-// session.Member.
+// Member is one participant's placement on the map. Mirrors session.Member.
 message Member {
+  // room = 3 held a room ID until session v0.11.0 took rooms off this seam.
+  // Retired rather than retyped in place: reusing a tag for a different type is
+  // the one proto change that fails silently.
+  reserved 3;
+  reserved "room";
+
   string id = 1;
   MemberKind kind = 2;
-  // The room the member currently occupies.
-  string room = 3;
+  // The cell they stand on, dungeon-absolute.
+  //
+  // This replaced a room ID in session v0.11.0, and the SDK calls that swap the
+  // reshape in one field: which chamber somebody is in is the composition's own
+  // decomposition, while where they STAND is the thing a client renders, a rule
+  // measures, and another member walks toward.
+  Position position = 4;
 }
 
 // MemberOutcome is where a member stood when something closed around them.
 // Mirrors session.MemberOutcome.
 message MemberOutcome {
+  // room = 2 held a room ID until session v0.11.0. See Member.
+  reserved 2;
+  reserved "room";
+
   string id = 1;
-  // The room they were in.
-  string room = 2;
-  // Where they stood within it.
+  // Where they stood when it ended, dungeon-absolute — the same frame every
+  // other position on this seam speaks. Keeps the tag it has always had.
   Position position = 3;
 }
 
@@ -240,7 +264,7 @@ message Outcome {
 // wherever sight changes and starts the fight itself, and whichever verb caused
 // it carries the report back. A client renders "roll for initiative" from this;
 // it never asks for one. That is why it appears on every verb that can put two
-// sides in sight of each other — a walk, a doorway, an arrival.
+// sides in sight of each other — a walk or an arrival.
 message Formed {
   // The fight's initiative order, first to act first.
   repeated string order = 1;
@@ -309,7 +333,7 @@ message StoryEntry {
 }
 
 // =============================================================================
-// Atlas — the static world map
+// Atlas — the static world map, in one piece
 // =============================================================================
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
@@ -323,37 +347,30 @@ message AtlasBoundary {
   bool blocks_line_of_sight = 4;
 }
 
-// AtlasRoom is one room's absolute-space footprint. Mirrors session.AtlasRoom.
-message AtlasRoom {
-  string id = 1;
-  GridKind grid = 2;
-  // The room's dungeon-absolute anchor.
-  Position origin = 3;
-  int32 width = 4;
-  int32 height = 5;
-  // Every cell of the room in dungeon-absolute space, occluded cells included:
-  // occlusion is walkability, not ownership.
-  repeated Position cells = 6;
-  // The subset of `cells` that blocks line of sight, reported separately so a
-  // host can render them distinctly.
-  repeated Position occluders = 7;
-  repeated AtlasBoundary boundaries = 8;
-}
-
-// AtlasDoorway is one connection's absolute endpoint pair. Mirrors
-// session.AtlasDoorway.
+// AtlasDoorway is one crossable cell pair. Mirrors session.AtlasDoorway.
 //
-// The two cells are adjacent in absolute space, so crossing one is an ordinary
-// step — which is design §0's ruling visible in the SDK's own shapes, and the
-// reason Traverse is transitional.
+// TWO CELLS, NOT TWO ROOMS. Before session v0.10.0 this named a source room, a
+// destination room and a cell in each; now it is a connection ID and the two
+// adjacent absolute cells it joins. That is the one-map reshape at its sharpest
+// — the far side of a doorway is simply the next cell along.
+//
+// It is also load-bearing for movement rather than decorative: ADJACENCY IS NOT
+// PERMISSION. Two rooms may touch without a door between them, so a pair of
+// cells can be perfectly adjacent and still have nothing to walk through. A
+// client planning a route must consult this list, not just `cells` — a
+// cross-room step with no doorway is refused with the SDK's ErrNoCrossing.
 message AtlasDoorway {
+  // 2..5 were from/from_cell/to/to_cell — a room-pair plus a cell in each —
+  // until session v0.10.0 made a doorway two absolute cells. `from` and `to`
+  // come back below at fresh tags with a new type, so their NAMES are reused
+  // and cannot be reserved; the retired tags are, and so are the two names that
+  // do not come back.
+  reserved 2, 3, 4, 5;
+  reserved "from_cell", "to_cell";
+
   string connection = 1;
-  // The source room ID.
-  string from = 2;
-  // The endpoint in `from`, dungeon-absolute.
-  Position from_cell = 3;
-  // The destination room ID.
-  string to = 4;
-  // The endpoint in `to`, dungeon-absolute.
-  Position to_cell = 5;
+  // One of the two cells, dungeon-absolute.
+  Position from = 6;
+  // The other, adjacent to `from`.
+  Position to = 7;
 }

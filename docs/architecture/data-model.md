@@ -75,6 +75,15 @@ and it is temporary in the same sense the whole v1alpha2 encounter package is:
 the collision resolves when that package is removed at cutover. See
 [components/session-service.md](components/session-service.md).
 
+**Frame: uniformly dungeon-absolute** (updated for session/v0.12.0). The first
+cut of this package carried a *per-field* frame — the Atlas was absolute while a
+member's placement was scoped to a room named alongside it — because the SDK's
+was. That is gone. Across session v0.10.0-v0.12.0 the seam became one map: room
+IDs no longer cross it anywhere, and `JoinRequest`, `MoveRequest`, `Member`,
+`MemberOutcome`, `Step`, `AtlasDoorway` and `AtlasBoundary` all speak the same
+absolute coordinates. There is no room-local frame left in this package to
+confuse with an absolute one.
+
 ### GridType (`api/v1alpha1/room_common.proto:16`)
 
 ```proto

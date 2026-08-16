@@ -12,6 +12,10 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // a string enum rather than free-form prose precisely because "it maps directly
 // onto a proto enum", and it is the field clients branch on.
 //
+// Read from session/v0.12.0. The vocabulary is UNCHANGED across v0.9.0 ->
+// v0.12.0 — all 13 kinds survive the one-map reshape, TRAVERSED included (see
+// below).
+//
 // The vocabulary is OPEN TO GROWTH, which is a property of proto3 enums rather
 // than something this file has to build: an unrecognised number is PRESERVED on
 // the wire and readable by the receiver (`EventKind(37)` in Go, the raw number
@@ -37,9 +41,14 @@ enum EventKind {
 
   // A member stepped to a new cell.
   EVENT_KIND_MOVED = 1;
-  // A member crossed a connection into another room. Distinct from MOVED even
-  // though both are one step in absolute space, because a client may want to
-  // narrate a doorway differently from a corridor.
+  // A member's step carried them through a doorway.
+  //
+  // IT OUTLIVED THE VERB. There is no Traverse RPC any more — a walk crosses a
+  // doorway as an ordinary step — but this kind stayed distinct from MOVED
+  // through that reshape, and the SDK is explicit about why: ONE MAP DOES NOT
+  // MEAN ONE NARRATION. A client renders a doorway differently from a corridor,
+  // and the composition still knows which happened; collapsing them would make
+  // a client re-derive it from the geometry.
   EVENT_KIND_TRAVERSED = 2;
   // A member entered the encounter.
   EVENT_KIND_JOINED = 3;

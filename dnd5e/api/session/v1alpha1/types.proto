@@ -1,0 +1,357 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha1;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
+
+// This package transcribes the exported surface of the toolkit's
+// `rulebooks/dnd5e/session` package (read from session/v0.9.0). Every message
+// here mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and
+// a field with no SDK counterpart is a design change that goes through
+// rpg-project/ideas/session-api/design.md first (rule 1).
+//
+// The SDK's own laws that shape this file:
+//   - S2: no inner type crosses the boundary. What the session package exports
+//     is what the wire carries; nothing here reaches past it into encounter,
+//     combat, clock, intel or record types.
+//   - Every string enum the SDK owns exists BECAUSE it maps onto a proto enum
+//     (its words). Each one is transcribed as an enum below, not as a string.
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// ClockKind names which kind of time a member is living in. Mirrors
+// session.ClockKind ("world" / "turn").
+//
+// A member is always in exactly one kind of time — that totality is what makes
+// the SDK's ErrInBubble / ErrNotInFight pair meaningful. UNSPECIFIED means the
+// producer failed to set it; treat it as a defect, not as a third clock.
+enum ClockKind {
+  CLOCK_KIND_UNSPECIFIED = 0;
+  // Free roam. Everyone acts; their own movement advances the clock and there
+  // is no turn order to be next in.
+  CLOCK_KIND_WORLD = 1;
+  // A fight. The members in it act in an order, one at a time.
+  CLOCK_KIND_TURN = 2;
+}
+
+// DissolveKind names why a fight ended. Mirrors session.DissolveKind, which the
+// SDK documents as the wire form of its sealed session.DissolveCause interface.
+//
+// Deliberately a closed set with one member. The SDK seals DissolveCause with an
+// unexported method so a second cause cannot be declared outside that package —
+// defeat, when the composition can see it, arrives as another CALLER of that
+// shape rather than as a second way to end a fight. Adding a value here waits on
+// the SDK adding one, exactly as the seal intends.
+enum DissolveKind {
+  DISSOLVE_KIND_UNSPECIFIED = 0;
+  // A fight its members chose to walk away from (session.ByDecision).
+  DISSOLVE_KIND_BY_DECISION = 1;
+}
+
+// GridKind names a room's coordinate family. Mirrors session.GridKind
+// ("square" / "hex").
+//
+// The SDK models this as a string rather than mirroring spatial's iota, for the
+// reason it gives: an iota is an in-process enumeration order, not a wire
+// contract, and reordering it upstream would silently reinterpret every stored
+// and transmitted value. A named proto enum has the same property.
+enum GridKind {
+  GRID_KIND_UNSPECIFIED = 0;
+  // Square grid, where distance is Chebyshev.
+  GRID_KIND_SQUARE = 1;
+  // Hex grid addressed in axial coordinates, where distance is measured in
+  // cube space.
+  GRID_KIND_HEX = 2;
+}
+
+// MemberKind categorises a member. Mirrors session.MemberKind
+// ("player" / "monster").
+enum MemberKind {
+  MEMBER_KIND_UNSPECIFIED = 0;
+  // A player-controlled member.
+  MEMBER_KIND_PLAYER = 1;
+  // A member driven by the game rather than a person.
+  MEMBER_KIND_MONSTER = 2;
+}
+
+// =============================================================================
+// Spatial
+// =============================================================================
+
+// Position mirrors spatial.Position (tools/spatial v0.9.1) — the one value type
+// the session SDK lets across its boundary, and therefore the one this contract
+// must match rather than choose.
+//
+// Minted here rather than reusing an existing Position, deliberately, and both
+// candidates were checked:
+//
+//   - `api.v1alpha1.Position` is int32 x/y/z cube coordinates. Reusing it would
+//     change the type and add an axis the SDK does not have — not a
+//     field-for-field mirror (rule 1), and a lossy cast at every boundary.
+//   - `dnd5e.api.v1alpha2.encounter.Position` is the same int32 cube shape AND
+//     lives in the package the cutover deletes. Importing it would create a
+//     path between SessionService and the old encounter stack, which rule 9
+//     forbids outright.
+//
+// The FRAME is per-field, not global, because the SDK's is: Atlas coordinates
+// are dungeon-absolute, while a member's placement (JoinRequest.position,
+// MemberOutcome.position) is scoped to the room named alongside it. Design §0's
+// ruling — the session package speaks one map — is the destination the SDK
+// converges on; the protos follow each reshape rather than pre-declaring it.
+message Position {
+  double x = 1;
+  double y = 2;
+}
+
+// =============================================================================
+// Roster
+// =============================================================================
+
+// Member is one participant's placement in the encounter. Mirrors
+// session.Member.
+message Member {
+  string id = 1;
+  MemberKind kind = 2;
+  // The room the member currently occupies.
+  string room = 3;
+}
+
+// MemberOutcome is where a member stood when something closed around them.
+// Mirrors session.MemberOutcome.
+message MemberOutcome {
+  string id = 1;
+  // The room they were in.
+  string room = 2;
+  // Where they stood within it.
+  Position position = 3;
+}
+
+// CharacterState is what a loaded character reports about itself. Mirrors
+// session.CharacterState.
+//
+// The SDK's own twin of a stored character, not the stored shape: this is what
+// one call observed after reconstitution. Deliberately small — it carries what
+// a client needs to render a member and what proves the load happened, not the
+// sheet in full.
+message CharacterState {
+  string id = 1;
+  string name = 2;
+  int32 level = 3;
+  // BASE walking speed in feet, from race — not effective speed. Condition-
+  // driven modifiers are applied during resolution through the movement chain,
+  // never folded in here. A client rendering this shows the sheet's speed, not
+  // what the next step will cost.
+  int32 speed = 4;
+  int32 hit_points = 5;
+  int32 max_hit_points = 6;
+  int32 armor_class = 7;
+  int32 proficiency_bonus = 8;
+}
+
+// =============================================================================
+// Perception
+// =============================================================================
+
+// Report is one thing an observer perceived. Mirrors session.Report.
+message Report {
+  // What was perceived.
+  string subject = 1;
+  // What the observer learned, encoded by the composition. Opaque here: rpg-api
+  // round-trips these bytes and never builds them (rule 1's corollary — the
+  // host invents no vocabulary, including inside a payload).
+  bytes payload = 2;
+}
+
+// Discovery is what changed in one observer's perception. Mirrors
+// session.Discovery.
+//
+// Three disjoint lists rather than one "here is everything you now perceive",
+// because a client renders them differently: a first sighting is announced, a
+// refresh updates silently, a fade greys something out. Collapsing them would
+// force the client to diff against its own previous state to recover a
+// distinction the composition already knows.
+message Discovery {
+  // What came into view that the observer did not hold at all — the moments
+  // worth announcing.
+  repeated Report first_contact = 1;
+  // Subjects the observer already held whose knowledge was renewed by a live
+  // channel.
+  repeated string refreshed = 2;
+  // Subjects that stopped being sustained. The observer keeps a memory; it is
+  // no longer a live sighting.
+  repeated string faded = 3;
+}
+
+// Sighting is one thing an observer currently knows about. Mirrors
+// session.Sighting.
+//
+// `channel` and `status` are free-form strings in the SDK, and stay strings
+// here. Promoting them to enums would be rpg-api inventing a closed vocabulary
+// the toolkit has not committed to (rule 1) — the opposite of what the enums
+// above do, which is transcribe vocabularies the SDK already sealed.
+message Sighting {
+  // What is perceived.
+  string subject = 1;
+  // What the observer knows about it, encoded by the composition.
+  bytes payload = 2;
+  // How it was perceived.
+  string channel = 3;
+  // The clock reading when this knowledge was last refreshed. A clock reading,
+  // not a wall time — see StoryEntry.at.
+  uint64 at = 4;
+  // The channels currently carrying it. Empty means the observer holds a
+  // memory rather than a live sighting.
+  repeated string current_via = 5;
+  // Distinguishes a live sighting from a stale memory.
+  string status = 6;
+}
+
+// =============================================================================
+// Movement, fights, endings
+// =============================================================================
+
+// Step is one cell entered during a walk. Mirrors session.Step.
+message Step {
+  Position position = 1;
+  // The story sequence of the recorded step.
+  uint64 seq = 2;
+}
+
+// Outcome is how an encounter closed. Mirrors session.Outcome.
+message Outcome {
+  // The key of the ending that fired.
+  string ending = 1;
+  // The clock reading when it fired.
+  uint64 at = 2;
+  // Where everyone stood when it closed.
+  repeated MemberOutcome members = 3;
+}
+
+// Formed reports that a fight started, and who is in it. Mirrors
+// session.Formed.
+//
+// It is NEWS, not a decision anyone made: the composition detects contact
+// wherever sight changes and starts the fight itself, and whichever verb caused
+// it carries the report back. A client renders "roll for initiative" from this;
+// it never asks for one. That is why it appears on every verb that can put two
+// sides in sight of each other — a walk, a doorway, an arrival.
+message Formed {
+  // The fight's initiative order, first to act first.
+  repeated string order = 1;
+  // The members who entered unaware, a subset of order. Empty under symmetric
+  // sight, which is a law as of spatial v0.9.1; it fills when asymmetric
+  // perception arrives deliberately (stealth against perception,
+  // rpg-toolkit#1020), never through geometry.
+  repeated string surprised = 2;
+  // The story sequence of the beat that recorded the fight starting.
+  uint64 seq = 3;
+}
+
+// =============================================================================
+// Reports every mutating verb carries back
+// =============================================================================
+
+// SaveReport names which aggregates were persisted and which were not. Mirrors
+// session.SaveReport.
+//
+// A partial save is an error carrying a populated report, never a silent shrug
+// (the SDK's law S6). Both lists non-empty means the world is half-written and
+// the caller needs to know which half.
+message SaveReport {
+  repeated string written = 1;
+  repeated string failed = 2;
+}
+
+// DeliveryReport says what reached the event stream. Mirrors
+// session.DeliveryReport.
+//
+// Separate from SaveReport because they answer different questions with
+// different consequences: a failed save means the world did not change, while a
+// failed delivery means it DID and some clients have not heard yet. Conflating
+// them would leave a caller unable to tell "retry this" from "this happened,
+// tell them again."
+message DeliveryReport {
+  // How many per-recipient events were handed to the stream.
+  int32 events = 1;
+  // Delivery did not succeed. The verb still succeeded: the story log is the
+  // source of truth, sequences are gapless, and a client that misses an event
+  // notices the hole and re-queries GetStory.
+  bool failed = 2;
+}
+
+// =============================================================================
+// Story
+// =============================================================================
+
+// StoryEntry is one recorded beat. Mirrors session.StoryEntry.
+//
+// The story log is truth (design rule 6): the event stream is best-effort, and
+// GetStory is what a client that noticed a gap in `seq` reads to catch up.
+message StoryEntry {
+  // Monotonic, gapless, never renumbered. A client that notices a gap has
+  // missed a beat and should re-query.
+  uint64 seq = 1;
+  // The clock reading when the beat was recorded — the world's own clock, not a
+  // wall time, which is why this is a uint64 and not a google.protobuf.Timestamp.
+  uint64 at = 2;
+  // Groups cause and effect across beats. Empty is legal.
+  string correlation = 3;
+  // Queryable metadata describing the beat.
+  map<string, string> tags = 4;
+  // The beat itself, encoded by the composition. Passthrough.
+  bytes payload = 5;
+}
+
+// =============================================================================
+// Atlas — the static world map
+// =============================================================================
+
+// AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
+// session.AtlasBoundary. Both endpoints are dungeon-absolute.
+message AtlasBoundary {
+  Position from = 1;
+  Position to = 2;
+  // Whether an entity may cross.
+  bool blocks_movement = 3;
+  // Whether sight may cross.
+  bool blocks_line_of_sight = 4;
+}
+
+// AtlasRoom is one room's absolute-space footprint. Mirrors session.AtlasRoom.
+message AtlasRoom {
+  string id = 1;
+  GridKind grid = 2;
+  // The room's dungeon-absolute anchor.
+  Position origin = 3;
+  int32 width = 4;
+  int32 height = 5;
+  // Every cell of the room in dungeon-absolute space, occluded cells included:
+  // occlusion is walkability, not ownership.
+  repeated Position cells = 6;
+  // The subset of `cells` that blocks line of sight, reported separately so a
+  // host can render them distinctly.
+  repeated Position occluders = 7;
+  repeated AtlasBoundary boundaries = 8;
+}
+
+// AtlasDoorway is one connection's absolute endpoint pair. Mirrors
+// session.AtlasDoorway.
+//
+// The two cells are adjacent in absolute space, so crossing one is an ordinary
+// step — which is design §0's ruling visible in the SDK's own shapes, and the
+// reason Traverse is transitional.
+message AtlasDoorway {
+  string connection = 1;
+  // The source room ID.
+  string from = 2;
+  // The endpoint in `from`, dungeon-absolute.
+  Position from_cell = 3;
+  // The destination room ID.
+  string to = 4;
+  // The endpoint in `to`, dungeon-absolute.
+  Position to_cell = 5;
+}

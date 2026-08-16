@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-07-21
+updated: 2026-08-16
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -50,6 +50,10 @@ rpg-api-protos/
     events.proto                 # LobbyEvent stream — snapshot + membership/presence deltas
   dnd5e/api/authoring/v1alpha1/  # own subpackage; dev-gated dungeon authoring (Dungeon Builder arc, rpg-project#169)
     service.proto                # AuthoringService — PutDungeon; not yet consumed (rpg-api S1 pending)
+  dnd5e/api/session/v1alpha1/    # service-first layout; field-for-field transcription of rpg-toolkit rulebooks/dnd5e/session (API session integration, rpg-project#227)
+    service.proto                # SessionService — 14 RPCs mirroring the SDK verbs; not yet consumed (rpg-api W2 pending)
+    types.proto                  # Position (double x/y, mirrors spatial.Position), Member, CharacterState, Sighting, Atlas*, SaveReport, ...
+    events.proto                 # Event stream — flat per-recipient envelope + EventKind; no snapshot, GetStory is the resync path
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed

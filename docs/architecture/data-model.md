@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos data model
 description: Common message types, envelopes, error and pagination patterns, and known shape collisions
-updated: 2026-05-04
+updated: 2026-08-16
 confidence: high — verified by reading every .proto and grepping field reuse across files
 ---
 
@@ -53,6 +53,27 @@ practice rpg-dnd5e-web only renders these coordinates and rpg-api only
 casts to/from integer cube positions internally. The migration plan is
 in the linked design doc — proto change blocks on the rpg-api types
 landing first.
+
+**There are now three `Position` messages, and the third is deliberate.**
+`api.v1alpha1.Position` and `dnd5e.api.v1alpha2.encounter.Position` are both
+`int32 x/y/z` cube coordinates today (the migration above has landed in the
+proto even though the prose still describes the `double` era). The third,
+`dnd5e.api.session.v1alpha1.Position`, is `double x = 1; double y = 2;` — two
+axes, floating point — because it mirrors the toolkit's `spatial.Position`,
+the one value type the session SDK lets across its boundary. Reusing either
+existing message was considered and rejected in rpg-api-protos#222:
+
+- `api.v1alpha1.Position` would change the type and add an axis the SDK does
+  not have, which is a lossy cast at every boundary and not the
+  field-for-field mirror that session package's contract requires.
+- `dnd5e.api.v1alpha2.encounter.Position` would additionally create an import
+  path from `SessionService` into the package the session cutover deletes,
+  which the session design forbids outright.
+
+This is the one place in the repo where minting a duplicate name beats reuse,
+and it is temporary in the same sense the whole v1alpha2 encounter package is:
+the collision resolves when that package is removed at cutover. See
+[components/session-service.md](components/session-service.md).
 
 ### GridType (`api/v1alpha1/room_common.proto:16`)
 
@@ -261,6 +282,7 @@ Summary table:
 | `DiceRoll` | `api.v1alpha1.DiceRoll` (dice.proto:49, result) AND `dnd5e.api.v1alpha1.DiceRoll` (common.proto:45, notation) | Both live, different roles, same name |
 | `ValidationResult` | `dnd5e.api.v1alpha1.ValidationResult` (common.proto:122, three-tier) | `api.v1alpha1.ValidationResult` (room_common.proto:216, generic, unused) |
 | `Wall` | `api.v1alpha1.Wall` (room_common.proto:104) | `sandbox.api.v1alpha1.WallSegment` — different shape, unused |
+| `Position` | `api.v1alpha1.Position` and `dnd5e.api.v1alpha2.encounter.Position` (both `int32` cube) | `dnd5e.api.session.v1alpha1.Position` (`double x/y`) — a third live shape, mirroring `spatial.Position`; see the Position section above for why reuse was rejected |
 
 Most collisions resolve naturally when the unused services / sandbox
 package are deleted (issue #140). The `DiceRoll` collision survives —
@@ -287,6 +309,10 @@ api/v1alpha1/room_selectables.proto  ← imports room_common
 
 sandbox/api/v1alpha1/sandbox_common.proto ← imports api/v1alpha1/room_common.proto
 sandbox/api/v1alpha1/sandbox_room.proto   ← imports sandbox_common, room_common
+
+dnd5e/api/session/v1alpha1/types.proto    ← no imports, leaf
+dnd5e/api/session/v1alpha1/events.proto   ← no imports, leaf
+dnd5e/api/session/v1alpha1/service.proto  ← imports session types, events (in-package only, by design)
 ```
 
 Dependency hygiene is good: no circular imports, leaf files are leaf

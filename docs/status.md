@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-07-21
+updated: 2026-08-16
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,26 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Session contract: `SessionService` v1alpha1 (rpg-api-protos#221, PR #222,
+  W1 of the API session integration, 2026-08-16)** — additive-only, one new
+  package `dnd5e/api/session/v1alpha1/` (`service.proto`/`types.proto`/
+  `events.proto`). A **transcription, not a design**: fourteen RPCs and every
+  message mirror the exported surface of the toolkit's
+  `rulebooks/dnd5e/session` (shapes read from `session/v0.9.0`) field-for-field,
+  verified by script across 39 message↔struct pairs. No `StartSession` and no
+  `Spawn` — creation stays the lobby's, in-process. `Event` mirrors
+  `session.Event` exactly, payload bytes passed through; `StreamEvents` delivers
+  only the subscribing member's own per-recipient projections and rpg-api never
+  filters. See
+  [architecture/components/session-service.md](architecture/components/session-service.md).
+  Proto-only — `rpg-api` (W2: handler + orchestrator + Redis repos + event
+  broker) and `rpg-dnd5e-web` (W3: new game route) are the next legs
+  (design: `rpg-project/ideas/session-api/design.md`, umbrella
+  `rpg-project#227`). **This surface is what eventually replaces the
+  `dnd5e.api.v1alpha2.encounter` package**, which is deleted in place at
+  cutover; until then the two stacks coexist with server config selecting
+  exactly one.
 
 - **Dungeon Builder: authoring contract (rpg-api-protos#200, S0 of the
   Dungeon Builder arc, 2026-07-30)** — additive-only, one PR: `dungeon_key`
@@ -279,6 +299,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
+| `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

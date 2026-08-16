@@ -1,0 +1,504 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha1;
+
+import "dnd5e/api/session/v1alpha1/events.proto";
+import "dnd5e/api/session/v1alpha1/types.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
+
+// SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
+// package — one verb surface, transcribed (shapes read from session/v0.9.0).
+//
+// Three rules from rpg-project/ideas/session-api/design.md shape every message
+// below, and are worth reading before adding anything to this file:
+//
+//  1. Messages mirror the SDK's exported input/output types FIELD-FOR-FIELD.
+//     rpg-api invents no vocabulary; a field with no SDK counterpart is a design
+//     change and goes through the design doc first.
+//  2. A VERB'S RESPONSE DESCRIBES ONLY THE CALLER'S OWN ACTION. Everything else
+//     — monsters acting, other members moving, the world waiting — reaches a
+//     client through StreamEvents, single-player included. That is why every
+//     mutating response below is narrow and why the stream is not optional.
+//  5. CREATION IS THE LOBBY'S. The SDK's StartSession and Spawn are deliberately
+//     absent from this service: LobbyService.StartEncounter calls them
+//     in-process. There is no creation RPC here, in v1 or after.
+//
+// Response naming follows the SDK's return shape: where a verb returns a struct
+// its fields are carried directly on the Response (MoveResponse IS
+// session.MoveOutput), and where it returns a slice the Response wraps one
+// repeated field. No Output type is re-wrapped in a single-field envelope.
+
+// =============================================================================
+// Roster
+// =============================================================================
+
+// JoinRequest brings a PLAYER into the session's encounter.
+//
+// Players only, and the split is by where the data comes from rather than by
+// what the thing is: a character is loaded from the host's repository, a monster
+// is built from a ref through Spawn (which is the lobby's, in-process). There is
+// no ref field here and its absence is the point — no toolkit package can load a
+// player character, so a "dnd5e:characters:..." ref would claim otherwise.
+//
+// NOT_FOUND if the session, encounter or character is absent; FAILED_PRECONDITION
+// if the encounter has already ended.
+message JoinRequest {
+  string session = 1;
+  // The joining player's character ID, which is also the ID they are known by
+  // inside the encounter.
+  string member = 2;
+  // The room to place them in.
+  string room = 3;
+  // Where within that room.
+  Position position = 4;
+}
+
+// JoinResponse mirrors session.JoinOutput.
+message JoinResponse {
+  // The joined member's placement.
+  Member member = 1;
+  // The joined character's state, derived after loading. Always populated: a
+  // player with no loadable character does not join at all.
+  CharacterState character = 2;
+  // What changed in each observer's perception, keyed by observer. Absent
+  // observers saw nothing new.
+  map<string, Discovery> discovered = 3;
+  // The story sequence of the recorded join.
+  uint64 seq = 4;
+  // Present if an ending fired on the join.
+  Outcome outcome = 5;
+  // Present if arriving put the newcomer in sight of the other side and a fight
+  // started around them.
+  Formed formed = 6;
+  SaveReport saved = 7;
+  DeliveryReport delivery = 8;
+}
+
+// ExitRequest removes a member from the session's encounter.
+message ExitRequest {
+  string session = 1;
+  string member = 2;
+}
+
+// ExitResponse mirrors session.ExitOutput.
+message ExitResponse {
+  // The member's final placement.
+  MemberOutcome outcome = 1;
+  // What the member knew on the way out — the knowledge that leaves with them
+  // rather than staying with the encounter.
+  repeated Sighting carry = 2;
+  // The story sequence of the recorded exit.
+  uint64 seq = 3;
+  // Present if the encounter auto-closed because the last member left.
+  Outcome closed = 4;
+  SaveReport saved = 5;
+  DeliveryReport delivery = 6;
+}
+
+// =============================================================================
+// Free roam
+// =============================================================================
+
+// MoveRequest walks a member along a path, one cell at a time.
+//
+// A PATH, NOT A DESTINATION. Walking the cells in between is what makes them
+// real: anything that fires because a member entered a particular cell can only
+// be noticed by something that visits each of them. A single-cell path is the
+// ordinary case and entirely legal.
+//
+// Validation is complete before the first cell is entered — a path with a gap is
+// rejected whole rather than walked up to the gap, because a caller who
+// mis-computed a route wants none of it rather than an arbitrary prefix.
+// INVALID_ARGUMENT for an empty or broken path, or a bad position;
+// FAILED_PRECONDITION if the member is in a fight (fights have their own turn
+// structure, which this surface does not expose yet) or the encounter is closed.
+message MoveRequest {
+  string session = 1;
+  string member = 2;
+  // The cells to walk through, in order, each adjacent to the last and the
+  // first adjacent to where the member currently stands.
+  repeated Position path = 3;
+}
+
+// MoveResponse mirrors session.MoveOutput.
+//
+// A SHORT WALK IS NOT AN ERROR. Fewer steps than the requested path means the
+// walk stopped early, and the reason is in outcome or formed; the movement that
+// happened, happened, and it is exactly what the caller asked for up to the
+// point the world changed.
+message MoveResponse {
+  // What actually happened, in order.
+  repeated Step steps = 1;
+  // What changed in each observer's perception across the whole walk, keyed by
+  // observer.
+  map<string, Discovery> discovered = 2;
+  // Present if an ending fired underfoot, which is also why the walk stopped.
+  Outcome outcome = 3;
+  // Present if the walk put the walker in sight of the other side and a fight
+  // started, which is also why the walk stopped. The remaining cells were not
+  // attempted: a fight member does not free-roam.
+  Formed formed = 4;
+  SaveReport saved = 5;
+  DeliveryReport delivery = 6;
+}
+
+// TraverseRequest moves a member through a connection into the adjoining room.
+//
+// TRANSITIONAL (design §0). Under world anchoring the two endpoint cells are
+// adjacent in absolute space, so a crossing is one ordinary step of the same
+// size as any other — a client rendering the result cannot tell a doorway from a
+// corridor. This RPC exists only while the SDK still exposes the verb, and
+// retires when the absolute-projection convergence retires it. New clients
+// should prefer Move where they can.
+message TraverseRequest {
+  string session = 1;
+  string member = 2;
+  // The connection to cross.
+  string connection = 3;
+}
+
+// TraverseResponse mirrors session.TraverseOutput.
+message TraverseResponse {
+  // The room departed.
+  string from_room = 1;
+  // Where the member stood before crossing.
+  Position from = 2;
+  // The room arrived in.
+  string to_room = 3;
+  // Where the member arrived.
+  Position to = 4;
+  // What changed in each observer's perception, keyed by observer.
+  map<string, Discovery> discovered = 5;
+  // The story sequence of the recorded crossing.
+  uint64 seq = 6;
+  // Present if an ending fired on arrival.
+  Outcome outcome = 7;
+  // Present if walking through the doorway put the crosser in sight of the
+  // other side and a fight started.
+  Formed formed = 8;
+  SaveReport saved = 9;
+  DeliveryReport delivery = 10;
+}
+
+// =============================================================================
+// Fight
+// =============================================================================
+
+// AttackRequest swings one member's weapon at another.
+//
+// MEMBER-NEUTRAL ON PURPOSE, mirroring the SDK: both sides are IDs and nothing
+// here is character-shaped, even though v1 compiles CHARACTER attackers only
+// (a monster attacker is refused FAILED_PRECONDITION, from the SDK's
+// ErrNotACharacter). Scope by the case, shape for the future — the day a monster
+// attacker compiles, this message does not change and no client that wrote
+// against it has to.
+//
+// Two known gaps the SDK names and this contract inherits verbatim: main hand,
+// one-handed, melee only; and NOTHING SPENDS — a character can attack as many
+// times in a turn as the caller asks, because the economy that would spend
+// something sits above this seam and does not exist yet.
+message AttackRequest {
+  string session = 1;
+  // Who swings.
+  string attacker = 2;
+  // Who they swing at.
+  string target = 3;
+}
+
+// AttackResponse mirrors session.AttackOutput.
+message AttackResponse {
+  // The d20 as rolled, after any advantage or disadvantage.
+  int32 roll = 1;
+  // The roll plus everything the attack chain added.
+  int32 total = 2;
+  // The number the total had to reach.
+  int32 against = 3;
+  bool hit = 4;
+  bool critical = 5;
+  // What was dealt. Zero on a miss.
+  int32 damage = 6;
+  // The story sequence of the recorded beat.
+  uint64 seq = 7;
+  SaveReport saved = 8;
+  DeliveryReport delivery = 9;
+}
+
+// TurnRequest asks what one member is waiting on.
+//
+// ASKED OF A MEMBER, NEVER OF THE SESSION, and that is not a convenience choice.
+// Several clocks can run at once — a fight in the crypt while the rest of the
+// party explores the hall — so "whose turn is it?" has no answer here and never
+// will. A top-level query would have to pick one privileged clock to be THE
+// clock, and every client written against it would need rewriting the first time
+// a second fight started. GetStatus deliberately learns nothing per-member for
+// the same reason.
+message TurnRequest {
+  string session = 1;
+  string member = 2;
+}
+
+// TurnResponse mirrors session.TurnOutput.
+message TurnResponse {
+  // Which kind of time they are in.
+  ClockKind clock = 1;
+  // Whose turn it currently is on that clock. Empty on the world clock, which
+  // has no turn order.
+  string active = 2;
+  // Which round that clock is in. Zero on the world clock.
+  int32 round = 3;
+  // The initiative order of the fight they are in, first to act first. Empty on
+  // the world clock.
+  repeated string order = 4;
+}
+
+// EndTurnRequest ends a member's turn and hands the fight to whoever is next.
+//
+// There is deliberately no "end the current turn" form — that would be the
+// privileged-clock question wearing a verb's clothes (see TurnRequest).
+// FAILED_PRECONDITION if the member is not in a fight or it is not their turn.
+message EndTurnRequest {
+  string session = 1;
+  // Whose turn is ending — and it must be THEIR turn.
+  string member = 2;
+}
+
+// EndTurnResponse mirrors session.EndTurnOutput.
+message EndTurnResponse {
+  // Who acts now.
+  string next = 1;
+  // Whether that was the last turn of the round, so the order has come back
+  // around.
+  bool round_wrapped = 2;
+  // The story sequence of the recorded beat.
+  uint64 seq = 3;
+  SaveReport saved = 4;
+  DeliveryReport delivery = 5;
+}
+
+// DissolveRequest ends the fight a member is in and returns everyone to free
+// roam.
+//
+// A fight is reached THROUGH a member rather than by name, because it has no
+// name: the composition models a bubble as something you find by asking who is
+// in it.
+//
+// This is the half of ending a fight that a verb can fix — the party deciding to
+// disengage. Defeat is the other half and will never be a second verb: it is a
+// fact the world notices, so it arrives as another DissolveKind produced by the
+// composition, not as a caller-invoked mechanism.
+message DissolveRequest {
+  string session = 1;
+  // Anyone in the fight.
+  string member = 2;
+  // Why it is ending. Required — a caller that will not say why is asking for
+  // an effect without an account of it. The SDK models this as a sealed
+  // interface whose declared wire form is exactly this enum.
+  DissolveKind cause = 3;
+}
+
+// DissolveResponse mirrors session.DissolveOutput.
+message DissolveResponse {
+  // Everyone who was in it, now back on the world clock. Time spent fighting is
+  // spent, not banked: everyone re-homes at budget zero.
+  repeated string members = 1;
+  // Why it ended, echoed for a caller handling the response.
+  DissolveKind cause = 2;
+  // The story sequence of the recorded beat.
+  uint64 seq = 3;
+  SaveReport saved = 4;
+  DeliveryReport delivery = 5;
+}
+
+// =============================================================================
+// Endings
+// =============================================================================
+
+// EndRequest closes the session's encounter through a declared EXTERNAL ending.
+//
+// Endings are declared when a world is authored, so NOT_FOUND here means the
+// caller named something that was never on the menu — not that the encounter is
+// missing.
+message EndRequest {
+  string session = 1;
+  // The key of the declared external ending to fire.
+  string ending = 2;
+}
+
+// EndResponse mirrors session.EndOutput.
+message EndResponse {
+  // The final state: which ending fired and where everyone stood.
+  Outcome outcome = 1;
+  SaveReport saved = 2;
+  DeliveryReport delivery = 3;
+}
+
+// =============================================================================
+// Reads
+// =============================================================================
+
+// GetStatusRequest asks whether a session's encounter is open.
+message GetStatusRequest {
+  string session = 1;
+}
+
+// GetStatusResponse mirrors session.Status.
+//
+// Encounter-wide and NEVER per-member — pinned by the SDK rather than merely
+// unimplemented. A convenience field here answering "the" active actor would
+// create a privileged clock by implication; ask TurnRequest instead.
+message GetStatusResponse {
+  // Whether the encounter is active.
+  bool open = 1;
+  // The ending that fired, present only once closed.
+  Outcome outcome = 2;
+}
+
+// GetStoryRequest reads the beats a member has witnessed.
+//
+// THE RESYNC SOURCE OF TRUTH (design rule 6). Delivery on StreamEvents is
+// best-effort and carries no replay obligation; a client that notices a gap in
+// `seq` re-queries here from its last known value.
+//
+// NOT_FOUND with the SDK's ErrStoryTrimmed semantics means the requested resume
+// point has aged out of the retention window and the caller must resync from
+// zero rather than resume — a short answer would be indistinguishable from a
+// complete one and would leave a permanent hole in the client's view.
+message GetStoryRequest {
+  string session = 1;
+  // The viewer whose story is requested.
+  string member = 2;
+  // The INCLUSIVE lower bound: entries begin AT this sequence. To resume after
+  // entry N, pass N+1. Zero means "I hold nothing, send what you have" and is
+  // always answerable, however much has aged out.
+  uint64 from_seq = 3;
+}
+
+// GetStoryResponse carries session.Story's return slice.
+message GetStoryResponse {
+  repeated StoryEntry entries = 1;
+}
+
+// GetViewRequest asks what one member currently perceives.
+message GetViewRequest {
+  string session = 1;
+  // The observer.
+  string member = 2;
+}
+
+// GetViewResponse carries session.View's return slice.
+//
+// A cold client cannot yet learn its OWN position from this: View reports what a
+// member perceives and skips self. That gap is SDK-first work (design rule 11,
+// toolkit#933) and explicitly not a gate on this package — until it lands,
+// reconnect leans on GetStory replay.
+message GetViewResponse {
+  repeated Sighting sightings = 1;
+}
+
+// GetAtlasRequest asks for a session's static world map.
+message GetAtlasRequest {
+  string session = 1;
+}
+
+// GetAtlasResponse mirrors session.Atlas.
+//
+// CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings. Fetch it
+// once per encounter and cache it; never per frame.
+message GetAtlasResponse {
+  // Every room's absolute footprint, sorted by room ID.
+  repeated AtlasRoom rooms = 1;
+  // Every connection's absolute endpoint pair, sorted by connection ID.
+  repeated AtlasDoorway doorways = 2;
+}
+
+// =============================================================================
+// Stream
+// =============================================================================
+
+// StreamEventsRequest subscribes to the events addressed to one member.
+//
+// `member` is the RECIPIENT IDENTITY, and the server delivers only events whose
+// Event.recipient is that member — verbatim, as the toolkit projected them.
+// rpg-api neither filters nor re-derives visibility (design rule 4): events
+// arrive from the SDK already projected per audience, so the wire only ever
+// carries what the recipient may see. A host that filtered would be
+// reimplementing perception, and its first mistake would leak fog of war.
+//
+// Unlike StreamLobby, the subscriber is a request field rather than purely the
+// authenticated identity: one authenticated player controls one member today,
+// but the recipient of a projection is an encounter member, and the two are not
+// the same vocabulary. Servers MUST still verify the caller is entitled to that
+// member's stream.
+//
+// No snapshot-then-deltas here, deliberately — this stream has no replay
+// obligation. A subscriber that needs to catch up reads GetStory, and one that
+// needs the static map reads GetAtlas.
+message StreamEventsRequest {
+  string session = 1;
+  string member = 2;
+}
+
+// =============================================================================
+// Service
+// =============================================================================
+
+service SessionService {
+  // Join brings a player into the encounter and reports what came into view as
+  // a result. Creation is the lobby's — there is no StartSession here.
+  rpc Join(JoinRequest) returns (JoinResponse);
+
+  // Exit removes a member, returning what they knew on the way out. The last
+  // member leaving auto-closes the encounter (ExitResponse.closed).
+  rpc Exit(ExitRequest) returns (ExitResponse);
+
+  // Move walks a member along a path, one cell at a time. A short walk is an
+  // answer, not an error.
+  rpc Move(MoveRequest) returns (MoveResponse);
+
+  // Traverse crosses a connection. TRANSITIONAL (design §0): at the destination
+  // a doorway crossing is an ordinary Move step, and this RPC retires with the
+  // SDK verb it mirrors.
+  rpc Traverse(TraverseRequest) returns (TraverseResponse);
+
+  // Attack swings one member's weapon at another. Character attackers only in
+  // v1; nothing spends yet.
+  rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // Turn reports what one member is waiting on. Asked of a member, never of the
+  // session.
+  rpc Turn(TurnRequest) returns (TurnResponse);
+
+  // EndTurn ends a member's turn and hands the fight to whoever is next.
+  rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);
+
+  // Dissolve ends the fight a member is in, by decision. Defeat is not a caller
+  // verb and never will be.
+  rpc Dissolve(DissolveRequest) returns (DissolveResponse);
+
+  // End closes the encounter through a declared external ending.
+  rpc End(EndRequest) returns (EndResponse);
+
+  // GetStatus reports whether the encounter is open, and how it ended if not.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // GetStory reads the beats a member has witnessed — the resync source of
+  // truth when the stream drops a beat or a client reconnects.
+  rpc GetStory(GetStoryRequest) returns (GetStoryResponse);
+
+  // GetView reports what one member currently perceives.
+  rpc GetView(GetViewRequest) returns (GetViewResponse);
+
+  // GetAtlas returns the static world map. Construction truth; cache per
+  // encounter.
+  rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
+
+  // StreamEvents delivers the events addressed to one member. Everything a
+  // client must render that is not the caller's own action arrives here —
+  // monsters acting, the clock advancing, another member crossing a doorway —
+  // single-player included (design rule 2). Best-effort: a recipient that
+  // notices a gap in Event.seq re-queries GetStory (rule 6).
+  rpc StreamEvents(StreamEventsRequest) returns (stream Event);
+}

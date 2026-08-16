@@ -16,22 +16,25 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
-- **Session contract: `SessionService` v1alpha1 (rpg-api-protos#221, PR #222,
-  W1 of the API session integration, 2026-08-16)** — additive-only, one new
-  package `dnd5e/api/session/v1alpha1/` (`service.proto`/`types.proto`/
-  `events.proto`). A **transcription, not a design**: fourteen RPCs and every
-  message mirror the exported surface of the toolkit's
-  `rulebooks/dnd5e/session` (shapes read from `session/v0.9.0`) field-for-field,
-  verified by script across 39 message↔struct pairs. No `StartSession` and no
-  `Spawn` — creation stays the lobby's, in-process. `Event` mirrors
-  `session.Event` exactly, payload bytes passed through; `StreamEvents` delivers
-  only the subscribing member's own per-recipient projections and rpg-api never
-  filters. See
+- **Session contract re-transcribed against `session/v0.12.0`
+  (rpg-api-protos#226, issue #225, W1 of the API session integration,
+  2026-08-16)** — the
+  one-map contract. #222 landed `dnd5e/api/session/v1alpha1/` against
+  `session/v0.9.0`; #226 re-transcribes it in place against `session/v0.12.0`
+  after Kirk's ruling (*"we should be going off the latest session version.
+  traverse is dead... let's get the contract we want not one that matches"*).
+  **Breaking by design**, carried on the `breaking-change-approved` label: the
+  `Traverse` RPC and its messages are gone (a walk crosses a doorway —
+  toolkit#1048/#1049), `AtlasRoom` is gone (the Atlas is one map — v0.10.0), and
+  `Member`/`MemberOutcome`/`JoinRequest` are roomless, trading room IDs for
+  absolute cells (v0.11.0). Every position on the seam is now dungeon-absolute.
+  13 RPCs. Verified field-for-field against the **tag**, not a checkout tree —
+  37 message-struct pairs, zero mismatches. See
   [architecture/components/session-service.md](architecture/components/session-service.md).
-  Proto-only — `rpg-api` (W2: handler + orchestrator + Redis repos + event
-  broker) and `rpg-dnd5e-web` (W3: new game route) are the next legs
-  (design: `rpg-project/ideas/session-api/design.md`, umbrella
-  `rpg-project#227`). **This surface is what eventually replaces the
+  Proto-only — `rpg-api` (W2, in flight against the v0.9.0 shapes, absorbs this
+  reshape) and `rpg-dnd5e-web` (W3) are the next legs (design:
+  `rpg-project/ideas/session-api/design.md`, umbrella `rpg-project#227`).
+  **This surface is what eventually replaces the
   `dnd5e.api.v1alpha2.encounter` package**, which is deleted in place at
   cutover; until then the two stacks coexist with server config selecting
   exactly one.
@@ -299,7 +302,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
-| `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
+| `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, re-transcribed against session/v0.12.0 in #226, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

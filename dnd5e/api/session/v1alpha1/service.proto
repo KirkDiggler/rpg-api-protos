@@ -10,7 +10,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
-// package — one verb surface, transcribed (shapes read from session/v0.9.0).
+// package — one verb surface, transcribed (shapes read from session/v0.12.0).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -25,6 +25,13 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 //  5. CREATION IS THE LOBBY'S. The SDK's StartSession and Spawn are deliberately
 //     absent from this service: LobbyService.StartEncounter calls them
 //     in-process. There is no creation RPC here, in v1 or after.
+//
+// ONE MAP, AND NO TRAVERSE. Design §0's ruling has arrived in the SDK rather
+// than remaining a destination this contract waits on: v0.10.0 made the Atlas
+// one map, v0.11.0 took rooms off joins, placements and outcomes, and v0.12.0
+// made a walk cross a doorway and retired the Traverse verb. So there is no
+// Traverse RPC here, no room ID anywhere on the seam, and every position is
+// dungeon-absolute. A doorway crossing is an ordinary step of Move.
 //
 // Response naming follows the SDK's return shape: where a verb returns a struct
 // its fields are carried directly on the Response (MoveResponse IS
@@ -46,13 +53,19 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // NOT_FOUND if the session, encounter or character is absent; FAILED_PRECONDITION
 // if the encounter has already ended.
 message JoinRequest {
+  // room = 3 named the room to place the member in, until session v0.11.0 made
+  // placement a cell on the map. See Member in types.proto.
+  reserved 3;
+  reserved "room";
+
   string session = 1;
   // The joining player's character ID, which is also the ID they are known by
   // inside the encounter.
   string member = 2;
-  // The room to place them in.
-  string room = 3;
-  // Where within that room.
+  // The cell to place them on, dungeon-absolute — the same coordinates the
+  // Atlas and every other verb speak. Which room owns that cell is worked out
+  // inside the composition: a caller places somebody on the map, not in a
+  // chamber.
   Position position = 4;
 }
 
@@ -112,9 +125,25 @@ message ExitResponse {
 // Validation is complete before the first cell is entered — a path with a gap is
 // rejected whole rather than walked up to the gap, because a caller who
 // mis-computed a route wants none of it rather than an arbitrary prefix.
-// INVALID_ARGUMENT for an empty or broken path, or a bad position;
-// FAILED_PRECONDITION if the member is in a fight (fights have their own turn
-// structure, which this surface does not expose yet) or the encounter is closed.
+// A WALK CROSSES A DOORWAY (session v0.12.0, rpg-toolkit#1048). The far side of
+// a doorway is simply the next cell along, so a crossing is an ordinary step of
+// the same size as any other and needs no separate verb — which is why the
+// Traverse RPC is gone rather than deprecated.
+//
+// ADJACENCY IS NOT PERMISSION, though, and this is the trap worth knowing: a
+// pair of cells can be perfectly adjacent and still have nothing to walk
+// through. Two cells are walkable between only if a doorway joins them or they
+// sit in open floor; the composition's internal chambers are what create the
+// gap, but a client never sees those and does not need to — the observable
+// rule is about cells. That case is invisible to a client reading only
+// GetAtlasResponse.cells: the joint is in `doorways` or it is nowhere. The SDK
+// refuses it with its own sentinel (ErrNoCrossing, "no doorway joins those
+// cells"), kept distinct from a path that is not a walk at all.
+//
+// INVALID_ARGUMENT for an empty or broken path, a bad position, or a step
+// between two cells that nothing joins; FAILED_PRECONDITION if the member is in
+// a fight (fights have their own turn structure, which this surface does not
+// expose yet) or the encounter is closed.
 message MoveRequest {
   string session = 1;
   string member = 2;
@@ -143,44 +172,6 @@ message MoveResponse {
   Formed formed = 4;
   SaveReport saved = 5;
   DeliveryReport delivery = 6;
-}
-
-// TraverseRequest moves a member through a connection into the adjoining room.
-//
-// TRANSITIONAL (design §0). Under world anchoring the two endpoint cells are
-// adjacent in absolute space, so a crossing is one ordinary step of the same
-// size as any other — a client rendering the result cannot tell a doorway from a
-// corridor. This RPC exists only while the SDK still exposes the verb, and
-// retires when the absolute-projection convergence retires it. New clients
-// should prefer Move where they can.
-message TraverseRequest {
-  string session = 1;
-  string member = 2;
-  // The connection to cross.
-  string connection = 3;
-}
-
-// TraverseResponse mirrors session.TraverseOutput.
-message TraverseResponse {
-  // The room departed.
-  string from_room = 1;
-  // Where the member stood before crossing.
-  Position from = 2;
-  // The room arrived in.
-  string to_room = 3;
-  // Where the member arrived.
-  Position to = 4;
-  // What changed in each observer's perception, keyed by observer.
-  map<string, Discovery> discovered = 5;
-  // The story sequence of the recorded crossing.
-  uint64 seq = 6;
-  // Present if an ending fired on arrival.
-  Outcome outcome = 7;
-  // Present if walking through the doorway put the crosser in sight of the
-  // other side and a fight started.
-  Formed formed = 8;
-  SaveReport saved = 9;
-  DeliveryReport delivery = 10;
 }
 
 // =============================================================================
@@ -408,9 +399,30 @@ message GetAtlasRequest {
 // CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings. Fetch it
 // once per encounter and cache it; never per frame.
 message GetAtlasResponse {
-  // Every room's absolute footprint, sorted by room ID.
-  repeated AtlasRoom rooms = 1;
-  // Every connection's absolute endpoint pair, sorted by connection ID.
+  // rooms = 1 held a repeated AtlasRoom — the per-room decomposition — until
+  // session v0.10.0 flattened the Atlas into one map. `doorways` below keeps
+  // tag 2: same name, same type, genuinely unchanged by the reshape.
+  reserved 1;
+  reserved "rooms";
+
+  // The coordinate family the whole map speaks. One value, not one per room.
+  GridKind grid = 3;
+  // Every cell of the map, sorted by coordinate. Occluded cells are included:
+  // occlusion is walkability, not ownership.
+  //
+  // Sorted by coordinate rather than concatenated room by room, so the
+  // flattening does not leak the old grouping back through iteration order — a
+  // map that still came out room-by-room would be the old shape wearing a new
+  // type.
+  repeated Position cells = 4;
+  // The subset of `cells` that blocks line of sight, reported separately so a
+  // host can render them distinctly. Sorted like `cells`.
+  repeated Position occluders = 5;
+  // Every wall and barrier on the map, sorted by endpoint.
+  repeated AtlasBoundary boundaries = 6;
+  // Every crossable cell pair, sorted by connection ID. Route planning needs
+  // this as well as `cells` — see AtlasDoorway on why adjacency is not
+  // permission.
   repeated AtlasDoorway doorways = 2;
 }
 
@@ -454,14 +466,9 @@ service SessionService {
   // member leaving auto-closes the encounter (ExitResponse.closed).
   rpc Exit(ExitRequest) returns (ExitResponse);
 
-  // Move walks a member along a path, one cell at a time. A short walk is an
-  // answer, not an error.
+  // Move walks a member along a path, one cell at a time, crossing doorways as
+  // ordinary steps. A short walk is an answer, not an error.
   rpc Move(MoveRequest) returns (MoveResponse);
-
-  // Traverse crosses a connection. TRANSITIONAL (design §0): at the destination
-  // a doorway crossing is an ordinary Move step, and this RPC retires with the
-  // SDK verb it mirrors.
-  rpc Traverse(TraverseRequest) returns (TraverseResponse);
 
   // Attack swings one member's weapon at another. Character attackers only in
   // v1; nothing spends yet.

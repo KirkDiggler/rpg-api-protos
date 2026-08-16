@@ -209,7 +209,10 @@ Re-grade once the rpg-api PR lands.
 
 ### dnd5e.session.SessionService — A- (provisional)
 
-Landed 2026-08-16 (rpg-api-protos#222), no consumer yet — same "consumer PR
+Landed 2026-08-16 (rpg-api-protos#222) against `session/v0.9.0`, re-transcribed
+the same day against `session/v0.12.0` (#226, issue #225) after Kirk ruled the
+contract should track the latest SDK rather than the version it was first
+written from. No consumer yet — same "consumer PR
 pending, not speculative" exception as the two above: `rpg-api` (W2) and
 `rpg-dnd5e-web` (W3) are the queued next legs of `rpg-project#227`.
 
@@ -232,13 +235,25 @@ Other strengths:
 - Real decisions are recorded where the next reader hits them, not in a PR
   body: why `Position` is minted rather than reused, why `UNSPECIFIED` and
   `UNKNOWN` are different values, why `Turn` takes a member and `GetStatus`
-  must never, why `Traverse` is transitional.
+  must never, and why a walk crosses a doorway while adjacency is still not
+  permission.
 - Known gaps are stated in the proto (self-position on reads, character-only
   attackers, nothing spends) rather than discovered at runtime.
 
-Held below A by: no runtime validation this shape survives an orchestrator yet;
-`Traverse` is knowingly transitional, so part of the surface is scheduled to be
-removed; and the minted third `Position` is correct here but is still a name
+**The v0.12.0 pass removed one of the three things holding it below A.**
+`Traverse` was called out here as knowingly transitional — part of the surface
+scheduled for removal. It is now removed rather than scheduled: the SDK retired
+the verb, a walk crosses a doorway, and the contract followed the same day. The
+same pass took room IDs off the seam entirely, so the per-field coordinate frame
+(absolute in the Atlas, room-scoped in placements) that a client could plausibly
+have confused is gone too.
+
+That re-transcription is also the first evidence this contract tracks its source
+rather than drifting from it, which is the property the whole transcription
+argument rests on.
+
+Still held below A by: no runtime validation this shape survives an orchestrator
+yet, and the minted third `Position`, which is correct here but is still a name
 collision the repo carries until the v1alpha2 encounter package is deleted.
 Re-grade once the rpg-api PR lands.
 

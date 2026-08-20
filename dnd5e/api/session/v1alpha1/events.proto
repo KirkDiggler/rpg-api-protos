@@ -12,9 +12,20 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // a string enum rather than free-form prose precisely because "it maps directly
 // onto a proto enum", and it is the field clients branch on.
 //
-// Read from session/v0.13.0. The vocabulary is UNCHANGED across v0.9.0 ->
-// v0.13.0 — all 13 kinds survive both the one-map reshape (TRAVERSED included,
-// see below) and the arrival of the Where read, which adds no beat.
+// Read from session/v0.18.0. THIRTEEN KINDS, AND THE FIRST RETIREMENT: the
+// vocabulary held UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and
+// the Where read added no beat and removed none), then v0.18.0 both dropped
+// TRAVERSED and added DOWNED — see each below for why. Net thirteen, but not
+// the same thirteen, so a client pinned to the older set must be re-read
+// rather than counted.
+//
+// Removing a kind is the compatible half of that pair only because nothing can
+// produce it: TRAVERSED's number and name are RESERVED here, so no future beat
+// can silently inherit either. A client still holding the old generated enum
+// keeps a symbol nothing will ever send, which is a dead branch, not a
+// misreading. That is the strongest guarantee available for a removal, and it
+// is why the removal is safe to make while the deliberate ambiguity of REUSING
+// the tag would not be.
 //
 // The vocabulary is OPEN TO GROWTH, which is a property of proto3 enums rather
 // than something this file has to build: an unrecognised number is PRESERVED on
@@ -41,15 +52,25 @@ enum EventKind {
 
   // A member stepped to a new cell.
   EVENT_KIND_MOVED = 1;
-  // A member's step carried them through a doorway.
+  // 2 was EVENT_KIND_TRAVERSED: a member's step carried them through a doorway.
   //
-  // IT OUTLIVED THE VERB. There is no Traverse RPC any more — a walk crosses a
-  // doorway as an ordinary step — but this kind stayed distinct from MOVED
-  // through that reshape, and the SDK is explicit about why: ONE MAP DOES NOT
-  // MEAN ONE NARRATION. A client renders a doorway differently from a corridor,
-  // and the composition still knows which happened; collapsing them would make
-  // a client re-derive it from the geometry.
-  EVENT_KIND_TRAVERSED = 2;
+  // IT OUTLIVED THE VERB, THEN THE BEAT OUTLIVED IT. There has been no Traverse
+  // RPC since session/v0.12.0, and this kind stayed distinct from MOVED through
+  // that reshape on the SDK's own argument — ONE MAP DOES NOT MEAN ONE
+  // NARRATION. session/v0.18.0 retired it anyway, for the reason that argument
+  // could not answer: the composition stopped EMITTING the beat. A crossing is
+  // written like any other step now (rpg-toolkit#1048, #1059), which was the
+  // point of absolute coordinates, so nothing upstream can tell the two apart.
+  // A kind nothing can produce is worse than no kind at all — it reads as a
+  // contract.
+  //
+  // The information is not lost, only moved. GetAtlasResponse.doorways lists
+  // every crossable pair, so a step whose from/to matches one IS a traversal,
+  // and a client that draws a doorway differently from a corridor derives it
+  // there. Restoring the distinction means deriving it, not waiting for a beat
+  // that is not coming.
+  reserved 2;
+  reserved "EVENT_KIND_TRAVERSED";
   // A member entered the encounter.
   EVENT_KIND_JOINED = 3;
   // A member left the encounter.
@@ -79,6 +100,31 @@ enum EventKind {
   // damage key rather than reporting zero — "missed for 0" reads as a hit that
   // did nothing.
   EVENT_KIND_MISSED = 12;
+  // A member is DOWNED: at zero hit points, out of the fight. The opposite
+  // state is UP.
+  //
+  // DOWNED rather than "down" because a bare "down" also reads as PRONE, and
+  // prone is a different thing entirely — a posture condition the rulebook
+  // tracks, still in the fight and still acting. A client narrating the two the
+  // same way would say somebody died every time they were knocked flat (Kirk's
+  // ruling, rpg-toolkit#1084).
+  //
+  // Kind and who, and nothing else: hit points are NOT on this beat. What a
+  // client renders is somebody down; how much damage produced it is a separate
+  // question with its own answer (ruled fork (d) on rpg-toolkit#959).
+  //
+  // Nobody announces it — the world NOTICES it. There is no downing verb and no
+  // way to push this beat in: the composition asks the rulebook who is standing
+  // at every sight refresh (rpg-toolkit#1077), so it arrives on whatever verb
+  // happened to refresh sight, frequently NOT the verb that dealt the damage.
+  //
+  // There is deliberately no kind for coming back up. Nothing in v1 can revive
+  // a downed member, so a kind for it would be vocabulary against a future
+  // nobody has built; it earns its own name when death saves arrive.
+  //
+  // Read this one alongside STRUCK and MISSED — same family, same audience, and
+  // a client reads all three side by side while narrating one exchange.
+  EVENT_KIND_DOWNED = 13;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.

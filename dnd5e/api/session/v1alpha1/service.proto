@@ -10,7 +10,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
-// package — one verb surface, transcribed (shapes read from session/v0.13.0).
+// package — one verb surface, transcribed (shapes read from session/v0.18.0).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -287,6 +287,12 @@ message DissolveRequest {
   // Why it is ending. Required — a caller that will not say why is asking for
   // an effect without an account of it. The SDK models this as a sealed
   // interface whose declared wire form is exactly this enum.
+  //
+  // BY_DECISION is the only cause a caller can honestly declare, because THIS
+  // VERB IS THE DECISION. BY_DEFEAT is a real value of this enum and a real
+  // thing that happens, but the world notices it — sending it here does not
+  // fail the call and does not change the outcome, it simply does not survive
+  // contact with the answer. See DissolveKind.
   DissolveKind cause = 3;
 }
 
@@ -446,18 +452,36 @@ message GetAtlasResponse {
 
   // The coordinate family the whole map speaks. One value, not one per room.
   GridKind grid = 3;
-  // Every cell of the map, sorted by coordinate. Occluded cells are included:
-  // occlusion is walkability, not ownership.
+  // occluders = 5 held a repeated Position — the subset of `cells` that blocked
+  // line of sight, as bare coordinates — until session/v0.18.0 replaced it with
+  // `props` below (rpg-toolkit#1130). A NEW TAG rather than a retype of 5, on
+  // purpose: reusing a tag while changing its type is the one proto break that
+  // is SILENT, and an old client decoding AtlasProp bytes as Position would not
+  // fail, it would draw furniture in the wrong places.
+  reserved 5;
+  reserved "occluders";
+
+  // Every cell of the map, sorted by coordinate. Cells occupied by props are
+  // included: a prop's blocking is a property of the prop, not of whether the
+  // floor exists under it.
   //
   // Sorted by coordinate rather than concatenated room by room, so the
   // flattening does not leak the old grouping back through iteration order — a
   // map that still came out room-by-room would be the old shape wearing a new
   // type.
   repeated Position cells = 4;
-  // The subset of `cells` that blocks line of sight, reported separately so a
-  // host can render them distinctly. Sorted like `cells`.
-  repeated Position occluders = 5;
+  // Everything standing on the map, each naming what it is and answering both
+  // blocking questions for itself. See AtlasProp for why this replaced a bare
+  // list of occluded coordinates; a host that wants that list back filters on
+  // blocks_line_of_sight.
+  repeated AtlasProp props = 7;
   // Every wall and barrier on the map, sorted by endpoint.
+  //
+  // WALLS ARE DECLARED, NOT IMPLIED BY ROOMS. On one canvas two chambers side
+  // by side are ONE OPEN SPACE until somebody draws the seam between them, so
+  // this list — not the room structure a world was authored from — is the whole
+  // answer to what a member cannot walk through or see past. Anything that
+  // authors a world for this service owes it these (rpg-toolkit#1130).
   repeated AtlasBoundary boundaries = 6;
   // Every crossable cell pair, sorted by connection ID. Route planning needs
   // this as well as `cells` — see AtlasDoorway on why adjacency is not

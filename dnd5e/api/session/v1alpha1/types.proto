@@ -7,7 +7,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
-// `rulebooks/dnd5e/session` package (read from session/v0.13.0). Every message
+// `rulebooks/dnd5e/session` package (read from session/v0.18.0). Every message
 // here mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and
 // a field with no SDK counterpart is a design change that goes through
 // rpg-project/ideas/session-api/design.md first (rule 1).
@@ -60,6 +60,24 @@ enum DissolveKind {
   // it mirrors, session.DissolveByDecision — whose own string value is
   // "decision", and which session.ByDecision() is the cause constructor for.
   DISSOLVE_KIND_BY_DECISION = 1;
+  // A fight that ended because a side stopped standing: the last skeleton is
+  // downed and there is nothing left to fight. Mirrors session.DissolveByDefeat
+  // (string value "defeat"), whose cause constructor is session.ByDefeat().
+  //
+  // NOT HONESTLY DECLARABLE BY A CALLER, and the asymmetry is the point. This
+  // value is meaningful on a RESPONSE and on the stream; sending it as
+  // DissolveRequest.cause is not believed. Defeat is something the world
+  // NOTICES, not something a caller decides: the composition consults the
+  // rulebook about who is standing at every sight refresh, and a bubble left
+  // with nobody upright on one side dissolves itself in that pass with this
+  // cause (rpg-toolkit#1078). A caller who hands it in does not get an error and
+  // does not change the outcome — the answer simply reports what actually
+  // happened. DissolveRequest.cause says the same thing from its own side.
+  //
+  // Only the BUBBLE ends. The encounter stays open, the downed stay on the map
+  // and in the roster, and Exit still carries them out. A defeat is not an
+  // ending; it is a fight running out of a side.
+  DISSOLVE_KIND_BY_DEFEAT = 2;
 }
 
 // GridKind names the map's coordinate family. Mirrors session.GridKind
@@ -335,6 +353,47 @@ message StoryEntry {
 // =============================================================================
 // Atlas — the static world map, in one piece
 // =============================================================================
+
+// AtlasProp is one thing standing on the map — a pillar, a coffin, a pile of
+// bones — each naming WHAT it is and answering both blocking questions for
+// itself. Mirrors session.AtlasProp. Dungeon-absolute.
+//
+// THIS REPLACED `repeated Position occluders` on GetAtlasResponse in
+// session/v0.18.0 (rpg-toolkit#1130). That field was the subset of cells that
+// blocked sight, as bare coordinates, and it was wrong in two directions at
+// once. It could not say a pillar from a statue — rpg-project#227 recorded the
+// complaint as "a pillar and a statue are the same cell" — and it hardcoded ONE
+// answer to TWO independent questions: a coffin is walked around but seen over,
+// and a pile of bones is neither. A host that wants the old list back filters
+// this one on blocks_line_of_sight.
+message AtlasProp {
+  // Ref names what this is, so a host can draw it.
+  string ref = 1;
+
+  // The cell it stands on, in dungeon-absolute space.
+  Position at = 2;
+
+  // Whether an entity may enter its cell.
+  //
+  // PLAIN bool, not `optional bool`, and the choice is deliberate on both of
+  // these. The SDK had to strip `omitempty` from its four blocking flags
+  // (rpg-toolkit#1136) because hand-rolled JSON carries no schema, so a false
+  // vanished and a pile of bones — which blocks neither — serialised carrying no
+  // blocking information at all, indistinguishable from a prop nobody declared
+  // one for. Proto does not have that hole: false is the schema's default, and a
+  // generated client materialises it whether or not the wire spends the bytes.
+  //
+  // `optional` would be worse than redundant here. It would invent a third
+  // state, unspecified, that the producer cannot express: an atlas is the
+  // projection of a RESOLVED world in which every prop already has both answers.
+  // The `*bool` the composition spends one layer down (rpg-toolkit#1033) guards
+  // a genuinely open question — was a capability SUPPLIED — and that question
+  // has already been settled by the time anything reaches this seam.
+  bool blocks_movement = 3;
+
+  // Whether sight passes through its cell.
+  bool blocks_line_of_sight = 4;
+}
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
 // session.AtlasBoundary. Both endpoints are dungeon-absolute.

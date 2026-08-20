@@ -1,8 +1,8 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-16
-confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.13.0 read from the tag
+updated: 2026-08-20
+confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag
 ---
 
 # SessionService
@@ -15,8 +15,9 @@ Package `dnd5e.api.session.v1alpha1`.
 Design doc: `rpg-project/ideas/session-api/design.md`. Umbrella:
 `KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) against
 session/v0.9.0, re-transcribed by #226 (issue #225) against
-**session/v0.12.0**, and extended by #228 (issue #227) with `GetWhere` at
-**session/v0.13.0**, which is the version this doc describes.
+**session/v0.12.0**, extended by #228 (issue #227) with `GetWhere` at
+**session/v0.13.0**, and caught up to **session/v0.18.0** — the version this
+doc describes — by the delta below.
 
 ## What makes this service different from every other one here
 
@@ -58,6 +59,12 @@ seam's **state**, delivered across three toolkit releases:
 | `session/v0.11.0` | joins, placements and outcomes went roomless — `Member` trades its room ID for an absolute `position` |
 | `session/v0.12.0` | a walk crosses a doorway; the `Traverse` verb retires |
 | `session/v0.13.0` | a client can ask where it stands — the `Where` read arrives (purely additive) |
+| `session/v0.14.0` | the seam speaks one map to the last frame (rpg-toolkit#1053) |
+| `session/v0.15.0` | **a fight can be lost, and the seam says so** — `DissolveByDefeat` and `EventDowned` arrive (rpg-toolkit#1079) |
+| `session/v0.16.0` | the swing notices its own kill (rpg-toolkit#1083) |
+| `session/v0.17.0` | **a second swing costs something** — the action economy starts refusing (rpg-toolkit#1097) |
+| `session/v0.17.1` | the walk speaks only absolute positions (rpg-toolkit#1059) |
+| `session/v0.18.0` | **the new Atlas** — props that say what they are, replacing bare occluder coordinates (rpg-toolkit#1130) |
 
 Consequences for this contract, all live:
 
@@ -77,7 +84,7 @@ Fourteen, mirroring the SDK verbs one-for-one.
 | `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Takes an absolute cell — a caller places somebody on the map, not in a chamber |
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error |
-| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1; nothing spends yet |
+| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford` |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
@@ -106,24 +113,54 @@ observable rule is entirely about cells: the joint is in
 `GetAtlasResponse.doorways` or it is nowhere. A route planner must consult that
 list as well as `cells`.
 
-The SDK gives that refusal its own sentinel (`ErrNoCrossing`, *"no doorway
-joins those cells"*), kept deliberately distinct from `ErrBrokenPath` (the two
-cells are not adjacent at all) and `ErrBadPosition` (there is no cell there).
-Three different author mistakes, three different places to look.
+Through v0.13.0 the SDK gave that refusal its own sentinel — `ErrNoCrossing`,
+*"no doorway joins those cells"* — distinct from `ErrBrokenPath` (the cells are
+not adjacent at all) and `ErrBadPosition` (there is no cell there). **That
+sentinel is gone as of v0.18.0**, and its removal is worth understanding rather
+than working around: on one canvas the composition no longer distinguishes a
+walled crossing from a missing cell, so nothing upstream could still produce it.
+The SDK deleted it rather than leave a name nothing answers to. A walk stopped
+by a wall now arrives as `ErrBadPosition`.
 
-> **Do not trust the SDK's `MoveInput` godoc here.** It still carries a
-> paragraph reading *"A WALK STILL DOES NOT CROSS A DOORWAY"* — stale since
-> v0.12.0, contradicted by its own code ~320 lines below, and **still present at
-> v0.13.0**. Filed as rpg-toolkit#1052; the fix is sitting on an unmerged
-> branch. This contract is transcribed from the code, which crosses. If you are
-> reading the SDK to check this page, read `move.go`'s validation, not its
-> comment.
+That collapse costs a client something real, and it is filed:
+**rpg-toolkit#1135** — a locked door and a bad coordinate currently come back as
+the same sentinel, so the tomb's most player-visible beat ("the door is locked,
+DC 12") is indistinguishable on the wire from a client bug. `ErrLocked` exists
+in the SDK for a door verb this seam does not expose yet; when #1135 lands, the
+walk case joins it and nothing on this contract has to change.
+
+> The `MoveInput` godoc warning that stood here — *"A WALK STILL DOES NOT CROSS
+> A DOORWAY"*, stale since v0.12.0 and contradicted by its own code — is
+> **resolved**. rpg-toolkit#1052 is closed and the paragraph is gone at v0.18.0.
 
 ## The Atlas
 
 `GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
-every `cell` sorted by coordinate, the `occluders` subset that blocks sight,
-every `boundary`, and every `doorway` as a crossable cell pair.
+every `cell` sorted by coordinate, every `prop` standing on it, every
+`boundary`, and every `doorway` as a crossable cell pair.
+
+**`props` replaced `occluders` at v0.18.0**, and the reason generalises past
+this field. `occluders` was the subset of cells that blocked sight, carried as
+bare coordinates — which could not tell a pillar from a statue
+(rpg-project#227 filed it in exactly those words) and hardcoded **one** answer
+to **two** independent questions. A coffin is walked around but seen over; a
+pile of bones is neither. `AtlasProp` names what it is and answers both. A host
+that wants the old list filters on `blocks_line_of_sight`.
+
+It took a **new tag (7)** rather than a retype of 5. Reusing a tag while
+changing its type is the one proto break that is *silent*: an old client
+decoding `AtlasProp` bytes as `Position` would not fail, it would draw
+furniture in the wrong places. Tag 5 and the name `occluders` are reserved.
+
+**Walls are declared, not implied by rooms** — the migration hazard for
+anything that authors a world for this service. When each chamber owned its own
+grid, nothing crossed between chambers except through a declared doorway. On
+one canvas, two chambers side by side are **one open space** until somebody
+draws the seam. `boundaries` is therefore the whole answer to what a member
+cannot walk through or see past; the room structure a world was authored from
+is not on this wire and cannot stand in for it. The toolkit's tomb compiler
+draws these automatically. Every hand-built world in the SDK's own tests
+behaved wrongly until it did the same (rpg-toolkit#1130).
 
 The sort order is load-bearing rather than cosmetic — the SDK sorts by
 coordinate specifically so the flattening does not leak the old room grouping
@@ -156,11 +193,14 @@ Three properties worth holding onto:
   obligation, which is why there is no snapshot-then-deltas pattern here — the
   shape `StreamEncounter` and `StreamLobby` both use.
 
-`EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`, and the
-vocabulary is **unchanged from v0.9.0 through v0.12.0**. It is **open to growth
-by construction**: proto3 preserves an unrecognised enum number rather than
-dropping it, so a kind added later (rpg-toolkit#959) reaches an old client
-intact and that client's `seq` accounting keeps working.
+`EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`. The
+vocabulary held **unchanged from v0.9.0 through v0.13.0**, then v0.18.0 both
+removed one and added one: still thirteen, but **not the same thirteen**, so a
+client pinned to the older set must be re-read rather than counted.
+
+It is **open to growth by construction**: proto3 preserves an unrecognised enum
+number rather than dropping it, so a kind added later (rpg-toolkit#959) reaches
+an old client intact and that client's `seq` accounting keeps working.
 
 `EVENT_KIND_UNSPECIFIED` (0) and `EVENT_KIND_UNKNOWN` (100) are deliberately
 different: 0 means the producer failed to set a kind (a defect), while
@@ -169,12 +209,32 @@ version* does not recognise, delivered on purpose so the recipient still learns
 its sequence advanced. Same distinction `HexState` draws in the v1alpha2
 encounter package.
 
-**`EVENT_KIND_TRAVERSED` outlived the verb it was named for.** There is no
-Traverse RPC any more, but the kind stayed distinct from `MOVED` through the
-reshape, and the SDK is explicit about why: *one map does not mean one
-narration.* A client renders a doorway differently from a corridor, and the
-composition still knows which happened; collapsing them would make a client
-re-derive it from the geometry.
+**`EVENT_KIND_TRAVERSED` outlived the verb it was named for, and then the beat
+outlived it.** It survived the loss of the `Traverse` RPC on the SDK's own
+argument — *one map does not mean one narration* — and v0.18.0 retired it
+anyway, for the reason that argument could not answer: **the composition
+stopped emitting the beat.** A crossing is written like any other step
+(rpg-toolkit#1048, #1059), which was the entire point of absolute coordinates,
+so nothing upstream can tell the two apart. A kind nothing can produce is worse
+than no kind at all — it reads as a contract.
+
+The information is not lost, only moved. `GetAtlasResponse.doorways` lists every
+crossable pair, so a step whose `from`/`to` matches one **is** a traversal and a
+client that draws doorways differently derives it there. Number 2 and the name
+are reserved, so no future beat inherits either: a client still holding the old
+generated enum keeps a symbol nothing will ever send, which is a dead branch,
+not a misreading.
+
+**`EVENT_KIND_DOWNED` is the addition**, and it is *downed*, not *down* — a bare
+"down" also reads as **prone**, which is a posture the rulebook tracks on a
+member still in the fight and still acting. A client narrating the two the same
+way would say somebody died every time they were knocked flat (Kirk's ruling,
+rpg-toolkit#1084). It carries kind and who, and nothing else; how much damage
+produced it is a separate question with its own answer. Nobody announces it —
+the composition asks the rulebook who is standing at every sight refresh, so it
+arrives on whatever verb happened to refresh sight, frequently **not** the verb
+that dealt the damage. There is deliberately no kind for coming back up:
+nothing in v1 can revive a downed member.
 
 ## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
 
@@ -195,11 +255,22 @@ re-derive it from the geometry.
   detects contact wherever sight changes and starts the fight itself. A client
   renders "roll for initiative" from this; it never asks for one.
 
-- **`Dissolve` covers only half of ending a fight.** The party deciding to
-  disengage is a verb. Defeat is a fact the world notices, and when the
-  composition can see it, it arrives as another `DissolveKind` produced
-  automatically — never as a second RPC. The SDK seals its `DissolveCause`
-  interface with an unexported method to make that structural.
+- **`Dissolve` covers only half of ending a fight, and the other half arrived
+  exactly as predicted.** The party deciding to disengage is a verb. Defeat is a
+  fact the world notices — and at v0.15.0 it landed as
+  `DISSOLVE_KIND_BY_DEFEAT`, a second value of the same enum produced
+  automatically, never a second RPC. The SDK sealing its `DissolveCause`
+  interface with an unexported method is what made that the path of least
+  resistance.
+
+  The asymmetry this creates is worth stating plainly, because one enum now
+  serves two directions with different rules: **`BY_DECISION` is the only cause
+  a caller can honestly declare**, since the `Dissolve` verb *is* the decision.
+  Sending `BY_DEFEAT` as a request cause does not fail the call and does not
+  change the outcome — it simply does not survive contact with the answer, which
+  reports what the world actually did. And only the **bubble** ends: the
+  encounter stays open, the downed stay on the map and in the roster, and `Exit`
+  still carries them out.
 
 ## Reconnect, and the gap that closed
 
@@ -222,6 +293,16 @@ position:
 `GetStory` still matters, because story replay is how a client recovers *events*
 it missed. What changed is that position is no longer derived from it.
 
+**A second gap of the same shape opened at v0.15.0 and is still open: a cold
+client cannot learn who is DOWNED.** `EventDowned` fires once on the stream, and
+nothing readable carries the state afterwards — `Member` is `{id, kind,
+position}`, `GetStatus` is `{open, outcome}`, and `Sighting.status`
+distinguishes a live sighting from a stale memory, not an upright member from a
+fallen one. So the three-read recipe above recovers where everybody is and
+nothing about whether they are standing, and a client that reconnects mid-fight
+draws the whole party on its feet. Filed as **rpg-toolkit#1137**; it wants the
+same treatment `GetWhere` got — a read, not a replay dependency.
+
 **Why there is no roster read**, and this is the part worth not "improving"
 later: a read returning everybody's positions would hand a client the cells of
 members it has never perceived — around a corner, in a room it has not entered,
@@ -232,13 +313,21 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
 
 ## Known gaps, inherited and stated rather than papered over
 
-- **`Attack` is character-attackers-only, and nothing spends.** Both are the
-  SDK's stated scope — a monster's action can declare a save gate the seam has
-  no vocabulary for, and the economy that would spend an action sits above this
-  seam and does not exist. They arrive with the work that calls for them.
-- **No door state or locks.** A doorway is crossable or absent; there is no
-  closed/locked state on the wire yet. Fork-independent gap, arriving with its
-  own capability work.
+- **`Attack` is character-attackers-only.** The SDK's stated scope: a monster's
+  action can declare a save gate this seam has no vocabulary for. It arrives
+  with the work that calls for it.
+- **The economy spends, but nothing reports a budget.** *"Nothing spends yet"*
+  stopped being true at v0.17.0 — a second swing in a turn that bought one is
+  refused with `ErrCannotAfford`, and the SDK is careful that the message names
+  the currency that ran out. What has no wire representation is the budget
+  *before* the refusal. A client therefore either offers an attack button that
+  fails, or re-derives how many swings a level-5 fighter gets — a rule in the
+  client, which is the Boundary Rule violation this whole seam exists to
+  prevent. Filed as **rpg-toolkit#1138**.
+- **No door state or locks on the wire.** A doorway is crossable or absent.
+  `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
+  walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so
+  a fiction beat and a client bug are currently the same sentinel.
 
 ## Relationship to the v1alpha2 encounter service
 
@@ -256,7 +345,9 @@ same swap), per the versioning trigger in `rpg-project/CLAUDE.md`.
 ## Status
 
 Proto-only as of this doc. rpg-api's implementation (W2 of `rpg-project#227`)
-is in flight and was written against the v0.9.0 shapes, so it absorbs this
-reshape — the Traverse handler goes away and placements become cells. No
-`rpg-dnd5e-web` client usage yet (W3). Not a "live" service by this repo's
-usual definition — re-grade once the rpg-api PR lands.
+is open as **rpg-api#797**, written and aligned against **v0.13.0** — so it
+absorbs this delta: the `occluders` translation becomes `props`, the error table
+loses `ErrNoCrossing` and gains `ErrLocked` / `ErrDowned` / `ErrCannotAfford` /
+`ErrBadCost` (35 sentinels → 38), and `DOWNED` / `BY_DEFEAT` become reachable
+values it must map. No `rpg-dnd5e-web` client usage yet (W3). Not a "live"
+service by this repo's usual definition — re-grade once the rpg-api PR lands.

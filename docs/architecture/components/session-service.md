@@ -1,8 +1,8 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-20
-confidence: high — proto-side only; no consumer yet, verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag
+updated: 2026-08-21
+confidence: high — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
 # SessionService
@@ -16,8 +16,9 @@ Design doc: `rpg-project/ideas/session-api/design.md`. Umbrella:
 `KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) against
 session/v0.9.0, re-transcribed by #226 (issue #225) against
 **session/v0.12.0**, extended by #228 (issue #227) with `GetWhere` at
-**session/v0.13.0**, and caught up to **session/v0.18.0** — the version this
-doc describes — by the delta below.
+**session/v0.13.0**, caught up to **session/v0.18.0** by the delta below, and
+extended to **session/v0.20.0** — the version this doc describes — with
+`GetAtlasResponse.layout` (rpg-toolkit#1140).
 
 ## What makes this service different from every other one here
 
@@ -65,6 +66,8 @@ seam's **state**, delivered across three toolkit releases:
 | `session/v0.17.0` | **a second swing costs something** — the action economy starts refusing (rpg-toolkit#1097) |
 | `session/v0.17.1` | the walk speaks only absolute positions (rpg-toolkit#1059) |
 | `session/v0.18.0` | **the new Atlas** — props that say what they are, replacing bare occluder coordinates (rpg-toolkit#1130) |
+| `session/v0.19.0` | the hex-orientation correction lands (rpg-toolkit#1141/#1143/#1145) — no contract change; every served cell of a hex map moves |
+| `session/v0.20.0` | **the atlas says which way its hexes point** — `Atlas.Layout` (rpg-toolkit#1140, ADR-0040) |
 
 Consequences for this contract, all live:
 
@@ -136,8 +139,27 @@ walk case joins it and nothing on this contract has to change.
 ## The Atlas
 
 `GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
-every `cell` sorted by coordinate, every `prop` standing on it, every
-`boundary`, and every `doorway` as a crossable cell pair.
+which way its hexes point (`layout`), every `cell` sorted by coordinate, every
+`prop` standing on it, every `boundary`, and every `doorway` as a crossable
+cell pair.
+
+**`layout` arrived at v0.20.0 (tag 8)**, and it exists because a client drew the
+reference tomb as a diagonal staircase. Axial coordinates fix the topology —
+the same six neighbours either way — and not the picture: the same cell set
+laid out pointy-top and flat-top gives two different images. Nothing on the
+wire said which, and the guess that looked right was wrong, because
+`tools/spatial` had the two orientations running each other's offset schemes
+(rpg-toolkit#1140 → #1141/#1143/#1145). With that corrected, the honest answer
+is finally the authored one — and now the wire says it.
+
+It is the **render** word, deliberately not the authoring word. The toolkit's
+composition keeps `Orientation` — the frame an author typed offset cells in —
+and the session seam consumes it when it enumerates the cells, never handing
+it out. `layout` is what a client does with the cells it receives. Same two
+values, a different question, and a different name so they cannot be confused
+again (ADR-0040). Present exactly when `grid` is `HEX`; `UNSPECIFIED` on a
+square map, which has no such thing. **Read it; do not infer it** — not from
+the cells, not from the YAML, not from a bounding box.
 
 **`props` replaced `occluders` at v0.18.0**, and the reason generalises past
 this field. `occluders` was the subset of cells that blocked sight, carried as

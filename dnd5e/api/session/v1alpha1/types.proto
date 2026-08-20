@@ -99,6 +99,30 @@ enum GridKind {
   GRID_KIND_HEX = 2;
 }
 
+// HexLayout names which way a hex map's cells point when drawn. Mirrors
+// session.HexLayout ("pointy_top" / "flat_top"), which arrived at
+// session/v0.20.0 (rpg-toolkit#1140, ADR-0040).
+//
+// THE ONE FACT A CLIENT CANNOT RECOVER FROM THE CELLS. Axial coordinates fix
+// the topology — the same six neighbours either way — and not the picture: the
+// same cell set laid out pointy-top and flat-top gives two different images,
+// roughly one rotated from the other. The first client to draw the reference
+// tomb guessed from the content and got a diagonal staircase.
+//
+// This is the RENDER word, deliberately not the authoring word. The toolkit's
+// composition holds an Orientation — the frame an author typed offset cells
+// in — which the session seam consumes when it enumerates the cells and never
+// hands out. Same two values, a different question, and the staircase happened
+// because the two questions shared a word. Do not infer this from anything
+// else on the wire; read it.
+enum HexLayout {
+  HEX_LAYOUT_UNSPECIFIED = 0;
+  // A vertex up: rows run straight and alternate rows stagger.
+  HEX_LAYOUT_POINTY_TOP = 1;
+  // An edge up: columns run straight and alternate columns stagger.
+  HEX_LAYOUT_FLAT_TOP = 2;
+}
+
 // MemberKind categorises a member. Mirrors session.MemberKind
 // ("player" / "monster").
 enum MemberKind {

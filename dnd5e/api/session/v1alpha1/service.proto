@@ -452,6 +452,13 @@ message GetAtlasResponse {
 
   // The coordinate family the whole map speaks. One value, not one per room.
   GridKind grid = 3;
+  // How to lay the cells out to draw them. Set exactly when `grid` is
+  // GRID_KIND_HEX and UNSPECIFIED otherwise — the composition's own law (a hex
+  // field must declare an orientation, a square field must not) mirrored at
+  // the wire. Not a default: a square map that said pointy-top would be a
+  // client believing something that cannot be true about its grid. See
+  // HexLayout for why this is a separate word from the authoring orientation.
+  HexLayout layout = 8;
   // occluders = 5 held a repeated Position — the subset of `cells` that blocked
   // line of sight, as bare coordinates — until session/v0.18.0 replaced it with
   // `props` below (rpg-toolkit#1130). A NEW TAG rather than a retype of 5, on

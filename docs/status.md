@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-16
+updated: 2026-08-22
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,16 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Session contract: `Seen` on `Sighting`/`Report` at `session/v0.21.2`
+  (rpg-api-protos feat/session-seen, ADR-0041, rpg-toolkit#1157/#1158/#1159,
+  2026-08-22)** — purely additive, `buf breaking` green, no label. Adds
+  `message Seen { Position position = 1; }` plus `Sighting.seen = 7` and
+  `Report.seen = 3`: the sight channel's position now travels typed instead of
+  inside opaque `payload`. On `Report`, `seen` is inferred by decoding the
+  payload rather than gated on channel — `intel.Report` carries no channel of
+  its own (rpg-toolkit#1160 tracks closing that gap). See
+  [architecture/components/session-service.md](architecture/components/session-service.md).
 
 - **Session contract: `GetWhere` at `session/v0.13.0` (rpg-api-protos#228,
   issue #227, 2026-08-16)** — purely additive, `buf breaking` green, no label.

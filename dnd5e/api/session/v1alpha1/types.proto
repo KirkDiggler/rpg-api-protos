@@ -7,9 +7,10 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
-// `rulebooks/dnd5e/session` package (read from session/v0.18.0). Every message
-// here mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and
-// a field with no SDK counterpart is a design change that goes through
+// `rulebooks/dnd5e/session` package (read from session/v0.18.0; v0.21.2 added
+// Seen on Sighting/Report — ADR-0041). Every message here mirrors an SDK type
+// field-for-field: rpg-api invents no vocabulary, and a field with no SDK
+// counterpart is a design change that goes through
 // rpg-project/ideas/session-api/design.md first (rule 1).
 //
 // The SDK's own laws that shape this file:
@@ -224,6 +225,32 @@ message CharacterState {
 // Perception
 // =============================================================================
 
+// Seen is what the sight channel knows about a subject: the cell it occupies,
+// dungeon-absolute — the same frame every other position on this seam speaks.
+// Mirrors session.Seen (ADR-0041, rpg-toolkit#1157).
+//
+// On Sighting, present when BOTH hold: the sighting was produced by sight
+// (gated on channel provenance) AND the composition's payload actually decodes
+// as a sight payload. Nil for every other channel — the ordinary, expected
+// case. A memory (current_via empty) keeps the seen it last had — the
+// last-known cell a client draws a faded marker on.
+//
+// On Report this is weaker: intel.Report carries no channel of its own, so a
+// Report's seen is inferred by decoding its payload rather than gated on
+// provenance (rpg-toolkit#1160 closes that gap). A non-nil seen on a Report is
+// not proof the report came from sight — today it always does, because sight
+// is the only channel this codebase surveils with, not because this field
+// checked.
+//
+// A future channel (hearing, tremorsense) gets its own sub-message with the
+// facts that channel actually conveys; a sight-specific fact that arrives
+// later (lighting, distance band) belongs inside Seen, not as a new field on
+// Sighting.
+message Seen {
+  // The sighted subject's cell, dungeon-absolute.
+  Position position = 1;
+}
+
 // Report is one thing an observer perceived. Mirrors session.Report.
 message Report {
   // What was perceived.
@@ -232,6 +259,13 @@ message Report {
   // round-trips these bytes and never builds them (rule 1's corollary — the
   // host invents no vocabulary, including inside a payload).
   bytes payload = 2;
+  // The sight channel's typed knowledge, carried the same way Sighting.seen is
+  // — first contact and a held sighting are the same fact in the same shape.
+  // UNLIKE Sighting.seen, this is not gated on channel provenance: Report
+  // carries no channel field, so this is populated by decoding the payload and
+  // checking whether it parses. A non-nil seen here is not proof the report
+  // came from sight — see Seen's own doc.
+  Seen seen = 3;
 }
 
 // Discovery is what changed in one observer's perception. Mirrors
@@ -264,7 +298,9 @@ message Discovery {
 message Sighting {
   // What is perceived.
   string subject = 1;
-  // What the observer knows about it, encoded by the composition.
+  // What the observer knows about it, encoded by the composition. Retained for
+  // channels the SDK has not typed; sight itself is typed through seen below —
+  // clients render position from seen and never decode this for sight.
   bytes payload = 2;
   // How it was perceived.
   string channel = 3;
@@ -276,6 +312,10 @@ message Sighting {
   repeated string current_via = 5;
   // Distinguishes a live sighting from a stale memory.
   string status = 6;
+  // The sight channel's own typed knowledge; see Seen. Present iff channel is
+  // sight and the payload decoded as a sight payload; nil otherwise. A memory
+  // (current_via empty) keeps the seen it last had.
+  Seen seen = 7;
 }
 
 // =============================================================================

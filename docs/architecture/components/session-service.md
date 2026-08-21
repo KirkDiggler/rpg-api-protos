@@ -1,8 +1,8 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-21
-confidence: high — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
+updated: 2026-08-22
+confidence: high — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
 # SessionService
@@ -16,9 +16,10 @@ Design doc: `rpg-project/ideas/session-api/design.md`. Umbrella:
 `KirkDiggler/rpg-project#227`. Landed by rpg-api-protos#222 (issue #221) against
 session/v0.9.0, re-transcribed by #226 (issue #225) against
 **session/v0.12.0**, extended by #228 (issue #227) with `GetWhere` at
-**session/v0.13.0**, caught up to **session/v0.18.0** by the delta below, and
-extended to **session/v0.20.0** — the version this doc describes — with
-`GetAtlasResponse.layout` (rpg-toolkit#1140).
+**session/v0.13.0**, caught up to **session/v0.18.0** by the delta below,
+extended to **session/v0.20.0** with `GetAtlasResponse.layout`
+(rpg-toolkit#1140), and extended to **session/v0.21.2** — the version this doc
+describes — with `Seen` on `Sighting`/`Report` (ADR-0041, rpg-toolkit#1157).
 
 ## What makes this service different from every other one here
 
@@ -45,6 +46,12 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
 - Free-form SDK strings (`Sighting.channel`, `Sighting.status`) stay strings.
   Promoting them to enums would be inventing a closed vocabulary the toolkit
   has not committed to.
+- `Sighting.seen` / `Report.seen` are a typed sub-message, not more payload
+  bytes: the sight channel's position travels as `Seen{position}` (ADR-0041).
+  Gated on channel provenance for `Sighting`; on `Report` it is only inferred
+  by decode, since `intel.Report` carries no channel of its own
+  (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
+  the SDK has not typed.
 
 ## One map — the ruling arrived
 

@@ -231,13 +231,13 @@ message CharacterState {
 //
 // On Sighting, present when BOTH hold: the sighting was produced by sight
 // (gated on channel provenance) AND the composition's payload actually decodes
-// as a sight payload. Nil for every other channel — the ordinary, expected
+// as a sight payload. Unset for every other channel — the ordinary, expected
 // case. A memory (current_via empty) keeps the seen it last had — the
 // last-known cell a client draws a faded marker on.
 //
 // On Report this is weaker: intel.Report carries no channel of its own, so a
 // Report's seen is inferred by decoding its payload rather than gated on
-// provenance (rpg-toolkit#1160 closes that gap). A non-nil seen on a Report is
+// provenance (rpg-toolkit#1160 closes that gap). Seen present on a Report is
 // not proof the report came from sight — today it always does, because sight
 // is the only channel this codebase surveils with, not because this field
 // checked.
@@ -263,7 +263,7 @@ message Report {
   // — first contact and a held sighting are the same fact in the same shape.
   // UNLIKE Sighting.seen, this is not gated on channel provenance: Report
   // carries no channel field, so this is populated by decoding the payload and
-  // checking whether it parses. A non-nil seen here is not proof the report
+  // checking whether it parses. Seen present here is not proof the report
   // came from sight — see Seen's own doc.
   Seen seen = 3;
 }
@@ -313,7 +313,7 @@ message Sighting {
   // Distinguishes a live sighting from a stale memory.
   string status = 6;
   // The sight channel's own typed knowledge; see Seen. Present iff channel is
-  // sight and the payload decoded as a sight payload; nil otherwise. A memory
+  // sight and the payload decoded as a sight payload; unset otherwise. A memory
   // (current_via empty) keeps the seen it last had.
   Seen seen = 7;
 }

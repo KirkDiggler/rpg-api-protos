@@ -8,10 +8,21 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
 // `rulebooks/dnd5e/session` package (read from session/v0.18.0; v0.21.2 added
-// Seen on Sighting/Report — ADR-0041). Every message here mirrors an SDK type
-// field-for-field: rpg-api invents no vocabulary, and a field with no SDK
-// counterpart is a design change that goes through
+// Seen on Sighting/Report — ADR-0041; combat-turn contract, rpg-project#249;
+// SDK fields land with the toolkit issues named inline). Every message here
+// mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and a
+// field with no SDK counterpart is a design change that goes through
 // rpg-project/ideas/session-api/design.md first (rule 1).
+//
+// THE COMBAT-TURN CONTRACT MERGED AHEAD OF ITS SDK, deliberately. Everything
+// marked "lands with rpg-toolkit#<n>" below was ruled whole in
+// rpg-project/ideas/combat-turn/design.md (Kirk, 2026-08-22) so the toolkit,
+// rpg-api and the web client build against ONE shape in parallel instead of a
+// chain of one-field PRs. None of it is invented — each field projects a rule
+// the composition already holds (reach, standing, weapon identity, typed
+// beats) — but until the named issue closes, "mirrors session.X" would be a
+// claim about code that does not exist yet, so the comment names the issue it
+// waits on instead.
 //
 // The SDK's own laws that shape this file:
 //   - S2: no inner type crosses the boundary. What the session package exports
@@ -132,6 +143,104 @@ enum MemberKind {
   MEMBER_KIND_PLAYER = 1;
   // A member driven by the game rather than a person.
   MEMBER_KIND_MONSTER = 2;
+}
+
+// Standing says whether a member is still on their feet. Lands with
+// rpg-toolkit#1137 as session.Standing ("up" / "downed").
+//
+// A READ, NOT A REPLAY DEPENDENCY. EVENT_KIND_DOWNED fires once on the stream
+// and, through session/v0.21.x, nothing readable carried the state afterwards
+// — a client that reconnected mid-fight drew the whole party on its feet.
+// The composition has known the answer all along (it asks the rulebook who is
+// standing at every sight refresh, rpg-toolkit#1077); this enum is that
+// answer projected onto Participant and Seen, the same treatment GetWhere gave
+// position.
+//
+// TWO VALUES, AND NOT "DOWN". Downed is at zero hit points and out of the
+// fight; a bare "down" also reads as PRONE, a posture condition on a member
+// still acting (Kirk's ruling, rpg-toolkit#1084). Death saves, stable and
+// revived are not here because nothing in v1 produces them — a value arrives
+// the day the SDK can say it.
+enum Standing {
+  STANDING_UNSPECIFIED = 0;
+  // On their feet, in the fight.
+  STANDING_UP = 1;
+  // At zero hit points, out of the fight; still on the map and in the roster.
+  STANDING_DOWNED = 2;
+}
+
+// DamageType names the kind of damage an attack deals. Lands with
+// rpg-toolkit#866 as the damage type carried on session.AttackRef; the values
+// are the rulebook's own thirteen.
+//
+// A CLOSED SET, SO AN ENUM (Kirk, rpg-project#249 §6): the UI branches on it —
+// a colour, a sound, a word in the beat line ("6 slashing") — and thirteen is
+// the whole of 5e's list, sealed by the rulebook rather than open to a
+// catalog. Compare AttackRef.ref, which is an OPEN set and stays a string.
+enum DamageType {
+  DAMAGE_TYPE_UNSPECIFIED = 0;
+  DAMAGE_TYPE_ACID = 1;
+  DAMAGE_TYPE_BLUDGEONING = 2;
+  DAMAGE_TYPE_COLD = 3;
+  DAMAGE_TYPE_FIRE = 4;
+  DAMAGE_TYPE_FORCE = 5;
+  DAMAGE_TYPE_LIGHTNING = 6;
+  DAMAGE_TYPE_NECROTIC = 7;
+  DAMAGE_TYPE_PIERCING = 8;
+  DAMAGE_TYPE_POISON = 9;
+  DAMAGE_TYPE_PSYCHIC = 10;
+  DAMAGE_TYPE_RADIANT = 11;
+  DAMAGE_TYPE_SLASHING = 12;
+  DAMAGE_TYPE_THUNDER = 13;
+}
+
+// ShortfallReason names WHY a declaration is unaffordable, as a value a UI can
+// act on rather than prose it can only repeat. Lands with rpg-toolkit#1010
+// (reach) and the structured Shortfall it carries.
+//
+// Each value is one of the refusals the matching verb would give, named here
+// BEFORE the refusal — the same promise Afford has always made, extended from
+// the economy to the turn and to reach. A client greys a target for
+// NO_TARGET_IN_REACH and dims a shape for NO_BUDGET; it never parses `text`
+// to tell them apart.
+enum ShortfallReason {
+  SHORTFALL_REASON_UNSPECIFIED = 0;
+  // The currency ran out — what Attack refuses as ErrCannotAfford ("action: 1
+  // needed, 0 left"). `currency`, `needed` and `left` are populated.
+  SHORTFALL_REASON_NO_BUDGET = 1;
+  // It is not this member's turn — what Attack, Move and EndTurn refuse as
+  // ErrNotYourTurn.
+  SHORTFALL_REASON_NOT_YOUR_TURN = 2;
+  // Nothing to swing at within reach — what Attack refuses as ErrOutOfReach
+  // (rpg-toolkit#1010). This is the one shortfall that arrives on a
+  // declaration with NO target: when no candidate is in reach the seam still
+  // says so, once, rather than saying nothing.
+  SHORTFALL_REASON_NO_TARGET_IN_REACH = 3;
+  // The member is downed and cannot act — what the verbs refuse as ErrDowned.
+  SHORTFALL_REASON_DOWNED = 4;
+  // The rulebook could not compile this member's price — the sheet is
+  // unreadable (ErrBadAttack for anything but an empty hand, which compiles to
+  // the unarmed strike instead, rpg-toolkit#1168). Afford reports it rather
+  // than failing the read, so the rest of the declarations still arrive.
+  SHORTFALL_REASON_UNREADABLE = 5;
+}
+
+// Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.
+// Lands with the structured Shortfall (rpg-project#249).
+//
+// This is the economy's word for what ran out — it is NOT Slot, although three
+// values coincide. Slot says which shape a declaration LIGHTS; Currency says
+// which ledger a refusal DRAINED, and movement is a ledger with no shape. The
+// two are kept separate so a client that lights shapes never has to treat feet
+// as a fourth one.
+enum Currency {
+  CURRENCY_UNSPECIFIED = 0;
+  CURRENCY_ACTION = 1;
+  CURRENCY_BONUS = 2;
+  CURRENCY_REACTION = 3;
+  // Feet, not a count. `needed` and `left` on a MOVEMENT shortfall are in feet,
+  // at the server's five per cell.
+  CURRENCY_MOVEMENT = 4;
 }
 
 // Verb names a seam action Afford can price. Mirrors session.Verb
@@ -300,6 +409,14 @@ message CharacterState {
 message Seen {
   // The sighted subject's cell, dungeon-absolute.
   Position position = 1;
+  // Whether the sighted subject is on their feet. SIGHT-CHANNEL KNOWLEDGE, not
+  // roster truth: an observer who can see a member can see whether they are
+  // standing, which is why it belongs inside Seen (ADR-0041's rule — a
+  // sight-specific fact goes here, not on Sighting) and not on a roster read
+  // this seam deliberately lacks. A memory (current_via empty) keeps the
+  // standing it last saw, exactly as it keeps the position. Lands with
+  // rpg-toolkit#1137.
+  Standing standing = 2;
 }
 
 // Report is one thing an observer perceived. Mirrors session.Report.
@@ -367,6 +484,12 @@ message Sighting {
   // sight and the payload decoded as a sight payload; unset otherwise. A memory
   // (current_via empty) keeps the seen it last had.
   Seen seen = 7;
+  // The sighted subject's display name — "skeleton-1", not a ref or an id.
+  // Beside `subject` so a client labels what it draws and narrates what it
+  // sees without a second lookup (rpg-dnd5e-web#564: names, not ids). Names are
+  // not a perception question: anything an observer can sight, they can name.
+  // Lands with rpg-toolkit#1137, alongside Participant.name.
+  string name = 8;
 }
 
 // =============================================================================
@@ -408,6 +531,38 @@ message Formed {
   repeated string surprised = 2;
   // The story sequence of the beat that recorded the fight starting.
   uint64 seq = 3;
+}
+
+// Participant is one member of the fight the asker is in, as TurnResponse
+// reports them. Lands with rpg-toolkit#1137 as session.Participant.
+//
+// WHAT `order` CANNOT CARRY. TurnResponse.order has always been the initiative
+// order as bare ids, and a client rendering an initiative panel from it had to
+// ask elsewhere for every name (only on Join/Spawn outputs), had nothing at
+// all for standing (#1137), and derived "active" by matching
+// TurnResponse.active against each entry. This carries all three beside each
+// id. `order` stays, unchanged, for the readers it already has.
+//
+// NOT A ROSTER READ, and the line matters because this seam refuses one on
+// purpose (see GetWhereResponse). Participants are the members of the fight
+// the asker is IN — two sides that have, by construction, seen each other —
+// so nothing here leaks a cell or a member the asker has not perceived.
+// There is no position on it for that reason: where a participant stands is
+// GetView's answer, gated by sight.
+message Participant {
+  // The member's id, as it appears in `order`.
+  string member = 1;
+  // Display name. Never empty for a member the server can name — which is
+  // every member it can list.
+  string name = 2;
+  MemberKind kind = 3;
+  // On their feet or downed. A downed participant stays in the order; they do
+  // not act.
+  Standing standing = 4;
+  // Whether it is this member's turn. EXACTLY ONE TRUE on the turn clock —
+  // the same member TurnResponse.active names — so a client marks the active
+  // row without a lookup.
+  bool active = 5;
 }
 
 // =============================================================================
@@ -456,6 +611,10 @@ message Declaration {
   // Free-form and stays a string, for the reason Sighting.channel does: the
   // text is the SDK's own error wording, which it has not sealed into a
   // vocabulary, and rpg-api does not invent one (rule 1).
+  //
+  // KEPT FOR v0.1.131 READERS; SUPERSEDED BY `why`. This is the same text as
+  // why.text, and a producer that sets one sets both. A new client reads
+  // `why` — the structured form it can branch on — and never this.
   string shortfall = 4;
   // How much of this verb's own currency is left, in that currency's natural
   // unit — feet, for VERB_MOVE (rpg-toolkit#1169). PRESENT for VERB_MOVE,
@@ -486,6 +645,86 @@ message Declaration {
   // rpg-api's projection must keep absent absent: a nil that became 0 would
   // tell a client its attack has no feet left.
   optional int32 remaining = 5;
+  // ATTACK: the candidate target this declaration prices. ONE DECLARATION PER
+  // TARGET IN REACH (rpg-project#249 §6, Kirk): Afford gates each candidate
+  // through the same reach check Attack refuses with (melee one cell, the
+  // reach property two; ranged stays refused as today, rpg-toolkit#1010) and
+  // emits {VERB_ATTACK, slot, affordable, target} for each one that passes.
+  // That list IS the client's "enemies in reach" highlight — reach is never
+  // computed client-side, it is read off these. When NO candidate is in reach
+  // the seam still answers, once: a single ATTACK declaration with
+  // affordable = false, why.reason = NO_TARGET_IN_REACH and this field unset.
+  //
+  // `optional` because absent and "" must stay distinct: a MOVE declaration
+  // has no target at all, and the no-target-in-reach ATTACK declaration has
+  // none either — neither is a target whose id happens to be empty.
+  //
+  // Further strikes are FURTHER DECLARATIONS of this same shape, not new
+  // fields: a monk's Martial Arts bonus strike is {VERB_ATTACK, SLOT_BONUS,
+  // target}; an off-hand swing and a flurry likewise. What the die is, and
+  // that DEX applies, are rules inside the toolkit and never on the wire. An
+  // empty main hand prices the catalog ref "unarmed-strike" (BLUDGEONING) the
+  // same way — the rule, not a refusal (rpg-toolkit#1168).
+  //
+  // Lands with rpg-toolkit#1010.
+  optional string target = 6;
+  // Why this is unaffordable, structured. PRESENT EXACTLY WHEN affordable ==
+  // false — the Outcome/Formed presence law: a message that is there or not,
+  // and its absence beside affordable = true is the answer "nothing ran out".
+  // Carries the same text `shortfall` does, plus the reason and the figures a
+  // UI acts on. Lands with rpg-toolkit#1010 (reach) on the structured form.
+  Shortfall why = 7;
+}
+
+// Shortfall is the structured reason a declaration cannot be paid for. Lands
+// with rpg-toolkit#1010 as session.Shortfall.
+//
+// STRUCTURED SO THE UI CAN ACT ON IT; TEXT STAYS FOR NARRATION. The string
+// form alone ("action: 1 needed, 0 left") is enough to repeat a refusal in the
+// player's own words and not enough to do anything else with it — a client
+// that wanted to dim the action shape and show "0 left" on hover had to parse
+// prose. `reason` is what it branches on, `currency`/`needed`/`left` are the
+// figures it shows, and `text` is what it says. The three agree by
+// construction: the SDK renders `text` from the other four, never the
+// reverse.
+message Shortfall {
+  // What kind of refusal this is. Always set.
+  ShortfallReason reason = 1;
+  // Which ledger ran out. Set for NO_BUDGET; UNSPECIFIED for every other
+  // reason, which has no currency to name.
+  Currency currency = 2;
+  // How much the verb costs, in that currency's unit (feet for MOVEMENT, a
+  // count otherwise). Meaningful for NO_BUDGET; zero otherwise.
+  int32 needed = 3;
+  // How much is left. Meaningful for NO_BUDGET; zero otherwise — and a real
+  // zero, which is the usual case.
+  int32 left = 4;
+  // The refusal in the SDK's own words — "action: 1 needed, 0 left",
+  // "movement: 20 ft needed, 15 ft left", "not your turn", "no target in
+  // reach". The same text Declaration.shortfall carries and the same text the
+  // verb's FAILED_PRECONDITION would.
+  string text = 5;
+}
+
+// AttackRef identifies WHAT was swung — weapon identity, which the seam has
+// dropped on the floor since the first swing (rpg-toolkit#866). Lands with
+// rpg-toolkit#866 as session.AttackRef, carried on AttackResponse and on the
+// Struck/Missed event bodies.
+//
+// Without it a beat line can say "17 vs AC 13, 6 damage" and not "6
+// slashing" or "with a longsword": the numbers crossed the seam and the thing
+// that produced them did not. This is the AttackProfile's identity projected —
+// ref, name and damage type — and nothing of its arithmetic.
+message AttackRef {
+  // The catalog ref the attack compiled from — "longsword", "unarmed-strike".
+  // An OPEN set, so a string: the client already maps refs to models and
+  // icons, and the catalog grows without this contract changing.
+  string ref = 1;
+  // Display name. "Longsword"; "Unarmed strike" for an empty hand
+  // (rpg-toolkit#1168).
+  string name = 2;
+  // The kind of damage it deals. Closed set, enum — see DamageType.
+  DamageType damage_type = 3;
 }
 
 // =============================================================================

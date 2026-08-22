@@ -41,8 +41,9 @@ message UnequipItemResponse {
   dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
 }
 
-// GetCharacterDataRequest asks for one character's current view — the READ the equipment
-// screen seeds from on the session stack. Read-only; nothing about the character changes.
+// GetCharacterDataRequest asks for one character's current view. This is the read the
+// equipment screen uses to load its initial state on the session stack. Read-only; nothing
+// about the character changes.
 //
 // WHY A READ EXISTS HERE NOW. This service began as writes only (EquipItem/UnequipItem,
 // protos#187), because the old encounter route seeded the equipment screen (rpg-dnd5e-web#571)
@@ -72,8 +73,9 @@ message GetCharacterDataResponse {
 // encounter stream, not this service — see CharacterData's doc comment in
 // dnd5e/api/v1alpha2/encounter/types.proto.
 service CharacterService {
-  // GetCharacterData reads one character's current view — what the equipment screen seeds
-  // from on the session stack (rpg-project#249 §2). Read-only; bound to the owner.
+  // GetCharacterData reads one character's current view. The equipment screen loads its
+  // initial state from this on the session stack (rpg-project#249 §2). Read-only; bound to
+  // the owner.
   rpc GetCharacterData(GetCharacterDataRequest) returns (GetCharacterDataResponse);
   rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
   rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);

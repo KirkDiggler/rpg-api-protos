@@ -1,0 +1,7 @@
+{
+  "verb": "VERB_MOVE",
+  "slot": "SLOT_NONE",
+  "affordable": false,
+  "shortfall": "movement: 0 ft left",
+  "remaining": 0
+}

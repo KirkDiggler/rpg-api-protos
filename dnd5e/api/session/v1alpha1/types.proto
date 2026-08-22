@@ -134,17 +134,23 @@ enum MemberKind {
   MEMBER_KIND_MONSTER = 2;
 }
 
-// Verb names a seam action Afford can price. Mirrors session.Verb ("attack").
+// Verb names a seam action Afford can price. Mirrors session.Verb
+// ("attack" / "move").
 //
 // A closed set owned by the session package rather than a reuse of the
 // rulebook's own action vocabulary: a declaration is a question about what THIS
 // SEAM lets a member declare, not the currency the rulebook happens to price it
-// in. One value because v1 has exactly one gated verb; a second arrives here
-// the day the SDK gates a second one, never ahead of it.
+// in. A value arrives here the day the SDK gates the verb, never ahead of it:
+// Attack came with the economy (session/v0.17.0), Move when a walk on the turn
+// clock started spending (rpg-toolkit#1169).
 enum Verb {
   VERB_UNSPECIFIED = 0;
   // Attack — swinging a weapon at another member.
   VERB_ATTACK = 1;
+  // Move — walking along a path while on the turn clock. The SAME Move RPC,
+  // now priced: free-roam walking spends nothing and so never appears in a
+  // declaration (the world clock has no declarations at all).
+  VERB_MOVE = 2;
 }
 
 // Slot names which of a turn's three economy shapes a Declaration draws from.
@@ -451,6 +457,35 @@ message Declaration {
   // text is the SDK's own error wording, which it has not sealed into a
   // vocabulary, and rpg-api does not invent one (rule 1).
   string shortfall = 4;
+  // How much of this verb's own currency is left, in that currency's natural
+  // unit — feet, for VERB_MOVE (rpg-toolkit#1169). PRESENT for VERB_MOVE,
+  // ABSENT for VERB_ATTACK.
+  //
+  // A NUMBER, NOT A PRICE, because Move has no fixed cost until a path is
+  // chosen: what a walk costs is a fact about the path, and Afford is asked
+  // before there is one. So a Move declaration answers the question Afford CAN
+  // answer without a path — how far this turn still reaches — and `affordable`
+  // answers only whether ANY step at all is still possible. A client bounds its
+  // path preview to this figure instead of knowing the speed rule; the
+  // Boundary Rule keeps "a fighter walks 30 ft" off the client the same way it
+  // keeps "a swing costs an action" off it.
+  //
+  // FIVE FEET PER CELL IS THE SERVER'S ARITHMETIC. A client never converts feet
+  // to cells on its own authority: it may round this figure down to whole
+  // cells to grey out a preview, and nothing more, because the server prices
+  // the WHOLE requested path before the first step and refuses it whole —
+  // "movement: 20 ft needed, 15 ft left" — whatever the preview thought. The
+  // preview is a courtesy; the refusal is the rule.
+  //
+  // `optional`, and this is the OTHER presence law at this seam — the
+  // Outcome/Formed one (a message that is present or not), not the bool one
+  // (a value that is never absent). Zero is a real answer here — nothing left
+  // this turn — and must not collide with "this verb carries no such number at
+  // all", which is what an Attack declaration says by leaving it unset. The
+  // SDK carries it as a pointer with omitempty for exactly that reason, and
+  // rpg-api's projection must keep absent absent: a nil that became 0 would
+  // tell a client its attack has no feet left.
+  optional int32 remaining = 5;
 }
 
 // =============================================================================

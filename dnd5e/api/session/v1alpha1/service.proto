@@ -11,7 +11,8 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
 // package — one verb surface, transcribed (shapes read from session/v0.18.0;
-// Afford from session/v0.21.3).
+// Afford from session/v0.21.3; VERB_MOVE, Declaration.remaining and Move's
+// turn-clock refusals from the tag that closes rpg-toolkit#1169).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -141,10 +142,33 @@ message ExitResponse {
 // refuses it with its own sentinel (ErrNoCrossing, "no doorway joins those
 // cells"), kept distinct from a path that is not a walk at all.
 //
+// ON THE TURN CLOCK, A WALK SPENDS MOVEMENT (rpg-toolkit#1169). Through
+// session/v0.21.x every member of a fight was refused this verb outright
+// (ErrInBubble, "fights have their own turn structure, which this surface does
+// not expose yet"). That lock is gone, and it was not loosened but REPLACED
+// with two refusals the economy owns:
+//
+//   - NOT YOUR TURN. Only the fight's active member may walk; anyone else in
+//     the bubble is refused with the SDK's ErrNotYourTurn — the same sentinel
+//     EndTurn carries for the same question, and distinct from "not in a
+//     fight". This is what the old fight-lock became for a non-active member;
+//     there is no separate in-a-fight refusal on this verb any more.
+//   - NOT ENOUGH MOVEMENT. The whole requested path is priced at the server's
+//     five feet per cell and charged through the same gate Attack pays a swing
+//     through, BEFORE any cell is entered. A path longer than the turn has
+//     left is refused whole, naming the currency — ErrCannotAfford with the
+//     text "movement: <N> ft needed, <M> ft left" — and not one cell of it
+//     happens. Afford's VERB_MOVE declaration reports that M ahead of time.
+//
+// Both are rules refusals, not caller defects: FAILED_PRECONDITION, exactly as
+// ErrCannotAfford already maps on Attack, never INVALID_ARGUMENT. Free roam is
+// untouched — a member on the world clock pays nothing and is never asked
+// whose turn it is.
+//
 // INVALID_ARGUMENT for an empty or broken path, a bad position, or a step
-// between two cells that nothing joins; FAILED_PRECONDITION if the member is in
-// a fight (fights have their own turn structure, which this surface does not
-// expose yet) or the encounter is closed.
+// between two cells that nothing joins; FAILED_PRECONDITION if it is not the
+// walker's turn, if the path costs more movement than the turn has left, or if
+// the encounter is closed.
 message MoveRequest {
   string session = 1;
   string member = 2;
@@ -188,10 +212,12 @@ message MoveResponse {
 // attacker compiles, this message does not change and no client that wrote
 // against it has to.
 //
-// Two known gaps the SDK names and this contract inherits verbatim: main hand,
-// one-handed, melee only; and NOTHING SPENDS — a character can attack as many
-// times in a turn as the caller asks, because the economy that would spend
-// something sits above this seam and does not exist yet.
+// One known gap the SDK names and this contract inherits verbatim: main hand,
+// one-handed, melee only. "Nothing spends" stopped being a gap at
+// session/v0.17.0 — a swing pays through the economy, and a second swing in a
+// turn that bought one is refused FAILED_PRECONDITION with ErrCannotAfford
+// naming the currency ("action: 1 needed, 0 left"). Afford reports that budget
+// before the refusal.
 message AttackRequest {
   string session = 1;
   // Who swings.
@@ -291,7 +317,9 @@ message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
   ClockKind clock = 1;
-  // One entry per verb the seam prices — exactly one in v1, VERB_ATTACK.
+  // One entry per verb the seam prices: VERB_ATTACK and VERB_MOVE. Attack is
+  // can-or-cannot; Move also carries `remaining` (feet) so a client can bound
+  // a path preview without knowing the speed rule (rpg-toolkit#1169).
   //
   // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
   // an empty list as "unknown" or as a shorter way of asking again: free roam
@@ -594,11 +622,13 @@ service SessionService {
   rpc Exit(ExitRequest) returns (ExitResponse);
 
   // Move walks a member along a path, one cell at a time, crossing doorways as
-  // ordinary steps. A short walk is an answer, not an error.
+  // ordinary steps. A short walk is an answer, not an error. On the turn clock
+  // only the active member walks, and the whole path is paid for in movement
+  // before the first step (rpg-toolkit#1169).
   rpc Move(MoveRequest) returns (MoveResponse);
 
   // Attack swings one member's weapon at another. Character attackers only in
-  // v1; nothing spends yet.
+  // v1; a swing spends, and an unaffordable one is refused naming the currency.
   rpc Attack(AttackRequest) returns (AttackResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the

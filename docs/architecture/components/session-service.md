@@ -93,10 +93,10 @@ Fifteen, mirroring the SDK verbs one-for-one.
 |---|---|---|---|
 | `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Takes an absolute cell — a caller places somebody on the map, not in a chamber |
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
-| `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error |
+| `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error. **On the turn clock it spends** (rpg-toolkit#1169): only the active member walks (`ErrNotYourTurn`), and the whole path is priced at 5 ft/cell and paid before the first step (`ErrCannotAfford`, "movement: N ft needed, M ft left"). Both `FAILED_PRECONDITION`. The old blanket in-a-fight refusal (`ErrInBubble`) is gone from this verb |
 | `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford` |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below |
-| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3 |
+| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3; `VERB_MOVE` with `optional remaining` (feet) joined with rpg-toolkit#1169 — present for Move, absent for Attack, and `0` is an answer |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
@@ -354,6 +354,14 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
   `SLOT_UNSPECIFIED` because the SDK spells it `""`: a banked Extra Attack
   swing lights no shape, and rpg-api's projection must map that explicitly
   rather than let Go's zero value fall through to proto's 0.
+- ~~**A fight is a clock nobody can move on.**~~ Closed by rpg-toolkit#1169
+  (encounter #1170, session #1171): the active member of a bubble walks through
+  the same `Move` RPC, paying movement for the whole path up front. What a
+  non-active bubble member gets is `ErrNotYourTurn`, not the old `ErrInBubble`.
+  `Declaration.remaining` is the one `optional` scalar on this seam — the
+  pointer-optional law (Outcome/Formed), not the bool law — and
+  `tests/declaration-remaining` pins that absent and `0` stay distinct in both
+  generated SDKs.
 - **No door state or locks on the wire.** A doorway is crossable or absent.
   `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
   walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so

@@ -16,6 +16,14 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Session contract: Move on the turn clock (rpg-api-protos
+  feat/session-move-clock, rpg-toolkit#1169, 2026-08-22)** — additive, `buf
+  breaking` green. `VERB_MOVE = 2`, `optional int32 Declaration.remaining = 5`
+  (feet; present for Move, absent for Attack), and the `Move` RPC's two new
+  refusal cases documented (`ErrNotYourTurn`; `ErrCannotAfford` naming
+  movement) in place of the retired blanket fight-lock. New presence suite
+  `tests/declaration-remaining` wired into `make test` and CI.
+
 - **Session contract: `Afford` at `session/v0.21.3` (rpg-api-protos
   feat/session-afford, 2026-08-22)** — additive, `buf breaking` green. Adds
   `rpc Afford(AffordRequest) returns (AffordResponse)` beside `Turn`, plus

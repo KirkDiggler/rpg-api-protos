@@ -16,6 +16,15 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Character v1alpha2: `GetCharacterData` (rpg-api-protos
+  feat/character-get-data, rpg-project#249 §2, 2026-08-22)** — additive,
+  `buf breaking` green. The read from which the equipment screen
+  (rpg-dnd5e-web#571) loads its initial state on the session stack:
+  `CharacterService` had only
+  `EquipItem`/`UnequipItem` (protos#187) because the old route seeded from the
+  encounter snapshot, which the session stack does not carry. Returns the same
+  `CharacterData` the equip writes return; host binds to the owner.
+
 - **Session contract: the combat turn (rpg-api-protos
   feat/session-combat-turn, rpg-project#249, 2026-08-22)** — additive, `buf
   breaking` green against v0.1.131, no hand-written tests (generation is the

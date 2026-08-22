@@ -41,6 +41,29 @@ message UnequipItemResponse {
   dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
 }
 
+// GetCharacterDataRequest asks for one character's current view. This is the read the
+// equipment screen uses to load its initial state on the session stack. Read-only; nothing
+// about the character changes.
+//
+// WHY A READ EXISTS HERE NOW. This service began as writes only (EquipItem/UnequipItem,
+// protos#187), because the old encounter route seeded the equipment screen (rpg-dnd5e-web#571)
+// from the encounter snapshot it already held. The session stack has no such snapshot —
+// SessionService carries a deliberately small CharacterState and nothing about equipment, and
+// the combat-turn contract keeps it that way (rpg-project#249 §2, equipment row: "equipment
+// stays in the character service"). So the screen needs a read on THIS service before it can
+// mount on the session route. The host binds character_id to the authenticated owner — a
+// character is read by the player who owns it, never by id alone.
+message GetCharacterDataRequest {
+  string character_id = 1;
+}
+
+// GetCharacterDataResponse carries the SAME CharacterData the equip writes return, so a screen
+// that seeds from this read and then re-renders from an EquipItemResponse uses one type and one
+// code path. NOT_FOUND if the character does not exist or is not the caller's.
+message GetCharacterDataResponse {
+  dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -50,6 +73,10 @@ message UnequipItemResponse {
 // encounter stream, not this service — see CharacterData's doc comment in
 // dnd5e/api/v1alpha2/encounter/types.proto.
 service CharacterService {
+  // GetCharacterData reads one character's current view. The equipment screen loads its
+  // initial state from this on the session stack (rpg-project#249 §2). Read-only; bound to
+  // the owner.
+  rpc GetCharacterData(GetCharacterDataRequest) returns (GetCharacterDataResponse);
   rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
   rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);
 }

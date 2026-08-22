@@ -134,6 +134,51 @@ enum MemberKind {
   MEMBER_KIND_MONSTER = 2;
 }
 
+// Verb names a seam action Afford can price. Mirrors session.Verb ("attack").
+//
+// A closed set owned by the session package rather than a reuse of the
+// rulebook's own action vocabulary: a declaration is a question about what THIS
+// SEAM lets a member declare, not the currency the rulebook happens to price it
+// in. One value because v1 has exactly one gated verb; a second arrives here
+// the day the SDK gates a second one, never ahead of it.
+enum Verb {
+  VERB_UNSPECIFIED = 0;
+  // Attack — swinging a weapon at another member.
+  VERB_ATTACK = 1;
+}
+
+// Slot names which of a turn's three economy shapes a Declaration draws from.
+// Mirrors session.Slot ("" / "action" / "bonus" / "reaction") — the same four
+// values the rulebook's character.EconomySlot carries, spelled at the session
+// seam rather than imported across it (S2).
+//
+// The vocabulary is the one a UI already has buttons for. Kirk's ruling on
+// rpg-toolkit#1138: "in our ui we hand shapes for action, bonus and reaction
+// that lined up with the various things we could do." A client lights the
+// shape a declaration names and never learns why that shape is the one.
+//
+// NONE IS NOT UNSPECIFIED, and the distinction is load-bearing. The SDK spells
+// SlotNone as the empty string "", and "this swing spends no shape" is an
+// ANSWER: Extra Attack's second swing draws a banked attack and lights none of
+// the three shapes, yet it is still priced and can still be unaffordable once
+// that bank runs out. Go's zero value for session.Slot is therefore a real
+// value, and rpg-api's projection must map "" to SLOT_NONE explicitly — a
+// projection that lets Go's "" fall through to proto's 0 would report every
+// banked swing as "the producer forgot to say", which is exactly what
+// UNSPECIFIED means and exactly what did not happen.
+enum Slot {
+  SLOT_UNSPECIFIED = 0;
+  // No per-turn slot is drawn. NOT the same claim as "costs nothing" — see
+  // the note above on banked Extra Attack swings.
+  SLOT_NONE = 1;
+  // The standard action.
+  SLOT_ACTION = 2;
+  // The bonus action.
+  SLOT_BONUS = 3;
+  // The reaction.
+  SLOT_REACTION = 4;
+}
+
 // =============================================================================
 // Spatial
 // =============================================================================
@@ -357,6 +402,55 @@ message Formed {
   repeated string surprised = 2;
   // The story sequence of the beat that recorded the fight starting.
   uint64 seq = 3;
+}
+
+// =============================================================================
+// Economy — what a member can still declare
+// =============================================================================
+
+// Declaration is one verb a member could still declare this turn, and whether
+// they can pay for it. Mirrors session.Declaration.
+//
+// DECLARATIONS, NOT REMAINING CURRENCIES (ADR-0042). A read that answered
+// {action: 0, bonus: 1} would still hand a client the raw ledger and trust it
+// to know that a swing costs an action and that Extra Attack banks capacity —
+// the D&D-in-the-client violation the economy exists to prevent, moved one read
+// earlier. A Declaration answers the question a client actually has, CAN I DO
+// THIS, and keeps the arithmetic where it has always lived: server-side, behind
+// the same SpendProfile a real swing pays through.
+//
+// THE SAME PRICE ATTACK PAYS, never a second copy of it. The SDK prices a
+// declaration by charging a sheet it loaded for the call and hands to nobody,
+// through the identical gate the Attack door pays a real swing through. If
+// Attack and Afford could ever disagree, one of them would be pricing wrong;
+// routing both through one gate is what makes that impossible by construction
+// rather than merely tested for.
+message Declaration {
+  // Which seam action this prices.
+  Verb verb = 1;
+  // Which economy shape this declaration would spend, or SLOT_NONE. Read off
+  // the SAME SpendProfile the door would charge — never a table of what a
+  // verb "usually" costs — so a class table changing what an action buys
+  // changes this automatically.
+  Slot slot = 2;
+  // Whether the member could pay for this verb right now.
+  //
+  // PLAIN bool, not `optional bool`: false is an ANSWER, not an absence — the
+  // same false-vs-absent law AtlasProp's blocking flags keep. The SDK strips
+  // omitempty from this field for exactly that reason. Absence of the
+  // question is instead AffordResponse.declarations being empty, on the world
+  // clock, where the economy does not apply at all.
+  bool affordable = 3;
+  // What ran out, in the SAME words a refused Attack would use — "action: 1
+  // needed, 0 left" — because a client that cannot repeat a refusal in the
+  // player's own words has been handed a boolean and nothing else. Empty when
+  // affordable: an empty string beside affordable = true is itself the answer
+  // ("nothing ran out"), not the absence of one.
+  //
+  // Free-form and stays a string, for the reason Sighting.channel does: the
+  // text is the SDK's own error wording, which it has not sealed into a
+  // vocabulary, and rpg-api does not invent one (rule 1).
+  string shortfall = 4;
 }
 
 // =============================================================================

@@ -87,7 +87,7 @@ Consequences for this contract, all live:
 
 ## RPCs
 
-Fourteen, mirroring the SDK verbs one-for-one.
+Fifteen, mirroring the SDK verbs one-for-one.
 
 | RPC | SDK verb | Request:Response | Notes |
 |---|---|---|---|
@@ -96,6 +96,7 @@ Fourteen, mirroring the SDK verbs one-for-one.
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error |
 | `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford` |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below |
+| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3 |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
@@ -345,14 +346,14 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
 - **`Attack` is character-attackers-only.** The SDK's stated scope: a monster's
   action can declare a save gate this seam has no vocabulary for. It arrives
   with the work that calls for it.
-- **The economy spends, but nothing reports a budget.** *"Nothing spends yet"*
-  stopped being true at v0.17.0 — a second swing in a turn that bought one is
-  refused with `ErrCannotAfford`, and the SDK is careful that the message names
-  the currency that ran out. What has no wire representation is the budget
-  *before* the refusal. A client therefore either offers an attack button that
-  fails, or re-derives how many swings a level-5 fighter gets — a rule in the
-  client, which is the Boundary Rule violation this whole seam exists to
-  prevent. Filed as **rpg-toolkit#1138**.
+- ~~**The economy spends, but nothing reports a budget.**~~ Closed at
+  session/v0.21.3 by `Afford` (**rpg-toolkit#1138**, ADR-0042): the budget
+  *before* the refusal is now on the wire as `Declaration`s — can-or-cannot per
+  gated verb — rather than as remaining currencies, so the client still never
+  learns that a swing costs an action. `SLOT_NONE` is a value distinct from
+  `SLOT_UNSPECIFIED` because the SDK spells it `""`: a banked Extra Attack
+  swing lights no shape, and rpg-api's projection must map that explicitly
+  rather than let Go's zero value fall through to proto's 0.
 - **No door state or locks on the wire.** A doorway is crossable or absent.
   `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
   walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so

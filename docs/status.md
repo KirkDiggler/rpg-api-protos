@@ -16,6 +16,14 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Session contract: `Afford` at `session/v0.21.3` (rpg-api-protos
+  feat/session-afford, 2026-08-22)** — additive, `buf breaking` green. Adds
+  `rpc Afford(AffordRequest) returns (AffordResponse)` beside `Turn`, plus
+  `Declaration {Verb, Slot, affordable, shortfall}` and the `Verb` / `Slot`
+  enums. Closes the "economy spends but nothing reports a budget" gap
+  (rpg-toolkit#1138) the way ADR-0042 rules: declarations, not remaining
+  currencies. 15 RPCs.
+
 - **Session contract: `Seen` on `Sighting`/`Report` at `session/v0.21.2`
   (rpg-api-protos feat/session-seen, ADR-0041, rpg-toolkit#1157/#1158/#1159,
   2026-08-22)** — purely additive, `buf breaking` green, no label. Adds

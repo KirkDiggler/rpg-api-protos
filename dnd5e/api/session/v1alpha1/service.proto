@@ -10,7 +10,8 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
-// package — one verb surface, transcribed (shapes read from session/v0.18.0).
+// package — one verb surface, transcribed (shapes read from session/v0.18.0;
+// Afford from session/v0.21.3).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -243,6 +244,62 @@ message TurnResponse {
   // The initiative order of the fight they are in, first to act first. Empty on
   // the world clock.
   repeated string order = 4;
+}
+
+// AffordRequest asks what one member can still declare this turn.
+//
+// Added with session/v0.21.3 (toolkit#1138, ADR-0042), and it closes the gap
+// the economy opened: v0.17.0 made a second swing in a turn that bought one
+// refusable, and the refusal is careful to name the currency that ran out —
+// but nothing on the seam said so BEFORE the refusal. A turn UI built against
+// that had exactly two options: offer the button and let the server say no, or
+// re-derive 5e's economy client-side — a level-1 fighter gets one swing, Extra
+// Attack lands at level 5 — which is the Boundary Rule violation this whole
+// seam exists to prevent. This read is the third option.
+//
+// THE MEMBER'S OWN BUDGET, and the singular is the same law GetWhere and Turn
+// keep: the host binds `member` to the authenticated caller, because the SDK
+// cannot tell who is asking and a client-supplied ID wired through unchecked
+// turns a caller-scoped read into one that answers about anybody.
+//
+// NOT_FOUND if the session, encounter or member is absent; FAILED_PRECONDITION
+// if the member is on the turn clock and has no loadable sheet (a monster, or a
+// malformed record — a character already in a fight has one by construction),
+// or if the rulebook cannot compile this member's price, which Attack would
+// refuse the same way.
+message AffordRequest {
+  string session = 1;
+  // Whose budget is being asked about — the caller's own.
+  string member = 2;
+}
+
+// AffordResponse mirrors session.AffordOutput.
+//
+// DECLARATIONS, NOT REMAINING CURRENCIES. Kirk's ruling on toolkit#1138:
+// "backend tells dumb client what it can do." Reporting {action: 0, bonus: 1}
+// would still make the client know a swing costs an action — the rule would
+// have leaked through the very read meant to keep it server-side. So this
+// carries can-or-cannot per verb, with the Slot a client lights and the
+// Shortfall it can repeat. See Declaration in types.proto and ADR-0042.
+//
+// THE ECONOMY'S ANSWER, NOT THE TURN'S. Attack does not check whose turn it is
+// — nothing on this seam does yet, EndTurn aside — so neither does this.
+// Whether a swing would ALSO be refused for arriving out of turn is
+// TurnResponse.active's question; a future turn gate belongs beside it, not
+// inside a Declaration.
+message AffordResponse {
+  // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
+  // does not apply to them at all.
+  ClockKind clock = 1;
+  // One entry per verb the seam prices — exactly one in v1, VERB_ATTACK.
+  //
+  // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
+  // an empty list as "unknown" or as a shorter way of asking again: free roam
+  // has no budget to report, and the SDK goes out of its way to marshal this
+  // as "[]" rather than omit it, for the same false-vs-absent reason every
+  // bool at this seam keeps. Proto carries no empty-vs-absent distinction on a
+  // repeated field, which is fine — `clock` says which case this is.
+  repeated Declaration declarations = 2;
 }
 
 // EndTurnRequest ends a member's turn and hands the fight to whoever is next.
@@ -547,6 +604,14 @@ service SessionService {
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.
   rpc Turn(TurnRequest) returns (TurnResponse);
+
+  // Afford reports what one member can still declare this turn — can-or-cannot
+  // per gated verb, with the shape it would spend and the words a refusal
+  // would use. Not Get-prefixed: it mirrors session.Afford the way Turn
+  // mirrors session.Turn, a per-member read named for its question. The
+  // caller's own budget, bound to the authenticated member as GetWhere is
+  // (toolkit#1138, ADR-0042).
+  rpc Afford(AffordRequest) returns (AffordResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

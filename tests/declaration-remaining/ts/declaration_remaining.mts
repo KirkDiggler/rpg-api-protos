@@ -33,10 +33,14 @@ for (const testCase of cases) {
 
 // Compare the presence bit in isolation: the same Move declaration with
 // remaining cleared must not serialize identically to remaining = 0.
-const zero = fromBinary(DeclarationSchema, encoded.get("explicit-zero")!);
+const zeroBinary = encoded.get("explicit-zero");
+if (zeroBinary === undefined) {
+  throw new Error("explicit-zero fixture was not encoded");
+}
+const zero = fromBinary(DeclarationSchema, zeroBinary);
 const cleared = clone(DeclarationSchema, zero);
 cleared.remaining = undefined;
-if (bytesEqual(toBinary(DeclarationSchema, cleared), encoded.get("explicit-zero"))) {
+if (bytesEqual(toBinary(DeclarationSchema, cleared), zeroBinary)) {
   throw new Error("absent remaining and explicit remaining=0 serialized identically");
 }
 
@@ -50,8 +54,8 @@ function assertEqual(
   }
 }
 
-function bytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
-  if (left === undefined || right === undefined || left.length !== right.length) {
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) {
     return false;
   }
   return left.every((value, index) => value === right[index]);

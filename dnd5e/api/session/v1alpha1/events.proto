@@ -2,9 +2,14 @@ syntax = "proto3";
 
 package dnd5e.api.session.v1alpha1;
 
+import "dnd5e/api/session/v1alpha1/types.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
+
+// Read from session/v0.18.0; typed event bodies from the combat-turn contract
+// (rpg-project#249) — they land with rpg-toolkit#941.
 
 // EventKind names what an event reports. Mirrors session.EventKind.
 //
@@ -167,5 +172,124 @@ message Event {
   EventKind kind = 6;
   // The kind-specific body, encoded by the toolkit. PASSTHROUGH: rpg-api
   // round-trips these bytes and never builds or inspects them.
+  //
+  // REMAINS FOR KINDS NOT YET TYPED. For every kind that has a member of
+  // `body` below, the body is the beat and this is at most the same facts in
+  // the toolkit's own encoding. A CLIENT READS `body` AND NEVER DECODES
+  // `payload` — not as a fallback, not for a field it wishes were typed. A
+  // fact a client needs that only `payload` carries is a missing body field
+  // and goes through the design, the way Seen did for Sighting (ADR-0041).
   bytes payload = 7;
+
+  // The beat, typed. Lands with rpg-toolkit#941 — beats record a declared
+  // kind and a typed body, and the session seam projects them, replacing the
+  // "TEMPORARY SHAPE" where session's kindOf unmarshalled the JSON payload to
+  // learn what it was carrying. Done properly rather than bridged (Kirk,
+  // rpg-project#249 §6): nothing here is a stopgap to be thrown away later.
+  //
+  // ONE-TO-ONE WITH `kind` where a body exists: a TURN_ENDED event carries
+  // turn_ended, and so on down the list. A kind with no body member here
+  // (JOINED, EXITED, ENDED, SCENE_OPENED, TICK, UNKNOWN) leaves this unset and
+  // is read from `kind` alone — those beats are not narrated from facts a
+  // client needs typed, yet. Adding one is one additive oneof member.
+  //
+  // Tags start at 10 to leave room beside the spine; 8 and 9 are unassigned.
+  oneof body {
+    TurnEnded turn_ended = 10;
+    Downed downed = 11;
+    Struck struck = 12;
+    Missed missed = 13;
+    FightStarted fight_started = 14;
+    FightEnded fight_ended = 15;
+    Moved moved = 16;
+  }
+}
+
+// =============================================================================
+// Typed bodies — one per kind a client narrates from
+// =============================================================================
+//
+// Every id below is a member id, the same vocabulary Participant.member and
+// Sighting.subject speak; a client that needs a name joins against
+// TurnResponse.participants or Sighting.name. Bodies carry FACTS, not prose:
+// "You hit skeleton-1 — 17 vs AC 13, 6 slashing" is rendered by the client
+// from Struck, and the server never writes a sentence.
+
+// TurnEnded: a member's turn ended and the order moved on (EVENT_KIND_TURN_ENDED).
+//
+// This is also "X's turn" as a moment: one of these per driven member, so the
+// monster's turn is a visible beat ("skeleton-1's turn", then whatever its
+// driver did) rather than a gap between two of the player's. Pacing is the
+// client's (rpg-dnd5e-web#561).
+message TurnEnded {
+  // Whose turn ended.
+  string member = 1;
+  // Whose turn it is now — the same answer EndTurnResponse.next gives the
+  // member who ended it, here for everyone else.
+  string next = 2;
+}
+
+// Downed: a member is at zero hit points and out of the fight
+// (EVENT_KIND_DOWNED). Who, and nothing else — see the kind's own doc for why
+// hit points are not here.
+message Downed {
+  string member = 1;
+}
+
+// Struck: an attack landed (EVENT_KIND_STRUCK). The numbers AttackResponse
+// gives the attacker, here for every witness, plus what was swung.
+message Struck {
+  string attacker = 1;
+  string target = 2;
+  // The d20 as rolled.
+  int32 roll = 3;
+  // The roll plus everything the attack chain added.
+  int32 total = 4;
+  // The number the total had to reach.
+  int32 against = 5;
+  // What was dealt. Never zero on a Struck; a miss is a Missed.
+  int32 damage = 6;
+  // What was swung — ref, name, damage type. Lands with rpg-toolkit#866.
+  AttackRef attack = 7;
+  bool critical = 8;
+}
+
+// Missed: an attack did not land (EVENT_KIND_MISSED). A separate body rather
+// than Struck with damage 0, for the reason the kinds are separate — a whiff
+// is a different animation, sound and sentence — and it carries no damage
+// field at all so "missed for 0" cannot be said.
+message Missed {
+  string attacker = 1;
+  string target = 2;
+  int32 roll = 3;
+  int32 total = 4;
+  int32 against = 5;
+  // What was swung. Lands with rpg-toolkit#866.
+  AttackRef attack = 6;
+}
+
+// FightStarted: two sides came into contact and a fight began
+// (EVENT_KIND_FIGHT_STARTED). Delivered to every member of the encounter, in
+// or out of the fight — see the kind.
+message FightStarted {
+  // The fight's members in initiative order, first to act first — the same
+  // list Formed.order hands the member whose verb started it.
+  repeated string members = 1;
+}
+
+// FightEnded: a fight dissolved and its members returned to free roam
+// (EVENT_KIND_FIGHT_ENDED). `cause` says why, in the same enum
+// DissolveResponse.cause speaks: BY_DECISION when somebody disengaged,
+// BY_DEFEAT when a side ran out of standing members. TurnResponse.clock flips
+// to WORLD on the same beat.
+message FightEnded {
+  DissolveKind cause = 1;
+}
+
+// Moved: a member stepped to a new cell (EVENT_KIND_MOVED). Dungeon-absolute,
+// like every position on this seam. One body per step — a walk of four cells
+// is four of these, each with its own seq.
+message Moved {
+  string member = 1;
+  Position to = 2;
 }

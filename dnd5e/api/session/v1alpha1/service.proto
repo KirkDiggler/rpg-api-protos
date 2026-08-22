@@ -12,7 +12,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
 // package — one verb surface, transcribed (shapes read from session/v0.18.0;
 // Afford from session/v0.21.3; VERB_MOVE, Declaration.remaining and Move's
-// turn-clock refusals from the tag that closes rpg-toolkit#1169).
+// turn-clock refusals from the tag that closes rpg-toolkit#1169; combat-turn
+// contract, rpg-project#249 — SDK fields land with the toolkit issues named
+// inline: reach #1010, standing and names #1137, weapon identity #866).
 //
 // Three rules from rpg-project/ideas/session-api/design.md shape every message
 // below, and are worth reading before adding anything to this file:
@@ -218,6 +220,24 @@ message MoveResponse {
 // turn that bought one is refused FAILED_PRECONDITION with ErrCannotAfford
 // naming the currency ("action: 1 needed, 0 left"). Afford reports that budget
 // before the refusal.
+//
+// THREE REFUSALS, ALL FAILED_PRECONDITION, ALL ANNOUNCED BY AFFORD FIRST
+// (rpg-project#249). None is a caller defect and none is INVALID_ARGUMENT:
+//
+//   - NOT YOUR TURN. Only the fight's active member swings; anyone else in
+//     the bubble gets the SDK's ErrNotYourTurn — the same sentinel Move and
+//     EndTurn carry for the same question.
+//   - NO TARGET IN REACH. The target stands further than the weapon reaches:
+//     one cell for melee, two with the reach property (rpg-toolkit#1010,
+//     ErrOutOfReach). A ranged weapon stays refused as today. Afford's
+//     per-target ATTACK declarations are the same gate asked ahead of time —
+//     a target that is not in a declaration will be refused here.
+//   - ACTION BUDGET. ErrCannotAfford, "action: 1 needed, 0 left", as above.
+//
+// AN EMPTY HAND IS NOT A REFUSAL. A character with nothing equipped swings an
+// unarmed strike — the catalog ref "unarmed-strike", bludgeoning — because
+// that is the rule, not a gap (rpg-toolkit#1168). ErrBadAttack stays for a
+// sheet the rulebook cannot read at all.
 message AttackRequest {
   string session = 1;
   // Who swings.
@@ -242,6 +262,11 @@ message AttackResponse {
   uint64 seq = 7;
   SaveReport saved = 8;
   DeliveryReport delivery = 9;
+  // What was swung — ref, name and damage type. The beat line's "6 slashing"
+  // and "with a longsword" come from here; the numbers above came across the
+  // seam from the first swing and the weapon that produced them did not.
+  // Lands with rpg-toolkit#866.
+  AttackRef attack = 10;
 }
 
 // TurnRequest asks what one member is waiting on.
@@ -270,6 +295,12 @@ message TurnResponse {
   // The initiative order of the fight they are in, first to act first. Empty on
   // the world clock.
   repeated string order = 4;
+  // The same members as `order`, in the same order, each with what a bare id
+  // cannot carry: name, kind, standing, and whether they are the active one.
+  // Empty on the world clock. `order` stays for the readers it already has —
+  // a new client reads this and never joins the two. See Participant for why
+  // this is not the roster read the seam refuses. Lands with rpg-toolkit#1137.
+  repeated Participant participants = 5;
 }
 
 // AffordRequest asks what one member can still declare this turn.
@@ -308,11 +339,20 @@ message AffordRequest {
 // carries can-or-cannot per verb, with the Slot a client lights and the
 // Shortfall it can repeat. See Declaration in types.proto and ADR-0042.
 //
-// THE ECONOMY'S ANSWER, NOT THE TURN'S. Attack does not check whose turn it is
-// — nothing on this seam does yet, EndTurn aside — so neither does this.
-// Whether a swing would ALSO be refused for arriving out of turn is
-// TurnResponse.active's question; a future turn gate belongs beside it, not
-// inside a Declaration.
+// THE ECONOMY'S ANSWER, THEN THE TURN'S AND REACH'S TOO. Through
+// session/v0.21.3 this priced the budget and nothing else — Attack did not
+// check whose turn it was, so neither did Afford. The combat-turn contract
+// (rpg-project#249) makes every refusal Attack can give announceable here
+// first, as Declaration.why: not your turn, no target in reach, the budget.
+// A client that reads the declarations never sends a swing the server will
+// refuse, and never learns a rule to manage that.
+//
+// ONE ATTACK DECLARATION PER TARGET IN REACH (rpg-toolkit#1010): the list is
+// the client's highlight of who can be swung at, with `target` set on each.
+// No candidate in reach is still an answer — one ATTACK declaration,
+// affordable false, why.reason NO_TARGET_IN_REACH, no target. A monk's bonus
+// strike, an off-hand swing, a flurry: further declarations of the same
+// shape, never new fields.
 message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
@@ -628,7 +668,9 @@ service SessionService {
   rpc Move(MoveRequest) returns (MoveResponse);
 
   // Attack swings one member's weapon at another. Character attackers only in
-  // v1; a swing spends, and an unaffordable one is refused naming the currency.
+  // v1. Refused FAILED_PRECONDITION when it is not the attacker's turn, the
+  // target is out of reach, or the action is spent — each of which Afford
+  // announces first.
   rpc Attack(AttackRequest) returns (AttackResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the

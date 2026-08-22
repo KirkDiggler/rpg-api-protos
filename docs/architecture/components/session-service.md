@@ -2,7 +2,7 @@
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
 updated: 2026-08-22
-confidence: high — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
+confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
 # SessionService
@@ -18,8 +18,11 @@ session/v0.9.0, re-transcribed by #226 (issue #225) against
 **session/v0.12.0**, extended by #228 (issue #227) with `GetWhere` at
 **session/v0.13.0**, caught up to **session/v0.18.0** by the delta below,
 extended to **session/v0.20.0** with `GetAtlasResponse.layout`
-(rpg-toolkit#1140), and extended to **session/v0.21.2** — the version this doc
-describes — with `Seen` on `Sighting`/`Report` (ADR-0041, rpg-toolkit#1157).
+(rpg-toolkit#1140), extended to **session/v0.21.2** with `Seen` on
+`Sighting`/`Report` (ADR-0041, rpg-toolkit#1157), and then — the state this
+doc describes — carrying **the combat-turn contract** (rpg-project#249,
+design `rpg-project/ideas/combat-turn/design.md` §3), which is the one part
+of this package that merged *ahead* of its SDK. See "The combat turn" below.
 
 ## What makes this service different from every other one here
 
@@ -94,9 +97,9 @@ Fifteen, mirroring the SDK verbs one-for-one.
 | `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Takes an absolute cell — a caller places somebody on the map, not in a chamber |
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error. **On the turn clock it spends** (rpg-toolkit#1169): only the active member walks (`ErrNotYourTurn`), and the whole path is priced at 5 ft/cell and paid before the first step (`ErrCannotAfford`, "movement: N ft needed, M ft left"). Both `FAILED_PRECONDITION`. The old blanket in-a-fight refusal (`ErrInBubble`) is gone from this verb |
-| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford` |
-| `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below |
-| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3; `VERB_MOVE` with `optional remaining` (feet) joined with rpg-toolkit#1169 — present for Move, absent for Attack, and `0` is an answer |
+| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford`. Three `FAILED_PRECONDITION` refusals, all announced by `Afford` first: not your turn, no target in reach (rpg-toolkit#1010), action budget. An empty hand is **not** a refusal — it swings `unarmed-strike` (rpg-toolkit#1168). Response carries `attack: AttackRef` (ref, name, damage type — rpg-toolkit#866) |
+| `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below. Carries `participants[]` beside `order[]` — name, kind, standing, active per member (rpg-toolkit#1137) |
+| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3; `VERB_MOVE` with `optional remaining` (feet) joined with rpg-toolkit#1169 — present for Move, absent for Attack, and `0` is an answer. **One `ATTACK` declaration per target in reach** with `target` set (rpg-toolkit#1010); none in reach → one declaration, `affordable:false`, `why.reason = NO_TARGET_IN_REACH`. `why: Shortfall` is the structured refusal, present exactly when `affordable == false` |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
@@ -266,6 +269,54 @@ arrives on whatever verb happened to refresh sight, frequently **not** the verb
 that dealt the damage. There is deliberately no kind for coming back up:
 nothing in v1 can revive a downed member.
 
+## The combat turn (rpg-project#249) — merged ahead of its SDK
+
+Everything else in this package was transcribed from a shipped tag. This
+section was **ruled whole and merged first** (Kirk, 2026-08-22, design
+`rpg-project/ideas/combat-turn/design.md`) so the toolkit, rpg-api and the web
+client build against one shape in parallel rather than a chain of one-field
+PRs. Nothing in it is invented — each field projects a rule the composition
+already holds — but until the named toolkit issue closes, the proto comment
+says *"lands with rpg-toolkit#n"* rather than *"mirrors session.X"*. Additive
+only; `buf breaking` green against v0.1.131.
+
+| Addition | Where | Waits on |
+|---|---|---|
+| `enum Standing { UP, DOWNED }` | types | rpg-toolkit#1137 |
+| `message Participant { member, name, kind, standing, active }` + `TurnResponse.participants = 5` | types, service | rpg-toolkit#1137 |
+| `Seen.standing = 2` (sight-channel knowledge of who is up) | types | rpg-toolkit#1137 |
+| `Sighting.name = 8` | types | rpg-toolkit#1137 |
+| `enum DamageType` (13 values) + `message AttackRef { ref, name, damage_type }` + `AttackResponse.attack = 10` | types, service | rpg-toolkit#866 |
+| `enum ShortfallReason`, `enum Currency`, `message Shortfall { reason, currency, needed, left, text }` + `Declaration.why = 7` | types | rpg-toolkit#1010 (structured form) |
+| `optional string Declaration.target = 6` — one `ATTACK` declaration per target in reach | types | rpg-toolkit#1010 |
+| Attack's three refusals documented (not your turn / no target in reach / action budget); empty hand → `unarmed-strike` | service | rpg-toolkit#1010, #1168 |
+| `oneof Event.body { TurnEnded, Downed, Struck, Missed, FightStarted, FightEnded, Moved }` (tags 10–16) | events | rpg-toolkit#941 |
+
+Rulings carried into the shape (design §6):
+
+- **Closed sets are enums; refs are strings.** `DamageType`,
+  `ShortfallReason`, `Currency`, `Standing` are enums because a UI branches
+  on them and the set is the rulebook's. `AttackRef.ref` stays a string: the
+  catalog is open and the client already maps it.
+- **Per-target Attack declarations.** Reach is never computed client-side —
+  the list of `ATTACK` declarations with `target` set *is* the highlight. A
+  monk's bonus strike, an off-hand swing, a flurry are further declarations of
+  the same shape, never new fields.
+- **Typed event bodies now, done properly.** rpg-toolkit#941's accepted
+  direction — beats record a declared kind and a typed body, session projects
+  them — not a stopgap over `kindOf`-unmarshals-the-JSON. A client reads
+  `Event.body` and **never decodes `payload`**; `payload` remains for the kinds
+  with no body yet (`JOINED`, `EXITED`, `ENDED`, `SCENE_OPENED`, `TICK`,
+  `UNKNOWN`).
+- **`Declaration.shortfall` (string) stays** for v0.1.131 readers and carries
+  `why.text`; a new client reads `why`.
+- **Not a roster read.** `Participant` carries no position; it lists the
+  members of the fight the asker is *in*, who have by construction seen each
+  other. Where a participant stands is still `GetView`'s, gated by sight.
+
+Deliberately not in this proto: monster behavior, ranged weapons and cover,
+reactions/opportunity attacks, death saves, a session-level equip verb.
+
 ## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
 
 - **`Turn` is asked of a member, never of the session.** Several clocks can run
@@ -323,8 +374,11 @@ position:
 `GetStory` still matters, because story replay is how a client recovers *events*
 it missed. What changed is that position is no longer derived from it.
 
-**A second gap of the same shape opened at v0.15.0 and is still open: a cold
-client cannot learn who is DOWNED.** `EventDowned` fires once on the stream, and
+**A second gap of the same shape opened at v0.15.0, and the combat-turn
+contract closes it on the wire (SDK pending, rpg-toolkit#1137): a cold client
+could not learn who is DOWNED.** `TurnResponse.participants[].standing` and
+`Seen.standing` are that read. The rest of this paragraph describes the gap
+as it stood. `EventDowned` fires once on the stream, and
 nothing readable carries the state afterwards — `Member` is `{id, kind,
 position}`, `GetStatus` is `{open, outcome}`, and `Sighting.status`
 distinguishes a live sighting from a stale memory, not an upright member from a
@@ -346,6 +400,12 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
 - **`Attack` is character-attackers-only.** The SDK's stated scope: a monster's
   action can declare a save gate this seam has no vocabulary for. It arrives
   with the work that calls for it.
+- **The combat-turn fields are on the wire before the SDK.** `Participant`,
+  `Standing`, `Sighting.name`, `AttackRef`, `Shortfall`, `Declaration.target`
+  and the typed `Event.body` are contract today and projection tomorrow:
+  rpg-api leaves them unset until rpg-toolkit#1010/#1137/#866/#941/#1168 tag.
+  A client written against them renders what arrives and must not treat an
+  unset `body` or an empty `participants` as a defect meanwhile.
 - ~~**The economy spends, but nothing reports a budget.**~~ Closed at
   session/v0.21.3 by `Afford` (**rpg-toolkit#1138**, ADR-0042): the budget
   *before* the refusal is now on the wire as `Declaration`s — can-or-cannot per

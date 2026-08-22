@@ -16,6 +16,22 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Session contract: the combat turn (rpg-api-protos
+  feat/session-combat-turn, rpg-project#249, 2026-08-22)** — additive, `buf
+  breaking` green against v0.1.131, no hand-written tests (generation is the
+  evidence). The whole of design §3 in one PR, merged AHEAD of its SDK by
+  Kirk's ruling so toolkit/api/web build in parallel: `Standing`,
+  `Participant` + `TurnResponse.participants`, `Seen.standing`,
+  `Sighting.name` (rpg-toolkit#1137); `DamageType`, `AttackRef` +
+  `AttackResponse.attack` (rpg-toolkit#866); `ShortfallReason`, `Currency`,
+  `Shortfall` + `Declaration.why`, `optional Declaration.target` — one ATTACK
+  declaration per target in reach (rpg-toolkit#1010); Attack's three refusals
+  documented, empty hand → `unarmed-strike` (rpg-toolkit#1168); `oneof
+  Event.body` with seven typed bodies, `payload` kept for untyped kinds
+  (rpg-toolkit#941). See
+  [architecture/components/session-service.md](architecture/components/session-service.md)
+  "The combat turn".
+
 - **Session contract: Move on the turn clock (rpg-api-protos
   feat/session-move-clock, rpg-toolkit#1169, 2026-08-22)** — additive, `buf
   breaking` green. `VERB_MOVE = 2`, `optional int32 Declaration.remaining = 5`

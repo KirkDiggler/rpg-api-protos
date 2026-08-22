@@ -88,6 +88,9 @@ jobs:
       - name: Verify region projection parent presence
         run: make test-region-projection-presence
 
+      - name: Verify session Declaration.remaining presence
+        run: make test-declaration-remaining-presence
+
       - name: Test TypeScript compilation
         run: |
           npx tsc --noEmit --project tsconfig.json

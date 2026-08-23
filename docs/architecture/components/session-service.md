@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-22
+updated: 2026-08-23
 confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
@@ -151,8 +151,35 @@ walk case joins it and nothing on this contract has to change.
 
 `GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
 which way its hexes point (`layout`), every `cell` sorted by coordinate, every
-`prop` standing on it, every `boundary`, and every `doorway` as a crossable
-cell pair.
+`prop` standing on it, every `boundary`, every `doorway` as a crossable cell
+pair, and every `region` — a named set of those cells with its lighting.
+
+**`regions` arrived 2026-08-23 (tag 9)**, ahead of its SDK by the same ruling
+as the combat turn, as part of the Dungeon Builder restart (rpg-project PR
+#255, slice rpg-project#256; toolkit side T1/T3 of the plan). `AtlasRegion`
+is `{id, name, cells, archetype, lighting}`: the cells are absolute, sorted
+with the same comparator as `cells`, and **every floor cell appears in exactly
+one region** — no cell unowned, no cell shared. **Regions replace rooms.**
+Nothing past the authored file has a room: no origin, no room-local frame, no
+chain. A region is only a name over cells that already exist in `cells`, and
+walls are still declared, not implied by it (below).
+
+Regions are on the atlas because **lighting is a world fact, not a render
+hint** — the ADR-0040/0041 argument again: a client that cannot read "this
+hall is dark" off the wire re-derives it by experiment. `Lighting.intensity`
+(0..1) is the dimmer on top of the region's archetype, carried from the
+author *unread* by the composition; what an intensity means to perception is
+a rule and lives in the rulebook. Audio will be a second field on
+`AtlasRegion`.
+
+`AtlasRegion.archetype` carries a law in its doc comment worth repeating
+here: **an archetype never decides mechanics** — not start, not blocking,
+not sight, not intensity. The dialect this replaces had an archetype that
+silently chose where the party stood ("entrance" meant spawn here), the
+rpg-toolkit#1033 trap; it is a presentation ref the assets resolve, and may
+only say what they show and play. The builder (`AuthoringService.PutDungeon`,
+[authoring-service.md](authoring-service.md)) answers with this very message,
+so regions and lighting reach the builder the same way they reach the game.
 
 **`layout` arrived at v0.20.0 (tag 8)**, and it exists because a client drew the
 reference tomb as a diagonal staircase. Axial coordinates fix the topology —
@@ -419,9 +446,10 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
   the same `Move` RPC, paying movement for the whole path up front. What a
   non-active bubble member gets is `ErrNotYourTurn`, not the old `ErrInBubble`.
   `Declaration.remaining` is the one `optional` scalar on this seam — the
-  pointer-optional law (Outcome/Formed), not the bool law — and
-  `tests/declaration-remaining` pins that absent and `0` stay distinct in both
-  generated SDKs.
+  pointer-optional law (Outcome/Formed), not the bool law. `optional` on a
+  proto3 scalar is what keeps absent and `0` distinct in both generated SDKs;
+  the hand-written suite that once re-checked this was removed 2026-08-23
+  (generation is the evidence).
 - **No door state or locks on the wire.** A doorway is crossable or absent.
   `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
   walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so

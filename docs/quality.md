@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos quality scorecard
 description: Per-service grade with rationale — a graded scorecard the janitor will update over time
-updated: 2026-08-16
+updated: 2026-08-23
 confidence: low-medium — first draft grades from a read-through of every .proto file plus grep against rpg-api / rpg-dnd5e-web; expect Kirk to adjust
 ---
 
@@ -178,6 +178,14 @@ from the proto alone. Re-grade once the rpg-api PR lands. Grew a
 grade unchanged by this addition alone.
 
 ### dnd5e.authoring.AuthoringService — B+ (provisional)
+
+**Replaced 2026-08-23 (rpg-project#256):** the `FloorPlan` contract graded
+below is gone with its server (rpg-api#801). The new contract is two RPCs
+(`PutDungeon`, `GetDungeon`) whose response is `session.GetAtlasResponse`
+itself, so the "server computes, client never re-derives" point below now
+holds by construction rather than by a parallel message kept in step — see
+[authoring-service.md](components/authoring-service.md). Grade unchanged
+pending a consumer. The paragraph below describes the superseded cut.
 
 Landed 2026-07-30 (rpg-api-protos#200), no consumer yet — same
 "consumer PR pending, not speculative" exception as LobbyService above:

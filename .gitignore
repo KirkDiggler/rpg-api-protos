@@ -6,7 +6,6 @@ gen/
 
 # Node.js
 node_modules/
-tests/placement-facing/ts/out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -27,6 +26,3 @@ Thumbs.db
 
 # Worktrees (isolated agent workspaces)
 .worktrees/
-
-# Compiled generated-SDK contract-test output
-tests/*/ts/out/

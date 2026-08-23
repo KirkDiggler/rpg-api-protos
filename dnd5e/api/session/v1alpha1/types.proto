@@ -865,3 +865,59 @@ message AtlasDoorway {
   // The other, adjacent to `from`.
   Position to = 7;
 }
+
+// Lighting is a region's light as the assets should render it: an intensity
+// slider on top of the region's archetype. Lands AHEAD of its SDK (plan T1/T3,
+// rpg-project#256) so toolkit, api and web build in parallel; session.Lighting
+// is transcribed from this shape, not the other way round, until it tags.
+//
+// Carried from the author UNREAD by the composition: the encounter passes it
+// through to the atlas and never consults it. What an intensity MEANS to
+// perception — whether 0.2 is "dim light" and what dim light does to a
+// Perception check — is a rule, and lives in the rulebook, not in a number on
+// the wire. This field says how bright the assets should draw the hall; the
+// rulebook decides what that costs a member standing in it.
+message Lighting {
+  // 0..1. 0 is dark, 1 is the archetype's full light.
+  double intensity = 1;
+}
+
+// AtlasRegion is a named set of absolute cells carrying the per-area facts no
+// rule can derive: which cells, what archetype dresses it, how bright it is.
+// Dungeon-absolute. Like Lighting, AHEAD of its SDK: session.AtlasRegion
+// arrives with plan T3 and is re-verified field-for-field when it tags.
+//
+// REGIONS REPLACE ROOMS (rpg-project PR #255). Nothing past the authored file
+// has a room: no origin, no room-local frame, no chain. A region is only a
+// name over a set of cells that already exist in `cells` above, and every
+// floor cell appears in exactly one region. Walls are declared, not implied
+// by regions — see GetAtlasResponse.boundaries; two regions side by side are
+// one open space until somebody draws the seam.
+//
+// Regions are on the atlas because lighting is a WORLD FACT, not a render
+// hint. A client that cannot read "this hall is dark" off the wire
+// re-derives it by experiment — the same argument that put `layout` here
+// (ADR-0040) and `Seen` on Sighting (ADR-0041). Audio will be a second field
+// on this message when it arrives.
+message AtlasRegion {
+  string id = 1;
+  string name = 2;
+  // The region's cells, absolute axial (q, r), sorted by coordinate — the
+  // SAME frame and the same comparator as GetAtlasResponse.cells. Not a
+  // bounding box, not a rectangle: exactly the cells, so a client tests
+  // membership and never infers it.
+  repeated Position cells = 3;
+  // archetype is a presentation ref the assets resolve — lighting kind, audio
+  // profile — e.g. "crypt".
+  //
+  // LAW: AN ARCHETYPE NEVER DECIDES MECHANICS. Not start, not blocking, not
+  // sight, not intensity. The dialect this replaces had an archetype that
+  // silently chose where the party stood — "entrance" meant spawn here — and
+  // that is the rpg-toolkit#1033 trap and why it was deleted: a word meant
+  // for the renderer had grown a rule nobody could see from the file. This
+  // one may only say what the assets show and play. Where the party starts
+  // is `start` in the file; what blocks is a wall or a prop; how bright it
+  // is, is `lighting`.
+  string archetype = 4;
+  Lighting lighting = 5;
+}

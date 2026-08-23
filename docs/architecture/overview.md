@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-08-16
+updated: 2026-08-23
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -48,11 +48,11 @@ rpg-api-protos/
     service.proto                # LobbyService — party-assembly RPCs; not yet consumed (rpg-api pending); also carries StartEncounterRequest.dungeon_key + ListDungeons (Dungeon Builder arc, rpg-project#169)
     types.proto                  # LobbyMember
     events.proto                 # LobbyEvent stream — snapshot + membership/presence deltas
-  dnd5e/api/authoring/v1alpha1/  # own subpackage; dev-gated dungeon authoring (Dungeon Builder arc, rpg-project#169)
-    service.proto                # AuthoringService — PutDungeon; not yet consumed (rpg-api S1 pending)
+  dnd5e/api/authoring/v1alpha1/  # own subpackage; dev-gated dungeon authoring (Dungeon Builder journey rpg-project#169; replaced 2026-08-23 per rpg-project#256)
+    service.proto                # AuthoringService — PutDungeon answers with session.GetAtlasResponse; GetDungeon; not yet consumed (rpg-api A pending)
   dnd5e/api/session/v1alpha1/    # service-first layout; field-for-field transcription of rpg-toolkit rulebooks/dnd5e/session @ v0.13.0 — one map, no room IDs on the seam (rpg-project#227)
     service.proto                # SessionService — 14 RPCs mirroring the SDK verbs (no Traverse: a walk crosses a doorway; GetWhere answers "where am I"); not yet consumed (rpg-api W2 in flight)
-    types.proto                  # Position (double x/y, mirrors spatial.Position), Member, CharacterState, Sighting, AtlasDoorway/Boundary, SaveReport, ...
+    types.proto                  # Position (double x/y, mirrors spatial.Position), Member, CharacterState, Sighting, AtlasDoorway/Boundary/Region, Lighting, SaveReport, ...
     events.proto                 # Event stream — flat per-recipient envelope + EventKind; no snapshot, GetStory is the resync path
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
@@ -156,6 +156,14 @@ The override is intentional: alpha packages permit breaking changes, but
 each one requires explicit reviewer acknowledgment via the label, not a
 silent merge with a yellow x. Stable (v1+) services should bump the package
 version (`v1`→`v2`) instead of using the override.
+
+**Worked example: `AuthoringService` replaced in place (rpg-project#256,
+2026-08-23).** The first authoring contract's only server was deleted with
+the old encounter module (rpg-api#801), so the `FloorPlan` dialect was
+rewritten outright — messages deleted, not `reserved`, since there was no
+wire left to keep safe — and the session package grew `regions` additively
+in the same PR. `buf breaking` reports the authoring file only; carried via
+the override label.
 
 **Worked example: `EncounterService.CreateEncounter` removed (rpg-api-protos#176,
 2026-07-06).** The lobby service's `StartEncounter` subsumes it — a solo lobby

@@ -48,7 +48,7 @@ message PutDungeonResponse {
 }
 message FieldError { string path = 1; string message = 2; }   // "regions[1].cells[0][3]", "walls[3]", "start"
 message GetDungeonRequest  { string key = 1; }
-message GetDungeonResponse { string yaml = 1; }               // verbatim bytes, never a re-marshal
+message GetDungeonResponse { string yaml = 1; }               // verbatim text, never a re-marshal
 ```
 
 There is no `DeleteDungeon`. Not now: nothing in the builder's first loop
@@ -87,10 +87,10 @@ other world fact does — on the atlas
 - Gate off — `Unimplemented`; the RPC is not registered. This is how a
   client tells "authoring is off" from "server unreachable".
 
-## Verbatim bytes
+## Verbatim text
 
 `PutDungeonRequest.yaml` is compiled and stored exactly as sent;
-`GetDungeonResponse.yaml` is exactly those bytes back. The server never
+`GetDungeonResponse.yaml` is exactly that UTF-8 text back. The server never
 re-marshals: an author reopening a map gets their comments, ordering and
 spacing, not the server's opinion of the file.
 

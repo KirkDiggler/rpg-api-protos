@@ -57,9 +57,9 @@ service AuthoringService {
 // inline-error path, where the author needs the list, not a status code.
 message PutDungeonRequest {
   string key = 1;
-  // The dungeon file, verbatim. The server compiles exactly these bytes and
-  // stores exactly these bytes; it never re-marshals, so what an author wrote
-  // (comments, ordering, spacing) is what GetDungeon hands back.
+  // The dungeon file, verbatim UTF-8 text. The server compiles exactly this
+  // text and stores exactly this text; it never re-marshals, so what an author
+  // wrote (comments, ordering, spacing) is what GetDungeon hands back.
   string yaml = 2;
   // validate_only compiles and answers without writing anything. This is the
   // builder's per-edit preview, and it NEVER refuses a half-drawn map: a file
@@ -114,7 +114,7 @@ message GetDungeonRequest {
 
 // GetDungeonResponse is the stored file.
 message GetDungeonResponse {
-  // The stored file, VERBATIM BYTES — never a re-marshal. An author reopening
+  // The stored file, VERBATIM UTF-8 TEXT — never a re-marshal. An author reopening
   // a map gets back exactly what they saved: their comments, their ordering,
   // their spacing. A server that round-tripped the file through its own
   // model would hand back its opinion of the file instead of the file.

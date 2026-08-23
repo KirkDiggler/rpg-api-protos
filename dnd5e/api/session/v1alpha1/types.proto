@@ -867,7 +867,9 @@ message AtlasDoorway {
 }
 
 // Lighting is a region's light as the assets should render it: an intensity
-// slider on top of the region's archetype. Mirrors session.Lighting.
+// slider on top of the region's archetype. Lands AHEAD of its SDK (plan T1/T3,
+// rpg-project#256) so toolkit, api and web build in parallel; session.Lighting
+// is transcribed from this shape, not the other way round, until it tags.
 //
 // Carried from the author UNREAD by the composition: the encounter passes it
 // through to the atlas and never consults it. What an intensity MEANS to
@@ -882,7 +884,8 @@ message Lighting {
 
 // AtlasRegion is a named set of absolute cells carrying the per-area facts no
 // rule can derive: which cells, what archetype dresses it, how bright it is.
-// Mirrors session.AtlasRegion. Dungeon-absolute.
+// Dungeon-absolute. Like Lighting, AHEAD of its SDK: session.AtlasRegion
+// arrives with plan T3 and is re-verified field-for-field when it tags.
 //
 // REGIONS REPLACE ROOMS (rpg-project PR #255). Nothing past the authored file
 // has a room: no origin, no room-local frame, no chain. A region is only a

@@ -473,7 +473,7 @@ message Sighting {
   // How it was perceived.
   string channel = 3;
   // The clock reading when this knowledge was last refreshed. A clock reading,
-  // not a wall time — see StoryEntry.at.
+  // not a wall time — see Event.at.
   uint64 at = 4;
   // The channels currently carrying it. Empty means the observer holds a
   // memory rather than a live sighting.
@@ -757,29 +757,6 @@ message DeliveryReport {
   // source of truth, sequences are gapless, and a client that misses an event
   // notices the hole and re-queries GetStory.
   bool failed = 2;
-}
-
-// =============================================================================
-// Story
-// =============================================================================
-
-// StoryEntry is one recorded beat. Mirrors session.StoryEntry.
-//
-// The story log is truth (design rule 6): the event stream is best-effort, and
-// GetStory is what a client that noticed a gap in `seq` reads to catch up.
-message StoryEntry {
-  // Monotonic, gapless, never renumbered. A client that notices a gap has
-  // missed a beat and should re-query.
-  uint64 seq = 1;
-  // The clock reading when the beat was recorded — the world's own clock, not a
-  // wall time, which is why this is a uint64 and not a google.protobuf.Timestamp.
-  uint64 at = 2;
-  // Groups cause and effect across beats. Empty is legal.
-  string correlation = 3;
-  // Queryable metadata describing the beat.
-  map<string, string> tags = 4;
-  // The beat itself, encoded by the composition. Passthrough.
-  bytes payload = 5;
 }
 
 // =============================================================================

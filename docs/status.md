@@ -30,11 +30,13 @@ shape and consumer drift, it shows up here as a "rough edge."
   answers with `session.GetAtlasResponse` itself (the builder has no second
   geometry), `errors` is a list of `FieldError{path, message}`, and
   `GetDungeon` returns the stored file verbatim. Deleted with the dialect:
-  `authoring/v1alpha1/testdata/`, the `tests/regions` and
-  `tests/placement-facing` presence suites and their Makefile/CI targets
-  (Kirk's 2026-08-22 rule: this repo carries no hand-written presence or
-  round-trip suites; lint/format/breaking + generation compiling is the
-  evidence). See
+  `authoring/v1alpha1/testdata/`, and — by Kirk's ruling on this PR (*"we do
+  not need tests in the protos. we have them mechanically compiled"*) —
+  every hand-written presence suite this repo had: `tests/regions`,
+  `tests/placement-facing`, `tests/declaration-remaining`, their fixtures,
+  Makefile targets and CI steps. `tests/` is gone. Evidence for a proto
+  change is `buf lint`, `buf format`, `buf breaking` and generation
+  compiling, nothing else. See
   [architecture/components/authoring-service.md](architecture/components/authoring-service.md).
   Proto-only — rpg-toolkit (T1–T3), rpg-api (A) and rpg-dnd5e-web (W) are
   the parallel legs (`rpg-project/ideas/dungeon-builder/plan.md`).
@@ -69,8 +71,9 @@ shape and consumer drift, it shows up here as a "rough edge."
   breaking` green. `VERB_MOVE = 2`, `optional int32 Declaration.remaining = 5`
   (feet; present for Move, absent for Attack), and the `Move` RPC's two new
   refusal cases documented (`ErrNotYourTurn`; `ErrCannotAfford` naming
-  movement) in place of the retired blanket fight-lock. New presence suite
-  `tests/declaration-remaining` wired into `make test` and CI.
+  movement) in place of the retired blanket fight-lock. (Its presence suite
+  `tests/declaration-remaining` was removed 2026-08-23 with the rest —
+  see the restart entry above.)
 
 - **Session contract: `Afford` at `session/v0.21.3` (rpg-api-protos
   feat/session-afford, 2026-08-22)** — additive, `buf breaking` green. Adds

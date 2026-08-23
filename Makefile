@@ -1,4 +1,4 @@
-.PHONY: help install-tools lint format refgen generate clean test test-declaration-remaining-presence push
+.PHONY: help install-tools lint format refgen generate clean test push
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -28,24 +28,12 @@ generate: ## Generate Go and TypeScript code
 clean: ## Clean generated files
 	rm -rf gen/
 
-test: ## Run tests (lint + format check + generate + mocks + generated-SDK presence checks)
+test: ## Run tests (lint + format check + generate + mocks)
 	buf lint --disable-symlinks
 	buf format --diff --exit-code --disable-symlinks
 	buf generate --disable-symlinks
 	$(MAKE) mocks
-	$(MAKE) test-declaration-remaining-presence
-
-test-declaration-remaining-presence: ## Verify generated Go/TS preserve session Declaration.remaining presence
-	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy
-	cd tests/declaration-remaining/go && go test -mod=readonly ./...
-	rm -rf tests/declaration-remaining/ts/out
-	npx tsc --project tests/declaration-remaining/ts/tsconfig.json
-	mkdir -p tests/declaration-remaining/ts/out/dnd5e/api/session/v1alpha1/testdata
-	cp dnd5e/api/session/v1alpha1/testdata/declaration-remaining-*.json tests/declaration-remaining/ts/out/dnd5e/api/session/v1alpha1/testdata/
-	printf '{"type":"module"}\n' > tests/declaration-remaining/ts/out/package.json
-	# buf's extensionless relative imports are valid to bundlers; make Node's emitted-test loader explicit.
-	find tests/declaration-remaining/ts/out/gen -name '*.js' -exec sed -i -E 's|(from "[.][.]/[^"]+)(")|\1.js\2|; s|(from "[.]/[^"]+)(")|\1.js\2|' {} +
-	node tests/declaration-remaining/ts/out/tests/declaration-remaining/ts/declaration_remaining.mjs
+	$(MAKE)
 
 mocks: ## Generate mocks for gRPC services
 	# D&D 5e services

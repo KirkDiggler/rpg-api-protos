@@ -446,9 +446,10 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
   the same `Move` RPC, paying movement for the whole path up front. What a
   non-active bubble member gets is `ErrNotYourTurn`, not the old `ErrInBubble`.
   `Declaration.remaining` is the one `optional` scalar on this seam — the
-  pointer-optional law (Outcome/Formed), not the bool law — and
-  `tests/declaration-remaining` pins that absent and `0` stay distinct in both
-  generated SDKs.
+  pointer-optional law (Outcome/Formed), not the bool law. `optional` on a
+  proto3 scalar is what keeps absent and `0` distinct in both generated SDKs;
+  the hand-written suite that once re-checked this was removed 2026-08-23
+  (generation is the evidence).
 - **No door state or locks on the wire.** A doorway is crossable or absent.
   `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
   walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so

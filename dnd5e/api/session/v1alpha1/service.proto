@@ -498,9 +498,20 @@ message GetStoryRequest {
   uint64 from_seq = 3;
 }
 
-// GetStoryResponse carries session.Story's return slice.
+// GetStoryResponse carries session.Story's return slice, projected through
+// the SAME converter StreamEvents uses.
+//
+// Each entry is the Event a live subscriber would have received for this seq
+// — kind, typed body, recipient and all — so a client catching up after a gap
+// reads exactly what it missed. Catch-up and live are ONE shape: there is no
+// second, lossier projection of a beat that a client has to decode
+// differently (rpg-api-protos#239 — the old StoryEntry carried only the raw
+// payload, which left caught-up beats untyped in the client's feed).
+//
+// Entries are addressed to `member`: every Event's `recipient` equals the
+// requested member, the same assertion StreamEvents makes.
 message GetStoryResponse {
-  repeated StoryEntry entries = 1;
+  repeated Event entries = 1;
 }
 
 // GetViewRequest asks what one member currently perceives.

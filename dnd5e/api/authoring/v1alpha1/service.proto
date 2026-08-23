@@ -2,233 +2,121 @@ syntax = "proto3";
 
 package dnd5e.api.authoring.v1alpha1;
 
-import "dnd5e/api/v1alpha1/common.proto";
+import "dnd5e/api/session/v1alpha1/service.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/authoring/v1alpha1;authoringpb";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.authoring.v1alpha1";
 
-// PutDungeonRequest submits a dungeonspec YAML for validation and (unless
-// validate_only) compilation into the live registry. key must match the
-// YAML's own declared `key:` field exactly -- mismatch is InvalidArgument
-// (design.md's Key rules).
+// AuthoringService is the in-game dungeon builder's seam: write a world file,
+// get back the world the game will play.
 //
-// Error-transport decision (Opus gate finding, S0 revision 2): a
-// malformed REQUEST -- key fails the `[a-z0-9-]` charset, or key/YAML
-// `key:` mismatch -- has no meaningful response body, so it fails at the
-// transport level: gRPC InvalidArgument status, PutDungeonResponse never
-// delivered. A well-formed request whose YAML CONTENT fails
-// dungeonspec's validate/compile step returns gRPC OK with
-// PutDungeonResponse{success: false, field_errors: [...], floor_plan:
-// unset} -- this is the editor's inline-error path, and a non-OK status
-// would drop the body entirely. validate_only affects persistence only;
-// it does not change which of these two paths a given input takes. See
-// PutDungeonResponse for the success side of this contract.
+// THIS IS THE SECOND AuthoringService AT THIS PATH, AND A REPLACEMENT, NOT A
+// REVISION (rpg-project PR #255, slice rpg-project#256). The first described
+// the room-chain dialect — `FloorPlan`, `door_row`, `start_column`, an
+// `archetype` that silently chose where the party stood — and its only server
+// was deleted with the old encounter module in rpg-api#801. Under
+// no-backcompat there is nothing to stay compatible with, so the old shapes
+// are gone rather than reserved: there is no wire to keep safe, and carrying
+// a dead dialect beside a live one is the Rule 1 violation this repo already
+// pays for once.
+//
+// The one idea that survives from the first cut is the transport decision:
+// a malformed REQUEST is a gRPC status, a file that fails to COMPILE is a
+// body. See PutDungeonRequest.
+//
+// There is no DeleteDungeon. Not now: nothing in the builder's first loop
+// (draw, validate, save, play, reopen) deletes, and an RPC with no caller is
+// the Rule 4 violation this repo is still paying down elsewhere.
+service AuthoringService {
+  // PutDungeon compiles a dungeon file and, unless validate_only, stores it
+  // under its key so StartEncounter can find it. Either way it answers with
+  // the compiled atlas — the same GetAtlasResponse the game plays from.
+  //
+  // Gated server-side by RPG_AUTHORING_ENABLED: with the gate off the RPC is
+  // not registered and callers see Unimplemented, which is how a client tells
+  // "authoring is off" from "server unreachable". The gate lives in rpg-api,
+  // not here.
+  rpc PutDungeon(PutDungeonRequest) returns (PutDungeonResponse);
+  // GetDungeon returns the stored file for a key so an author can reopen it.
+  // Unknown key is NotFound. Ungated: reading content mutates nothing.
+  rpc GetDungeon(GetDungeonRequest) returns (GetDungeonResponse);
+}
+
+// PutDungeonRequest carries one dungeon file, in its authored form.
+//
+// `key` is `[a-z0-9-]` and MUST equal the YAML's own `key:` line — the
+// request names the file and the file names itself, and they may not
+// disagree. A key outside the charset, or a mismatch, is a malformed request:
+// gRPC InvalidArgument, no body. There is no meaningful atlas or error list
+// for a request that could not name its target, and a non-OK status never
+// delivers a body anyway, so pretending otherwise would only drop it.
+//
+// A well-formed request whose YAML fails to compile is NOT an error status.
+// It answers OK with `errors` populated and `atlas` unset — the builder's
+// inline-error path, where the author needs the list, not a status code.
 message PutDungeonRequest {
   string key = 1;
+  // The dungeon file, verbatim. The server compiles exactly these bytes and
+  // stores exactly these bytes; it never re-marshals, so what an author wrote
+  // (comments, ordering, spacing) is what GetDungeon hands back.
   string yaml = 2;
-  // validate_only compiles and returns floor_plan without persisting or
-  // mutating the registry -- the board's live per-edit preview.
+  // validate_only compiles and answers without writing anything. This is the
+  // builder's per-edit preview, and it NEVER refuses a half-drawn map: a file
+  // with no start cell, a region with no cells, a wall between nowhere and
+  // nowhere all come back as `errors`, not as a status. The author is in the
+  // middle of drawing; the service's job is to say what is wrong so far.
   bool validate_only = 3;
 }
 
-// FloorPlanRoom carries values a client must NEVER re-derive itself
-// (design.md's "Grid math is server-authoritative" principle):
-// start_column is the room's absolute position in the compiled
-// left-to-right chain, not something the client computes from widths + a
-// guessed connector-gap convention.
-message FloorPlanRoom {
-  string id = 1;
-  string archetype = 2; // entrance|corridor|chamber|boss (toolkit RegionArchetype)
-  int32 width = 3;
-  int32 start_column = 4;
-}
-
-// FloorPlanConnector's column is the reserved gap column BETWEEN its two
-// rooms, also server-computed -- not derived from room widths
-// client-side.
-message FloorPlanConnector {
-  string door_id = 1;
-  bool locked = 2;
-  string from_room_id = 3;
-  string to_room_id = 4;
-  int32 column = 5;
-}
-
-// FloorPlanCell is an absolute pointy-top odd-q offset [column, row] on the
-// compiled grid.
-message FloorPlanCell {
-  int32 column = 1;
-  int32 row = 2;
-}
-
-// FloorPlanRegion is one declared YAML region projected for authoring. id is
-// semantically required: it MUST be non-empty and unique among declared regions.
-// Proto3 scalar parsing does not enforce those producer requirements.
-message FloorPlanRegion {
-  // The non-empty unique declared YAML regions[].id.
-  string id = 1;
-  // This declared region's complete absolute pointy-top odd-q extent. Producers
-  // emit cells in ascending lexicographic (column, row) order. It is neither a
-  // rectangle nor a runtime/global membership index.
-  repeated FloorPlanCell cells = 2;
-  // Toolkit-derived direct declared parent ID. Present only when a direct
-  // declared parent exists; absent means root. An explicitly present empty value
-  // is invalid producer output.
-  optional string parent_id = 3;
-}
-
-// FloorPlanFloorSource identifies the topology source the provider resolved for
-// this authoring plan. It describes authoring projection only and does not add a
-// runtime topology contract.
-enum FloorPlanFloorSource {
-  // Invalid on a successful current-provider response. This value plus
-  // FloorPlan.floor_source presence lets generated consumers detect an older or
-  // incomplete producer instead of guessing from floor_cells.
-  FLOOR_PLAN_FLOOR_SOURCE_UNSPECIFIED = 0;
-  // The complete floor mask was resolved from the canvas bounds. Providers MUST
-  // emit this value when canvas.floor_source was omitted as well as when bounds
-  // was authored explicitly.
-  FLOOR_PLAN_FLOOR_SOURCE_BOUNDS = 1;
-  // The complete floor mask was resolved from the union of declared region cells.
-  FLOOR_PLAN_FLOOR_SOURCE_REGIONS = 2;
-}
-
-// FloorPlanEdgeKind describes the authoring meaning of a generated canonical
-// dungeon edge. It is deliberately local to FloorPlan: it is NOT runtime
-// dnd5e.api.v1alpha2.encounter.WallKind, whose values include live encounter
-// state that this read-only compiled-layout response does not carry.
-enum FloorPlanEdgeKind {
-  FLOOR_PLAN_EDGE_KIND_UNSPECIFIED = 0;
-  FLOOR_PLAN_EDGE_KIND_SOLID = 1;
-  FLOOR_PLAN_EDGE_KIND_DOOR = 2;
-}
-
-// FloorPlanEdge is one generated wall or door edge in the compiled authoring
-// layout. A physical edge is the undirected pair {from, to}: endpoints MUST
-// be distinct adjacent FloorPlanCells. FloorPlan.edges MUST emit exactly one
-// record for each physical edge. Reversing endpoints denotes the same edge,
-// so a reversed duplicate and records that conflict on kind or door_id are
-// forbidden.
+// PutDungeonResponse is delivered only on gRPC OK (see PutDungeonRequest for
+// the status side). Two shapes, told apart by `errors`:
 //
-// `from` and `to` are field names only; this contract defines no canonical
-// endpoint order and clients MUST NOT derive meaning from their orientation.
-// For an exterior edge, one endpoint may be outside the rendered floor-plan
-// bounds. Consumers render this one record and must not derive a competing
-// edge from adjacent rooms or cells.
+//   - `errors` empty: the file compiled. `atlas` is set, and if the request
+//     was not validate_only the file is stored under its key.
+//   - `errors` non-empty: the file did not compile. `atlas` is unset and
+//     nothing was written.
 //
-// This read-only authoring projection maps to the runtime
-// HexRecord.edges representation after an encounter starts, but intentionally
-// does not import or reuse dnd5e.api.v1alpha2.encounter.Wall/WallKind:
-// runtime edges carry live encounter state, while this contract carries the
-// generator's authoring truth. To map an endpoint, convert its [column, row]
-// pointy-top offset coordinate to the runtime Position cube coordinate. The
-// resulting runtime Wall represents the same undirected pair: SOLID maps to
-// WALL_KIND_SOLID with no Wall.id; DOOR maps to a door Wall (initially
-// WALL_KIND_DOOR_CLOSED or WALL_KIND_DOOR_LOCKED) whose Wall.id is door_id,
-// and its runtime kind can later become WALL_KIND_DOOR_OPEN.
-message FloorPlanEdge {
-  FloorPlanCell from = 1;
-  FloorPlanCell to = 2;
-  FloorPlanEdgeKind kind = 3;
-  // Required, non-empty, and unique among DOOR edges. For a generated
-  // connector door it MUST equal that FloorPlanConnector.door_id, and maps to
-  // runtime Wall.id. It MUST be absent for SOLID edges. These are producer
-  // contract rules; proto parsing alone does not validate them.
-  optional string door_id = 4;
-}
-
-// FloorPlanPlacement is one compiled authored placement. It covers room and
-// canvas props, room and canvas monsters, and a room boss without introducing
-// separate shapes for those source locations. at is the absolute compiled cell;
-// source_path identifies the exact authored YAML location. ref, applicable
-// facing presence, and blocker values are copied from provider truth.
-//
-// offset has the canonical PlacementOffset semantics: omission differs from an
-// explicitly authored [0,0,0], values are preserved verbatim in canonical
-// game-world axes/units, and facing never rotates or reinterprets them.
-message FloorPlanPlacement {
-  string ref = 1;
-  FloorPlanCell at = 2;
-  optional uint32 facing = 3;
-  bool blocks_movement = 4;
-  bool blocks_los = 5;
-  string source_path = 6;
-  dnd5e.api.v1alpha1.PlacementOffset offset = 7;
-}
-
-// FloorPlan is the compiled layout an author's board renders. door_row
-// applies uniformly to every room (dungeonspec's height/2 reserved-row
-// invariant) -- carried explicitly, not hardcoded client-side, so a
-// future toolkit change that makes it non-uniform doesn't silently break
-// the board.
-message FloorPlan {
-  repeated FloorPlanRoom rooms = 1;
-  repeated FloorPlanConnector connectors = 2;
-  int32 height = 3;
-  int32 door_row = 4;
-  // entrance is the provider-resolved party spawn anchor and carries message
-  // presence. It is present only when the compiled candidate has a qualifying
-  // PartyCap anchor. A successful validate-only structural draft can therefore
-  // omit it when no anchor qualifies. A present FloorPlanCell{column: 0, row: 0}
-  // is a real entrance and MUST NOT be treated as absent. Reading
-  // archetype == "entrance" on a FloorPlanRoom identifies the entrance ROOM,
-  // not this spawn cell -- both are meaningful and distinct.
-  FloorPlanCell entrance = 5;
-  // Generated canonical wall and door truth for this compiled layout. This
-  // remains one flat list of undirected endpoint pairs. It includes envelope
-  // pairs whose non-floor endpoint is an in-canvas void or an off-canvas
-  // coordinate. Clients determine envelope ownership from floor_cells
-  // membership, never endpoint order, and do not invent a competing edge list.
-  // No flat runtime Space.walls field exists or may be reintroduced.
-  repeated FloorPlanEdge edges = 6;
-  // The compiled canvas width. In canvas mode, rooms is empty and width plus
-  // height bound the canvas; dimensions alone do not describe its floor.
-  int32 width = 7;
-  // Complete canonical structural floor for this plan. Each cell is an
-  // absolute pointy-top odd-q [column, row] coordinate and producers emit
-  // cells in ascending lexicographic (column, row) order. This is required
-  // even in canvas mode: clients MUST render this list, not infer floor from
-  // width and height.
-  repeated FloorPlanCell floor_cells = 8;
-  // Declared regions only, in YAML declaration order. The implicit unpainted
-  // root is omitted. Parent references impose no ordering, so a child may
-  // precede its parent. See FloorPlanRegion.cells for its stable cell order.
-  repeated FloorPlanRegion regions = 9;
-  // Presence-safe resolved authoring floor source. Every successful current-
-  // provider response MUST set this to BOUNDS or REGIONS. In particular, an
-  // omitted YAML canvas.floor_source resolves to present BOUNDS. Absent or
-  // UNSPECIFIED means the response came from an older or incomplete producer;
-  // consumers MUST NOT infer a value from floor_cells, width, or regions.
-  optional FloorPlanFloorSource floor_source = 10;
-  // All compiled room/canvas prop and monster placements plus the room boss,
-  // in provider-defined deterministic order. Consumers render/project this
-  // provider truth and do not recover placements from rooms or source YAML.
-  repeated FloorPlanPlacement placements = 11;
-}
-
-// PutDungeonResponse is only ever delivered on a gRPC OK status -- see
-// PutDungeonRequest's error-transport decision for the InvalidArgument
-// (malformed-request, no body) side of this contract. Two shapes:
-//   - success = true: floor_plan is set, field_errors is empty.
-//   - success = false: the YAML failed dungeonspec's validate/compile
-//     step; field_errors is populated (see its own comment for the v1
-//     flat-error limitation) and floor_plan is unset. This is the
-//     editor's inline-error path.
+// There is no `bool success`: an empty error list IS success, and a flag that
+// could disagree with it would be a second source of truth.
 message PutDungeonResponse {
-  bool success = 1;
-  // field_errors is best-effort in v1: rpg-toolkit's
-  // dungeonspec.Validate returns one flat error today, not per-field
-  // paths, so a compile failure surfaces as exactly one ValidationError
-  // (field="") wrapping that message -- not true per-cell mapping. See
-  // plan.md S1's Known v1 limitation.
-  repeated dnd5e.api.v1alpha1.ValidationError field_errors = 2;
-  FloorPlan floor_plan = 3;
+  // Every problem the compiler found, each naming the YAML path it is about.
+  // A list, not one flat message, because an author fixing a map needs to see
+  // all of it at once — the cell that is in two regions AND the wall whose
+  // endpoints are not adjacent — not one complaint per round trip.
+  repeated FieldError errors = 1;
+  // THE SAME MESSAGE THE GAME PLAYS FROM. The builder draws what PutDungeon
+  // returns, and what PutDungeon returns is what GetAtlas will return once a
+  // session starts on this file — one message type, one producer, one
+  // geometry. The first AuthoringService answered with its own `FloorPlan`,
+  // a builder-shaped second projection of the world that had to be kept in
+  // step with the atlas by hand; the moment the two disagreed the builder
+  // was lying. Returning the atlas itself leaves the builder nothing to keep
+  // in step.
+  dnd5e.api.session.v1alpha1.GetAtlasResponse atlas = 2;
 }
 
-service AuthoringService {
-  // PutDungeon is absent from the server's reflection list
-  // (Unimplemented) unless the server was started with the authoring
-  // gate enabled -- see plan.md S1.
-  rpc PutDungeon(PutDungeonRequest) returns (PutDungeonResponse);
+// FieldError is one compile problem and the YAML path it is about.
+//
+// `path` is the author's coordinate system, not the compiler's: a path into
+// the file as written, so the builder can point at the thing. Examples:
+// "regions[1].cells[0][3]", "walls[3]", "place[7].blocks_los", "start".
+// Empty means the problem is the file as a whole (it did not parse).
+message FieldError {
+  string path = 1;
+  string message = 2;
+}
+
+// GetDungeonRequest names a stored dungeon by key.
+message GetDungeonRequest {
+  string key = 1;
+}
+
+// GetDungeonResponse is the stored file.
+message GetDungeonResponse {
+  // The stored file, VERBATIM BYTES — never a re-marshal. An author reopening
+  // a map gets back exactly what they saved: their comments, their ordering,
+  // their spacing. A server that round-tripped the file through its own
+  // model would hand back its opinion of the file instead of the file.
+  string yaml = 1;
 }

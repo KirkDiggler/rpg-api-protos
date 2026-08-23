@@ -82,12 +82,6 @@ jobs:
       - name: Install TypeScript dependencies
         run: npm ci
       
-      - name: Verify Placement facing presence
-        run: make test-placement-facing-presence
-
-      - name: Verify region projection parent presence
-        run: make test-region-projection-presence
-
       - name: Verify session Declaration.remaining presence
         run: make test-declaration-remaining-presence
 

@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-22
+updated: 2026-08-23
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,29 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Dungeon Builder restart: authoring REPLACED, regions on the atlas
+  (rpg-api-protos feat/256-dungeon-authoring-v2, rpg-project PR #255 /
+  issue #256, 2026-08-23)** — one PR, two halves. `dnd5e/api/session/v1alpha1`
+  is additive: `AtlasRegion` + `Lighting` in `types.proto` and
+  `GetAtlasResponse.regions = 9` (every floor cell in exactly one region;
+  regions replace rooms; lighting is a world fact). `dnd5e/api/authoring/v1alpha1`
+  is **rewritten, breaking by design** and carried on the
+  `breaking-change-approved` label: the `FloorPlan` dialect (rooms, `door_row`,
+  `start_column`, an archetype that chose the spawn) is gone — not reserved,
+  deleted — because its only server went with the old encounter module in
+  rpg-api#801 and there is no wire left to keep safe. `PutDungeon` now
+  answers with `session.GetAtlasResponse` itself (the builder has no second
+  geometry), `errors` is a list of `FieldError{path, message}`, and
+  `GetDungeon` returns the stored file verbatim. Deleted with the dialect:
+  `authoring/v1alpha1/testdata/`, the `tests/regions` and
+  `tests/placement-facing` presence suites and their Makefile/CI targets
+  (Kirk's 2026-08-22 rule: this repo carries no hand-written presence or
+  round-trip suites; lint/format/breaking + generation compiling is the
+  evidence). See
+  [architecture/components/authoring-service.md](architecture/components/authoring-service.md).
+  Proto-only — rpg-toolkit (T1–T3), rpg-api (A) and rpg-dnd5e-web (W) are
+  the parallel legs (`rpg-project/ideas/dungeon-builder/plan.md`).
 
 - **Character v1alpha2: `GetCharacterData` (rpg-api-protos
   feat/character-get-data, rpg-project#249 §2, 2026-08-22)** — additive,
@@ -103,7 +126,8 @@ shape and consumer drift, it shows up here as a "rough edge."
   exactly one.
 
 - **Dungeon Builder: authoring contract (rpg-api-protos#200, S0 of the
-  Dungeon Builder arc, 2026-07-30)** — additive-only, one PR: `dungeon_key`
+  Dungeon Builder arc, 2026-07-30) — SUPERSEDED 2026-08-23, see the
+  restart entry above** — was additive-only, one PR: `dungeon_key`
   field on `StartEncounterRequest` (`dnd5e/api/lobby/v1alpha1/service.proto`);
   `ListDungeons` RPC + `DungeonSummary`/`ListDungeonsResponse` on
   `LobbyService`, deliberately ungated (reads content, mutates nothing —
@@ -364,7 +388,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.EncounterService` | Medium — works in production; carries two state shapes (legacy + unified), four deprecated RPCs, and many `reserved` slots. Highest churn, biggest cleanup debt |
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
-| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — new (rpg-api-protos#200, 2026-07-30), 1 focused RPC, gate-passed for shape and error-transport clarity; a consumer (rpg-api S1) is queued in the same arc, distinct from the Low-rated services below which have none in flight |
+| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 2 RPCs, answers with the session atlas itself; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
 | `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, re-transcribed against session/v0.12.0 in #226, `GetWhere` added at v0.13.0 in #228, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |

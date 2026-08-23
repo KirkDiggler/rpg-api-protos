@@ -619,6 +619,16 @@ message GetAtlasResponse {
   // this as well as `cells` — see AtlasDoorway on why adjacency is not
   // permission.
   repeated AtlasDoorway doorways = 2;
+  // Every named area of the map, each listing its own cells in the same
+  // absolute frame as `cells`. EVERY FLOOR CELL APPEARS IN EXACTLY ONE
+  // REGION — no cell unowned, no cell shared — so a client asking "which
+  // region is this cell in" always has one answer. Regions are construction
+  // truth like the rest of the atlas: fetched once with it, cached with it,
+  // unchanged by anything that happens in the session. Lighting rides here
+  // because it is a world fact, not a render hint: a client that cannot read
+  // "this hall is dark" off the wire re-derives it by experiment. See
+  // AtlasRegion for why regions are not rooms, and the law on archetype.
+  repeated AtlasRegion regions = 9;
 }
 
 // =============================================================================

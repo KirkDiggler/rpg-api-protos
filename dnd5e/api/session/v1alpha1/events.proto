@@ -189,9 +189,10 @@ message Event {
   //
   // ONE-TO-ONE WITH `kind` where a body exists: a TURN_ENDED event carries
   // turn_ended, and so on down the list. A kind with no body member here
-  // (JOINED, EXITED, ENDED, SCENE_OPENED, TICK, UNKNOWN) leaves this unset and
-  // is read from `kind` alone — those beats are not narrated from facts a
-  // client needs typed, yet. Adding one is one additive oneof member.
+  // (ENDED, SCENE_OPENED, TICK, UNKNOWN) leaves this unset and is read from
+  // `kind` alone — those beats are not narrated from facts a client needs
+  // typed, yet. Adding one is one additive oneof member — which is how JOINED
+  // and EXITED got theirs (rpg-project#260).
   //
   // Tags start at 10 to leave room beside the spine; 8 and 9 are unassigned.
   oneof body {
@@ -202,6 +203,8 @@ message Event {
     FightStarted fight_started = 14;
     FightEnded fight_ended = 15;
     Moved moved = 16;
+    Joined joined = 17;
+    Exited exited = 18;
   }
 }
 
@@ -292,4 +295,20 @@ message FightEnded {
 message Moved {
   string member = 1;
   Position to = 2;
+}
+
+// Joined: a member entered the encounter (EVENT_KIND_JOINED). Who, and nothing
+// else. This kind was read from `kind` alone until rpg-project#260: without a
+// body a witness learns an arrival happened but not whose, and the feed showed
+// exactly that — kind and no subject (rpg-dnd5e-web#786).
+message Joined {
+  // Who entered.
+  string member = 1;
+}
+
+// Exited: a member left the encounter (EVENT_KIND_EXITED). The mirror of
+// Joined, for the mirror reason: a departure without a name is not narratable.
+message Exited {
+  // Who left.
+  string member = 1;
 }

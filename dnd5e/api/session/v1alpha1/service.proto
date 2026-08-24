@@ -570,7 +570,6 @@ message GetWhereResponse {
   Position position = 1;
 }
 
-// GetAtlasRequest asks for a session's static world map.
 // GetRosterRequest asks who is in a session.
 message GetRosterRequest {
   string session = 1;
@@ -584,6 +583,7 @@ message GetRosterResponse {
   repeated PublicMemberInfo members = 1;
 }
 
+// GetAtlasRequest asks for a session's static world map.
 message GetAtlasRequest {
   string session = 1;
 }

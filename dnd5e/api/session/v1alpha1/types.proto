@@ -490,6 +490,14 @@ message Sighting {
   // not a perception question: anything an observer can sight, they can name.
   // Lands with rpg-toolkit#1137, alongside Participant.name.
   string name = 8;
+
+  // What kind of member the sighted subject is. Kind, like name, is not a
+  // perception question — anything an observer can sight, they can classify at
+  // a glance (a fellow adventurer vs a skeleton). Lets a client route a player
+  // subject to a player model instead of guessing a monster ref from the
+  // subject id (rpg-dnd5e-web#792). Mirrors session.Sighting.Kind
+  // (rpg-toolkit#1230); a memory keeps its kind exactly as it keeps its name.
+  MemberKind kind = 9;
 }
 
 // =============================================================================

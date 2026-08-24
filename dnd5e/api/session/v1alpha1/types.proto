@@ -802,6 +802,32 @@ message AtlasProp {
 
   // Whether sight passes through its cell.
   bool blocks_line_of_sight = 4;
+
+  // The AUTHORED facing, verbatim from the dungeonspec `place[].facing` word
+  // (rpg-project#261). Empty means not authored: render the asset's own
+  // default orientation, exactly today's rendering.
+  //
+  // When present, it is one of the SIX neighbor-direction names valid under
+  // the atlas's own hex orientation — flat-top: n|s|ne|nw|se|sw; pointy-top:
+  // e|w|ne|nw|se|sw. The wire carries the WORD, never an angle: the
+  // name-to-yaw map is a client-side calibrated table, one per orientation,
+  // not something this transport derives or implies. This is deliberately a
+  // different shape from `Placement.facing` (dnd5e/api/v1alpha2/encounter/
+  // types.proto) — that field is a fixed hex-direction INDEX for a runtime
+  // observation's turn-driven orientation; this one is an orientation-aware
+  // authored NAME for a dungeon-builder placement, and the two vocabularies
+  // do not interconvert.
+  string facing = 5;
+
+  // offset_x and offset_y are an authored within-cell visual nudge, each a
+  // fraction of the cell size and each MUST be in [-0.5, 0.5]. Zero (the
+  // default for both) means centered — indistinguishable on the wire from
+  // "not authored," which is fine: both render identically, at cell center.
+  //
+  // VISUAL ONLY. The prop still occupies its whole cell for movement and
+  // line of sight; nothing that computes rules may read these two fields.
+  float offset_x = 6;
+  float offset_y = 7;
 }
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors

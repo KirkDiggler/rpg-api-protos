@@ -571,6 +571,19 @@ message GetWhereResponse {
 }
 
 // GetAtlasRequest asks for a session's static world map.
+// GetRosterRequest asks who is in a session.
+message GetRosterRequest {
+  string session = 1;
+}
+
+// GetRosterResponse carries the public half of every member — see
+// PublicMemberInfo for the public/private law and why there are no
+// positions here. Load once per session, re-pull on a joined event,
+// reference at render.
+message GetRosterResponse {
+  repeated PublicMemberInfo members = 1;
+}
+
 message GetAtlasRequest {
   string session = 1;
 }
@@ -734,6 +747,11 @@ service SessionService {
   // GetAtlas returns the static world map. Construction truth; cache per
   // encounter.
   rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
+
+  // GetRoster reports the public half of every member — identity (name, kind,
+  // the body's refs), never position and never the sheet. Stable per session:
+  // fetch once, re-pull on a joined event, reference at render.
+  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
 
   // StreamEvents delivers the events addressed to one member. Everything a
   // client must render that is not the caller's own action arrives here —

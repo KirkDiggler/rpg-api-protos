@@ -346,6 +346,49 @@ message Member {
   Position position = 4;
 }
 
+// PublicMemberInfo is the public half of one character or monster — what any
+// fellow member of the session may know about them (rpg-project#264,
+// ideas/characters/presentation): the name they go by and the body they wear.
+// The name is the ruling made explicit: everything here is PUBLIC, and nothing
+// private (hit points, ability scores, inventory — the sheet) ever lands in
+// this message; the sheet stays behind the character service's owner gate
+// (rpg-api#814). Identity only, no positions: where somebody STANDS is
+// perception and rides GetView/GetWhere — a roster read must not leak the
+// cells of members the caller has never perceived (GetWhere's own rule).
+//
+// Stable by design — it changes at join time and in an editor, not per turn —
+// so a client loads the roster ONCE per session (re-pulling on a joined
+// event) and references it at render, instead of paying for identity on
+// every perception refresh.
+message PublicMemberInfo {
+  // The session member id — the same id Sighting.subject and Member.id speak.
+  string id = 1;
+  MemberKind kind = 2;
+  // Display name, the same word Sighting.name carries.
+  string name = 3;
+  // The body, for PLAYER members: the class and race refs the client already
+  // maps to models for the local player's own render path. Empty for
+  // monsters.
+  string class_ref = 4;
+  string race_ref = 5;
+  // The body, for MONSTER members: the authored monster ref (e.g.
+  // "dnd5e:monsters:skeleton"), so a client resolves the model from the ref
+  // itself instead of deriving it from the member id's naming convention.
+  // Empty for players.
+  string monster_ref = 6;
+  // The customization shelf. Always set; empty today on purpose — see
+  // Customization.
+  Customization customization = 7;
+}
+
+// Customization is deliberately EMPTY in v1 — a shelf, not a payload
+// (rpg-project#264's ruling, 2026-08-25). What customization IS on the new
+// Synty assets is undecided, and the old system's shader color strings
+// (v1alpha1 character.proto Appearance) are NOT carried forward; whatever
+// the new contract turns out to be lands HERE and only here
+// (ideas/characters/customization), so no other message moves when it does.
+message Customization {}
+
 // MemberOutcome is where a member stood when something closed around them.
 // Mirrors session.MemberOutcome.
 message MemberOutcome {

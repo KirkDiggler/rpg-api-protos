@@ -857,26 +857,35 @@ message AtlasProp {
   bool blocks_line_of_sight = 4;
 
   // The AUTHORED facing, verbatim from the dungeonspec `place[].facing` word
-  // (rpg-project#261). Empty means not authored: render the asset's own
-  // default orientation, exactly today's rendering.
+  // (rpg-project#261, vocabulary redefined by rpg-project#272). Empty means
+  // not authored: render the asset's own default orientation, exactly
+  // today's rendering.
   //
-  // When present, it is one of the SIX neighbor-direction names valid under
-  // the atlas's own hex orientation — flat-top: n|s|ne|nw|se|sw (columns run
-  // straight, so same-column neighbors sit due north/south); pointy-top:
-  // e|w|ne|nw|se|sw (rows run straight, so same-row neighbors sit due
-  // east/west). See HexLayout above for that geometry. The wire carries the
-  // WORD, never an angle: the name-to-yaw map is a client-side calibrated
-  // table, one per orientation, not something this transport derives or
-  // implies.
+  // When present, it is one of the EIGHT true-compass names —
+  // n|ne|e|se|s|sw|w|nw — and the SAME eight are valid under BOTH hex
+  // orientations. Compass directions live in world space, so the vocabulary
+  // does not depend on the atlas's hex orientation; walls have rendered
+  // axis-true since rpg-toolkit#802, and a prop must be able to stand
+  // squarely against a horizontal wall in a pointy-top dungeon whose hex
+  // edges have no "n". This deliberately REDEFINES the four diagonal names
+  // from #261's hex-edge semantics (pointy-top `ne` pointed at the 30° edge)
+  // to true compass (`ne` is 45°) — rpg-project#272 records the ruling and
+  // why no shipped content moves. The wire carries the WORD, never an angle:
+  // the name-to-yaw map is ONE client-side calibrated table serving both
+  // orientations, not something this transport derives or implies.
   //
-  // GRID_KIND_SQUARE atlases have no hex orientation and no established
-  // facing vocabulary yet; leave this empty there until one exists.
+  // GRID_KIND_SQUARE atlases carry no authored facings TODAY for a supply
+  // reason, not a vocabulary one: the single producer of this field — the
+  // dungeonspec dialect — authors hex dungeons only. The compass names are
+  // grid-independent by construction, so a square authoring path, when one
+  // exists, uses these same eight words; nothing here reserves a different
+  // set for it.
   //
   // This is deliberately a different shape from `Placement.facing` (dnd5e/
   // api/v1alpha2/encounter/types.proto) — that field is a fixed hex-direction
-  // INDEX for a runtime observation's turn-driven orientation; this one is an
-  // orientation-aware authored NAME for a dungeon-builder placement, and the
-  // two vocabularies do not interconvert.
+  // INDEX for a runtime observation's turn-driven orientation; this one is a
+  // world-space compass NAME authored in the dungeon builder, and the two
+  // vocabularies do not interconvert.
   string facing = 5;
 
   // offset_x and offset_y are an authored within-cell visual nudge, each a
@@ -885,9 +894,19 @@ message AtlasProp {
   // "not authored," which is fine: both render identically, at cell center.
   //
   // VISUAL ONLY. The prop still occupies its whole cell for movement and
-  // line of sight; nothing that computes rules may read these two fields.
+  // line of sight; nothing that computes rules may read these fields.
   float offset_x = 6;
   float offset_y = 7;
+
+  // offset_z is the authored height of the prop above the floor, as a
+  // fraction of cell size, in [0, 3] (rpg-project#272). Zero (the default)
+  // means on the floor — indistinguishable on the wire from "not authored,"
+  // which is fine: both render identically, on the floor.
+  //
+  // Deliberately NOT bound to its siblings' within-cell ±0.5 clamp: raising
+  // a prop well past one cell-height is the point (a skull onto an altar, a
+  // torch onto a sconce line). VISUAL ONLY, like its two siblings.
+  float offset_z = 8;
 }
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
@@ -899,6 +918,20 @@ message AtlasBoundary {
   bool blocks_movement = 3;
   // Whether sight may cross.
   bool blocks_line_of_sight = 4;
+
+  // The authored wall-height MULTIPLIER of the standard rendered wall
+  // height, verbatim from the dungeonspec `walls[].height`
+  // (rpg-project#273), valid in [1, 3] when authored. Zero (the default)
+  // means NOT AUTHORED: a reader maps 0 to the STANDARD height — renders
+  // exactly as multiplier 1.0 — and never multiplies by the raw field. The
+  // YAML bounds make a literal 0 unauthorable, so the wire is unambiguous:
+  // "said nothing" and "said 1.0" render identically by design. No pixels on
+  // the wire; the client multiplies into its own calibrated wall height.
+  //
+  // VISUAL ONLY and RAISE-ONLY (Kirk's rulings on rpg-project#274): height
+  // never touches Sight or movement — a wall cannot be seen past at ANY
+  // height — and no wall may be authored below standard.
+  float height = 5;
 }
 
 // AtlasDoorway is one crossable cell pair. Mirrors session.AtlasDoorway.

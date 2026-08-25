@@ -677,6 +677,65 @@ message GetAtlasResponse {
 // No snapshot-then-deltas here, deliberately — this stream has no replay
 // obligation. A subscriber that needs to catch up reads GetStory, and one that
 // needs the static map reads GetAtlas.
+// GetDoorsRequest asks for every door's live state.
+message GetDoorsRequest {
+  string session = 1;
+}
+
+// GetDoorsResponse carries one DoorInfo per authored door.
+//
+// THE LIVE HALF OF THE ATLAS'S DOORWAYS: GetAtlas says where a door's edges
+// are and never changes; this says what each door is doing now. Fetch once,
+// then update from DOOR events on the stream — the same load-once,
+// beat-refreshed shape GetRoster set (rpg-project#264). Every member hears
+// every door today (full data until v1.0; audience-scoped door knowledge is
+// rpg-toolkit#1020's).
+message GetDoorsResponse {
+  repeated DoorInfo doors = 1;
+}
+
+// OpenDoorRequest pushes a shut door open.
+message OpenDoorRequest {
+  string session = 1;
+  // Who pushes it — the DOOR beat's actor. The caller must be seated as, or
+  // hosting, this member (the same acting-as gate every verb has).
+  string member = 2;
+  string door = 3;
+}
+
+// OpenDoorResponse reports the door as it now stands.
+//
+// A locked door refuses with FAILED_PRECONDITION naming the DC — that refusal
+// is a fiction beat, not a defect (rpg-toolkit#1135). Opening a door refreshes
+// sight and can start a fight; both arrive where they always arrive — on the
+// stream — not in this response.
+message OpenDoorResponse {
+  DoorInfo door = 1;
+}
+
+// UnlockRequest tries a lock: the member's hands, the member's ability
+// modifier, the lock's authored DC.
+message UnlockRequest {
+  string session = 1;
+  string member = 2;
+  string door = 3;
+}
+
+// UnlockResponse is the attempt, in the open. The roll is public — full data
+// until v1.0 — and the beat every member hears carries the same numbers.
+message UnlockResponse {
+  // Whether the check beat the DC. The session rolled it; the composition was
+  // told this verdict and nothing else.
+  bool beaten = 1;
+  // What the check totalled.
+  int32 total = 2;
+  // What it had to reach.
+  int32 dc = 3;
+  // The door as it now stands: OPEN when beaten — a beaten lock opens the
+  // door, it does not merely unlock it — unchanged and retryable when not.
+  DoorInfo door = 4;
+}
+
 message StreamEventsRequest {
   string session = 1;
   string member = 2;
@@ -706,6 +765,15 @@ service SessionService {
   // target is out of reach, or the action is spent — each of which Afford
   // announces first.
   rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // OpenDoor pushes a shut door open, as `member`. A locked door refuses with
+  // FAILED_PRECONDITION naming the DC (rpg-toolkit#1135: fiction, not defect).
+  rpc OpenDoor(OpenDoorRequest) returns (OpenDoorResponse);
+
+  // Unlock tries a lock as `member`: the server rolls the check against the
+  // authored DC and reports the attempt; a beaten lock leaves the door OPEN.
+  // Failure changes nothing and is retryable.
+  rpc Unlock(UnlockRequest) returns (UnlockResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.
@@ -752,6 +820,10 @@ service SessionService {
   // the body's refs), never position and never the sheet. Stable per session:
   // fetch once, re-pull on a joined event, reference at render.
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
+
+  // GetDoors reports every door's live state — the dynamic half of GetAtlas's
+  // doorways. Fetch once, update from DOOR events.
+  rpc GetDoors(GetDoorsRequest) returns (GetDoorsResponse);
 
   // StreamEvents delivers the events addressed to one member. Everything a
   // client must render that is not the caller's own action arrives here —

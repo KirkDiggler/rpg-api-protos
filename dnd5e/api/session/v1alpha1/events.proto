@@ -130,6 +130,12 @@ enum EventKind {
   // Read this one alongside STRUCK and MISSED — same family, same audience, and
   // a client reads all three side by side while narrating one exchange.
   EVENT_KIND_DOWNED = 13;
+  // A door changed — opened, closed, or an unlock attempt, beaten or not. A
+  // failed attempt is as much fiction as a beaten one, and the composition
+  // writes both through one path. Every member of the encounter hears it
+  // (full data until v1.0; audience-scoped door knowledge is
+  // rpg-toolkit#1020's).
+  EVENT_KIND_DOOR = 14;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -189,10 +195,11 @@ message Event {
   //
   // ONE-TO-ONE WITH `kind` where a body exists: a TURN_ENDED event carries
   // turn_ended, and so on down the list. A kind with no body member here
-  // (ENDED, SCENE_OPENED, TICK, UNKNOWN) leaves this unset and is read from
-  // `kind` alone — those beats are not narrated from facts a client needs
-  // typed, yet. Adding one is one additive oneof member — which is how JOINED
-  // and EXITED got theirs (rpg-project#260).
+  // (SCENE_OPENED, TICK, UNKNOWN) leaves this unset and is read from `kind`
+  // alone — those beats are not narrated from facts a client needs typed,
+  // yet. Adding one is one additive oneof member — which is how JOINED and
+  // EXITED got theirs (rpg-project#260), and how ENDED and DOOR got theirs
+  // (rpg-project#269).
   //
   // Tags start at 10 to leave room beside the spine; 8 and 9 are unassigned.
   oneof body {
@@ -205,6 +212,8 @@ message Event {
     Moved moved = 16;
     Joined joined = 17;
     Exited exited = 18;
+    Ended ended = 19;
+    DoorChanged door = 20;
   }
 }
 
@@ -311,4 +320,30 @@ message Joined {
 message Exited {
   // Who left.
   string member = 1;
+}
+
+// Ended: the encounter closed (EVENT_KIND_ENDED). The key of the declared
+// ending that fired — "boss-down", "withdrawn", "abandoned". Keys are content
+// strings, not an enum: what an ending MEANS is authored, and the client maps
+// key to sentence (rpg-project#269 §6.3). The full outcome — where everybody
+// stood — is GetStatus's answer. This beat arrives on the WORLD clock: the
+// bubble dissolves before the encounter closes (rpg-project#269 §6.6), so
+// FIGHT_ENDED precedes it.
+message Ended {
+  string ending = 1;
+}
+
+// DoorChanged: a door changed (EVENT_KIND_DOOR) — opened, closed, or an
+// unlock attempt.
+message DoorChanged {
+  string door = 1;
+  DoorState state = 2;
+  // Who did it. Empty when nobody did — authored state reported at open.
+  string actor = 3;
+  // dc, total and beaten are set only on unlock-attempt beats — the
+  // composition's door beat carries them on those and nothing on a plain
+  // open or close. A beat with dc = 0 is a plain open/close.
+  int32 dc = 4;
+  int32 total = 5;
+  bool beaten = 6;
 }

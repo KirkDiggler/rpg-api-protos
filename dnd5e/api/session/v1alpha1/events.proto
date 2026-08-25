@@ -105,8 +105,9 @@ enum EventKind {
   // damage key rather than reporting zero — "missed for 0" reads as a hit that
   // did nothing.
   EVENT_KIND_MISSED = 12;
-  // A member is DOWNED: at zero hit points, out of the fight. The opposite
-  // state is UP.
+  // A member is DOWNED: at zero hit points, with Attack and Move blocked. The
+  // member remains in initiative and End Turn remains governed only by the
+  // clock/turn gate. The opposite state is UP.
   //
   // DOWNED rather than "down" because a bare "down" also reads as PRONE, and
   // prone is a different thing entirely — a posture condition the rulebook
@@ -241,9 +242,9 @@ message TurnEnded {
   string next = 2;
 }
 
-// Downed: a member is at zero hit points and out of the fight
-// (EVENT_KIND_DOWNED). Who, and nothing else — see the kind's own doc for why
-// hit points are not here.
+// Downed: a member is at zero hit points with Attack and Move blocked, while
+// End Turn remains governed only by clock/turn (EVENT_KIND_DOWNED). Who, and
+// nothing else — see the kind's own doc for why hit points are not here.
 message Downed {
   string member = 1;
 }
@@ -279,7 +280,8 @@ message Struck {
   int32 against = 5;
   // What was dealt. Never zero on a Struck; a miss is a Missed.
   int32 damage = 6;
-  // What was swung — ref, name, damage type. Lands with rpg-toolkit#866.
+  // What was swung. Must equal the selected Declaration.attack and the
+  // corresponding AttackResponse.attack. Lands with rpg-toolkit#866.
   AttackRef attack = 7;
   bool critical = 8;
   repeated DamageComponent damage_components = 9;
@@ -297,7 +299,8 @@ message Missed {
   int32 roll = 3;
   int32 total = 4;
   int32 against = 5;
-  // What was swung. Lands with rpg-toolkit#866.
+  // What was swung. Must equal the selected Declaration.attack and the
+  // corresponding AttackResponse.attack. Lands with rpg-toolkit#866.
   AttackRef attack = 6;
 }
 

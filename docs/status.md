@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-23
+updated: 2026-08-25
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,32 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Session production combat experience (rpg-api-protos#252,
+  rpg-project#270, 2026-08-25)** — contract-first, before toolkit/API/web.
+  `Declaration` is intentionally reshaped in place from flat per-target rows to
+  one compiled action/cost variant. The migration explicitly renames
+  `affordable = 3` to `available = 3`: tag/type stay fixed, while generated
+  source names and the default JSON name change. Removed `shortfall = 4` and
+  `target = 6` are reserved by tag/name; the PR requires
+  `breaking-change-approved`. A compiled Attack includes every current
+  live-sight member except the actor exactly once; missing live position fails
+  Afford, candidate `why` is present iff unavailable, TARGET_OUT_OF_REACH is
+  candidate-level, and NO_TARGET_IN_REACH disables the declaration without
+  deleting rows. Every compiled Attack/turn Move/End Turn has a non-empty ID;
+  every early per-verb blocker remains a row (including an uncompileable
+  Attack) with `available=false`, `why`, empty ID, absent attack, empty
+  candidates, and fixed target kind. `remaining` is Move-only. DOWNED blocks
+  Attack/Move only; End Turn uses solely clock/turn. The selected
+  `Declaration.attack`, `AttackResponse.attack`, and Struck/Missed attack must
+  match as one full `core.Ref.String()` `AttackRef`. Selector clock rules remain
+  fail-closed. `CharacterData` fields 9–14 add level, HP, speed, features,
+  conditions, and non-magical resources only for the authenticated owner;
+  foreign `Entity.character` projections withhold them, so peers receive no
+  exact private sheet data. Temporary HP stays zero until toolkit ownership and
+  `SpellSlots` / legacy `ClassResources` are excluded. No `CharacterHud`, magic
+  fields, or future target kinds are introduced. Proto/docs only; no
+  generated-mechanics tests.
 
 - **Dungeon Builder restart: authoring REPLACED, regions on the atlas
   (rpg-api-protos feat/256-dungeon-authoring-v2, rpg-project PR #255 /
@@ -43,8 +69,9 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 - **Character v1alpha2: `GetCharacterData` (rpg-api-protos
   feat/character-get-data, rpg-project#249 §2, 2026-08-22)** — additive,
-  `buf breaking` green. The read from which the equipment screen
-  (rpg-dnd5e-web#571) loads its initial state on the session stack:
+  `buf breaking` green when introduced. The owner-private read from which
+  character surfaces, including the equipment screen (rpg-dnd5e-web#571), load
+  their state on the session stack:
   `CharacterService` had only
   `EquipItem`/`UnequipItem` (protos#187) because the old route seeded from the
   encounter snapshot, which the session stack does not carry. Returns the same
@@ -58,10 +85,11 @@ shape and consumer drift, it shows up here as a "rough edge."
   `Participant` + `TurnResponse.participants`, `Seen.standing`,
   `Sighting.name` (rpg-toolkit#1137); `DamageType`, `AttackRef` +
   `AttackResponse.attack` (rpg-toolkit#866); `ShortfallReason`, `Currency`,
-  `Shortfall` + `Declaration.why`, `optional Declaration.target` — one ATTACK
-  declaration per target in reach (rpg-toolkit#1010); Attack's three refusals
-  documented, empty hand → `unarmed-strike` (rpg-toolkit#1168); `oneof
-  Event.body` with seven typed bodies, `payload` kept for untyped kinds
+  `Shortfall` + the original declaration refusal shape (rpg-toolkit#1010), now
+  superseded by #252's nested declaration/candidate contract; Attack's refusals
+  documented, empty hand → `dnd5e:weapons:unarmed-strike`
+  (rpg-toolkit#1168); `oneof Event.body` with seven typed bodies, `payload` kept
+  for untyped kinds
   (rpg-toolkit#941). See
   [architecture/components/session-service.md](architecture/components/session-service.md)
   "The combat turn".
@@ -78,8 +106,9 @@ shape and consumer drift, it shows up here as a "rough edge."
 - **Session contract: `Afford` at `session/v0.21.3` (rpg-api-protos
   feat/session-afford, 2026-08-22)** — additive, `buf breaking` green. Adds
   `rpc Afford(AffordRequest) returns (AffordResponse)` beside `Turn`, plus
-  `Declaration {Verb, Slot, affordable, shortfall}` and the `Verb` / `Slot`
-  enums. Closes the "economy spends but nothing reports a budget" gap
+  the initial `Declaration` and `Verb` / `Slot` enums. The initial flat fields
+  are superseded by #252's compiled-offer shape. Closes the "economy spends but
+  nothing reports a budget" gap
   (rpg-toolkit#1138) the way ADR-0042 rules: declarations, not remaining
   currencies. 15 RPCs.
 

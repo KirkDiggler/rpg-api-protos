@@ -352,19 +352,23 @@ message Entity {
 
 // CharacterData — player-controlled character.
 //
-// Equipment on the wire (protos#187): equipped/inventory/slots/armor_class_detail ride
-// this message because the character HUD/sheet reads them off the same hydrated
-// CharacterData the encounter already snapshots — no separate fetch on popover open
-// (rpg-dnd5e-web#531 CONTRACT.md §8: a second source of truth would disagree with the
-// encounter's view of the character). In-encounter equip changes push updated
-// CharacterData on the encounter stream like any other state change; the character-scoped
-// EquipItem/UnequipItem RPCs (dnd5e.api.v1alpha2.character.CharacterService) are for the
-// out-of-encounter sheet and return this same message — one shape, no conversion layer.
+// This message is reused by the authenticated-owner CharacterService and by the legacy
+// encounter Entity union, but reuse does not grant the same disclosure in both contexts.
+// GetCharacterData/EquipItem/UnequipItem return the hydrated owner projection only after
+// the host binds the character to the authenticated owner. Fields 9-14 are exact private
+// sheet/status facts and MUST be populated only for that owner; they MUST be withheld from
+// every foreign Entity.character projection. Peers receive only separately authorized
+// public encounter/sight facts, never another character's exact HP, features, conditions,
+// resources, level, or base speed.
+//
+// Older wording that an encounter stream pushes the "same CharacterData" referred to
+// message/type reuse and the then-existing equipment projection, not authorization to push
+// a full owner projection to every viewer. There is no consumer-specific CharacterHud
+// wrapper and no conversion layer, but every projection still applies its disclosure gate.
 message CharacterData {
   Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
   Ref race_ref = 2;
   string player_id = 3; // who controls this character
-  // level still TODO — see rpg-api-protos#183
 
   // equipped maps slot key -> the Ref of the item worn/wielded there. Slot keys are opaque
   // strings to the web (defined by `slots` below). Item display fields are looked up by Ref
@@ -392,9 +396,10 @@ message CharacterData {
   // character-scoped EquipItem/UnequipItem RPCs (dnd5e.api.v1alpha2.character) return a
   // bare CharacterData with no surrounding Entity — armor_class_detail.total is the ONLY AC
   // total available out-of-encounter, there's nowhere else to put it on that response.
-  // Inside an encounter snapshot, where CharacterData does ride inside an Entity, rpg-api
-  // keeps the two in sync (armor_class_detail.total == Entity.armor_class); Entity.armor_class
-  // stays the flat cross-entity value other entity types (monsters) use with no note at all.
+  // In a legacy encounter Entity projection authorized to carry armor_class_detail, rpg-api
+  // keeps the two in sync (armor_class_detail.total == Entity.armor_class). This does not
+  // authorize owner-private fields 9-14 for foreign viewers; Entity.armor_class stays the
+  // separately authorized flat cross-entity value other types use with no note at all.
   ArmorClassDisplay armor_class_detail = 7;
 
   // main_hand_damage is the resolved main-hand damage display (contract §5) — occupancy-
@@ -403,6 +408,48 @@ message CharacterData {
   // verbatim, sibling of armor_class_detail. Toolkit's EquipmentView composes it; rpg-api
   // passes it through.
   string main_hand_damage = 8;
+
+  // Fields 9-14 are authenticated-owner-only. Encounter Entity.character projections for
+  // any foreign viewer MUST leave every one of them at its unpopulated/default shape.
+  int32 level = 9;
+  // temp remains zero until the toolkit character state owns temporary HP.
+  HitPoints hit_points = 10;
+  // Base sheet speed. Turn movement remaining comes only from SessionService.Afford.
+  int32 base_speed_feet = 11;
+  repeated FeatureView features = 12;
+  repeated ConditionView conditions = 13;
+  // Non-magical feature/class resources only. SpellSlots and legacy ClassResources
+  // are explicitly excluded.
+  repeated ResourceView resources = 14;
+}
+
+// FeatureView is an owner-private, display-ready owned feature. detail is composed by
+// the server/toolkit, never raw feature JSON.
+message FeatureView {
+  Ref ref = 1;
+  string name = 2;
+  string detail = 3;
+  // Present when this feature consumes a projected resource.
+  optional string resource_key = 4;
+}
+
+// ConditionView is an owner-private, display-ready active condition. detail is composed
+// by the server/toolkit, never raw condition JSON.
+message ConditionView {
+  Ref ref = 1;
+  string name = 2;
+  string detail = 3;
+  // Present only for a player-observable member source.
+  optional string source_member = 4;
+}
+
+// ResourceView is a non-magical feature/class resource owned by this character.
+message ResourceView {
+  // Opaque rulebook core/resources.ResourceKey.
+  string key = 1;
+  string name = 2;
+  int32 current = 3;
+  int32 maximum = 4;
 }
 
 // Item is a display-ready piece of equipment or gear. Every field beyond `ref`/`name` is

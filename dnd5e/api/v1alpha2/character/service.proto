@@ -22,10 +22,11 @@ message EquipItemRequest {
   string slot_key = 3; // which slot to equip it into
 }
 
-// EquipItemResponse carries the recomputed character view — same CharacterData shape the
-// encounter hydrates, so a client rendering both surfaces uses one type. equipped/
-// inventory/slots/armor_class_detail all reflect the post-equip state (including any
-// occupant the toolkit displaced back to inventory).
+// EquipItemResponse carries the recomputed authenticated-owner CharacterData projection.
+// The host binds the character to the caller before returning it. Message reuse with the
+// legacy encounter Entity does not authorize owner-private fields 9-14 for foreign viewers.
+// equipped/inventory/slots/armor_class_detail all reflect the post-equip state (including
+// any occupant the toolkit displaced back to inventory).
 message EquipItemResponse {
   dnd5e.api.v1alpha2.encounter.CharacterData character = 1;
 }
@@ -68,9 +69,10 @@ message GetCharacterDataResponse {
 // Service
 // =============================================================================
 
-// CharacterService is the out-of-encounter character surface. Equip/unequip here is for
-// sheet editing between encounters; the in-encounter equivalent (when it exists) rides the
-// encounter stream, not this service — see CharacterData's doc comment in
+// CharacterService is the authenticated-owner character surface. Equip/unequip here is
+// sheet editing between encounters; a future in-encounter equipment verb may announce its
+// public consequences on the session stream, but exact CharacterData fields 9-14 remain an
+// owner read and are never projected to peers. See CharacterData's disclosure rule in
 // dnd5e/api/v1alpha2/encounter/types.proto.
 service CharacterService {
   // GetCharacterData reads one character's current view. The equipment screen loads its

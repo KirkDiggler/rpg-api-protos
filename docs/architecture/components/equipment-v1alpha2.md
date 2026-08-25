@@ -33,10 +33,11 @@ direct about the alternative that was considered and deferred:
 > Character-scoped, out of combat (protos#187 design doc: encounter-scoped
 > equip with an action-economy cost is deferred to rpg-project#94).
 
-In-encounter equipment changes (if/when they exist) will ride the encounter
-event stream like any other state change, not this service — per
-`CharacterData`'s doc comment and the `CharacterService` doc comment in
-`service.proto`.
+A future in-encounter equipment verb may announce separately authorized public
+consequences on the session event stream. That does not make the stream a full
+owner-sheet transport: exact owner-private `CharacterData` fields remain on the
+authenticated character read, never on a foreign viewer's projection. This
+qualifies the older "same CharacterData on the encounter stream" wording.
 
 ## RPCs
 
@@ -45,23 +46,22 @@ event stream like any other state change, not this service — per
 | `EquipItem` | `character_id`, `Ref item`, `slot_key` | full `CharacterData` | Two-handed occupancy and slot-swap semantics are toolkit rules — the caller sends only a `Ref` + slot key. The toolkit may displace an existing occupant back to inventory; the response reflects that. |
 | `UnequipItem` | `character_id`, `slot_key` | full `CharacterData` | Clears the slot, returns its occupant to inventory. |
 
-Both responses carry a full `CharacterData`, not a diff or a bare success
-flag — "same `CharacterData` shape the encounter hydrates, so a client
-rendering both surfaces uses one type" (`service.proto:25`). This is a
-deliberate one-shape decision: the alternative (a separate `EquippedItem`
-wrapper type for the character-sheet view) would force the web to reconcile
-two representations of the same item.
+Both responses carry the full authenticated-owner `CharacterData`, not a diff
+or a bare success flag. Reusing the message type does not mean a foreign
+encounter `Entity.character` receives the owner projection: fields 9–14 are
+withheld there. This is a deliberate one-shape decision, not a one-disclosure
+decision; a separate `EquippedItem` wrapper would still force the web to
+reconcile two representations of the same item.
 
 ## `CharacterData`'s equipment fields
 
-`CharacterData` (line 232) is the message that already rides inside
-`Entity.data` for player characters in an encounter snapshot. PR #188 added
-five equipment fields to it rather than inventing a parallel
-equipment-specific message — the design rationale, from the proto comment:
-the character HUD/sheet reads equipment off the same hydrated `CharacterData`
-the encounter already snapshots, so there's no separate fetch on popover
-open (rpg-dnd5e-web#531 CONTRACT.md §8 — a second source of truth would
-disagree with the encounter's view of the character).
+`CharacterData` is historically reused inside `Entity.data` for player
+characters in the legacy encounter snapshot. PR #188 added five equipment
+fields rather than a parallel equipment-specific message. That historical type
+reuse does not authorize a full owner projection to peers: the current owner
+read is fetched explicitly, and owner-private fields 9–14 are populated only
+for the authenticated owner and withheld from every foreign
+`Entity.character` projection.
 
 | Field | Type | What it is |
 |---|---|---|
@@ -79,11 +79,11 @@ monsters, which have no `armor_class_detail`). `armor_class_detail` isn't
 redundant despite the overlap: the character-scoped `EquipItem`/
 `UnequipItem` RPCs return a **bare** `CharacterData` with no surrounding
 `Entity` — `armor_class_detail.total` is the only AC total available on
-that response; there's nowhere else to put it. Inside an encounter
-snapshot, where `CharacterData` does ride inside an `Entity`, rpg-api is
-expected to keep the two in sync (`armor_class_detail.total ==
-Entity.armor_class`); `Entity.armor_class` stays the flat cross-entity
-value monsters use, with no note at all.
+that response; there's nowhere else to put it. In a legacy encounter snapshot
+that is authorized to carry `armor_class_detail`, rpg-api keeps it in sync with
+`Entity.armor_class`; this does not authorize owner-private fields 9–14 for a
+foreign viewer. `Entity.armor_class` stays the separately authorized flat
+cross-entity value monsters use, with no note at all.
 
 ## `Item`, `SlotDef`, `ArmorClassDisplay`
 

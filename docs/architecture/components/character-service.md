@@ -1,7 +1,7 @@
 ---
 name: CharacterService
 description: D&D 5e character creation, draft lifecycle, equipment management, and reference data
-updated: 2026-05-02
+updated: 2026-08-25
 confidence: high — verified by reading dnd5e/api/v1alpha1/character.proto end-to-end
 ---
 
@@ -20,6 +20,41 @@ spells) that the character-creation UI needs.
 - 1 service, ~32 RPCs, ~80 messages.
 - Imports `choices.proto`, `common.proto`, `enums.proto`,
   `equipment_types.proto`.
+
+## Owner-private v1alpha2 `CharacterData`
+
+The surviving owner-gated read/equipment surface is
+`dnd5e.api.v1alpha2.character.CharacterService`; its response type remains
+`dnd5e.api.v1alpha2.encounter.CharacterData`. The namespace is historical, but
+this is one general owner-private character projection, **not an
+equipment-only payload** and not a consumer-specific `CharacterHud` wrapper.
+The host populates fields 9–14 only after binding the requested character to
+its authenticated owner. Although the historical message type also appears in
+the legacy encounter `Entity.character` union, every foreign-viewer projection
+withholds fields 9–14; message reuse never authorizes another player's exact
+level, HP, speed, features, conditions, or resources. Peers receive only the
+separately approved public encounter/sight projection. Missing and foreign
+character IDs remain indistinguishable at the owner gate.
+
+The production combat experience adds these fields directly after existing
+fields 1–8:
+
+| Tag | Field | Type / semantics |
+|---|---|---|
+| 9 | `level` | `int32` |
+| 10 | `hit_points` | existing `HitPoints { current, max, temp }`; `temp` is zero until toolkit character state owns temporary HP |
+| 11 | `base_speed_feet` | base sheet speed; current turn movement comes only from Session `Afford` |
+| 12 | `features` | `repeated FeatureView { ref, name, detail, optional resource_key }` |
+| 13 | `conditions` | `repeated ConditionView { ref, name, detail, optional source_member }` |
+| 14 | `resources` | `repeated ResourceView { key, name, current, maximum }` |
+
+Feature and condition detail is server/toolkit-composed display text, never raw
+persistence JSON. Resource keys are opaque and may authoritatively link a
+feature to its count. This first four-class combat projection is explicitly
+non-magical: `resources` excludes `SpellSlots` and legacy `ClassResources`, and
+no spellcasting, concentration, magical-resource, or magical-targeting field is
+added. The old v1alpha1 creation API still contains its pre-existing spell
+catalog operations; that legacy fact does not expand this new projection.
 
 ## RPCs (grouped by purpose)
 

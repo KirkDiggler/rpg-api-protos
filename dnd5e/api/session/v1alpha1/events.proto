@@ -17,12 +17,12 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // a string enum rather than free-form prose precisely because "it maps directly
 // onto a proto enum", and it is the field clients branch on.
 //
-// Read from session/v0.18.0. THIRTEEN KINDS, AND THE FIRST RETIREMENT: the
-// vocabulary held UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and
-// the Where read added no beat and removed none), then v0.18.0 both dropped
-// TRAVERSED and added DOWNED — see each below for why. Net thirteen, but not
-// the same thirteen, so a client pinned to the older set must be re-read
-// rather than counted.
+// Read from session/v0.18.0, WITH THE FIRST RETIREMENT: the vocabulary held
+// UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and the Where read
+// added no beat and removed none), then v0.18.0 both dropped TRAVERSED and
+// added DOWNED — see each below for why. The set has grown since (DOOR,
+// rpg-project#269) and will again, so a client pinned to an older set must be
+// re-read rather than counted.
 //
 // Removing a kind is the compatible half of that pair only because nothing can
 // produce it: TRAVERSED's number and name are RESERVED here, so no future beat

@@ -724,8 +724,9 @@ message UnlockRequest {
 // UnlockResponse is the attempt, in the open. The roll is public — full data
 // until v1.0 — and the beat every member hears carries the same numbers.
 message UnlockResponse {
-  // Whether the check beat the DC. The session rolled it; the composition was
-  // told this verdict and nothing else.
+  // Whether the check beat the DC. The session rolled it; the toolkit
+  // composition was told this verdict and nothing else — the total below is
+  // wire data for players, not something the composition ever learned.
   bool beaten = 1;
   // What the check totalled.
   int32 total = 2;

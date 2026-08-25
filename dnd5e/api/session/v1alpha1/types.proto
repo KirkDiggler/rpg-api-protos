@@ -1004,9 +1004,11 @@ enum DoorState {
 // DoorLock is an authored lock, carried not interpreted.
 //
 // The DC is public knowledge down to the number — full data until v1.0
-// (rpg-project#269 §0). What beats it is the server's ruling: the session
-// rolls the check and the composition is TOLD the verdict, never the total
-// (the told-not-compared law on encounter.Unlock).
+// (rpg-project#269 §0), and so is an attempt's rolled total (UnlockResponse,
+// DoorChanged). The told-not-compared law is about a different boundary: the
+// session rolls the check and the toolkit COMPOSITION learns only the
+// verdict, never the total — what the composition may know and what the wire
+// shows are separate questions, and this paragraph answers only the first.
 message DoorLock {
   // Authored difficulty.
   int32 dc = 1;

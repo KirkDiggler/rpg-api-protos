@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-23
+updated: 2026-08-25
 confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
@@ -99,7 +99,7 @@ Fifteen, mirroring the SDK verbs one-for-one.
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error. **On the turn clock it spends** (rpg-toolkit#1169): only the active member walks (`ErrNotYourTurn`), and the whole path is priced at 5 ft/cell and paid before the first step (`ErrCannotAfford`, "movement: N ft needed, M ft left"). Both `FAILED_PRECONDITION`. The old blanket in-a-fight refusal (`ErrInBubble`) is gone from this verb |
 | `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford`. Three `FAILED_PRECONDITION` refusals, all announced by `Afford` first: not your turn, no target in reach (rpg-toolkit#1010), action budget. An empty hand is **not** a refusal — it swings `unarmed-strike` (rpg-toolkit#1168). Response carries `attack: AttackRef` (ref, name, damage type — rpg-toolkit#866) |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below. Carries `participants[]` beside `order[]` — name, kind, standing, active per member (rpg-toolkit#1137) |
-| `Afford` | `Afford` | `AffordRequest:AffordResponse` | What the caller's own member can still **declare** this turn — can-or-cannot per gated verb, with the `Slot` a UI lights and the `Shortfall` it can repeat. Declarations, not remaining currencies (ADR-0042). Empty on the world clock, and empty is the answer. Not `Get`-prefixed: named for its question, as `Turn` is. Added at session/v0.21.3; `VERB_MOVE` with `optional remaining` (feet) joined with rpg-toolkit#1169 — present for Move, absent for Attack, and `0` is an answer. **One `ATTACK` declaration per target in reach** with `target` set (rpg-toolkit#1010); none in reach → one declaration, `affordable:false`, `why.reason = NO_TARGET_IN_REACH`. `why: Shortfall` is the structured refusal, present exactly when `affordable == false` |
+| `Afford` | `Afford` | `AffordRequest:AffordResponse` | Nested compiled offers, not a flat target list and not remaining currencies. One Attack declaration represents one authored action/cost variant and carries `id`, the sole `AttackRef`, `target_kind = MEMBER`, and every evaluated `TargetCandidate`, including unavailable candidates and their target-specific `why`. Move carries `target_kind = PATH` plus optional remaining feet; End Turn carries `target_kind = NONE`. `available` is the full per-verb gate and declaration `why` is present exactly when false. Empty on the world clock is the answer |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
@@ -304,8 +304,11 @@ section was **ruled whole and merged first** (Kirk, 2026-08-22, design
 client build against one shape in parallel rather than a chain of one-field
 PRs. Nothing in it is invented — each field projects a rule the composition
 already holds — but until the named toolkit issue closes, the proto comment
-says *"lands with rpg-toolkit#n"* rather than *"mirrors session.X"*. Additive
-only; `buf breaking` green against v0.1.131.
+says *"lands with rpg-toolkit#n"* rather than *"mirrors session.X"*.
+
+The production combat experience revision is an intentional in-place source
+break: removed declaration tags/names are reserved and the PR requires the
+`breaking-change-approved` label.
 
 | Addition | Where | Waits on |
 |---|---|---|
@@ -315,7 +318,7 @@ only; `buf breaking` green against v0.1.131.
 | `Sighting.name = 8` | types | rpg-toolkit#1137 |
 | `enum DamageType` (13 values) + `message AttackRef { ref, name, damage_type }` + `AttackResponse.attack = 10` | types, service | rpg-toolkit#866 |
 | `enum ShortfallReason`, `enum Currency`, `message Shortfall { reason, currency, needed, left, text }` + `Declaration.why = 7` | types | rpg-toolkit#1010 (structured form) |
-| `optional string Declaration.target = 6` — one `ATTACK` declaration per target in reach | types | rpg-toolkit#1010 |
+| `TargetKind`, nested `TargetCandidate`, and `Declaration { available, why, id, attack, target_kind, candidates }`; removed `shortfall = 4` / `target = 6` reserved | types | session combat experience, rpg-project#270 |
 | Attack's three refusals documented (not your turn / no target in reach / action budget); empty hand → `unarmed-strike` | service | rpg-toolkit#1010, #1168 |
 | `oneof Event.body { TurnEnded, Downed, Struck, Missed, FightStarted, FightEnded, Moved }` (tags 10–16) | events | rpg-toolkit#941 |
 
@@ -323,26 +326,44 @@ Rulings carried into the shape (design §6):
 
 - **Closed sets are enums; refs are strings.** `DamageType`,
   `ShortfallReason`, `Currency`, `Standing` are enums because a UI branches
-  on them and the set is the rulebook's. `AttackRef.ref` stays a string: the
-  catalog is open and the client already maps it.
-- **Per-target Attack declarations.** Reach is never computed client-side —
-  the list of `ATTACK` declarations with `target` set *is* the highlight. A
-  monk's bonus strike, an off-hand swing, a flurry are further declarations of
-  the same shape, never new fields.
+  on them and the set is the rulebook's. `AttackRef.ref` stays a string because
+  the catalog is open, but its value is now the complete `core.Ref.String()`
+  (for example `dnd5e:weapons:longsword`), never a bare definition ID.
+- **Nested Attack declarations.** Reach is never computed client-side. One
+  declaration represents one exact authored Attack/cost variant and carries
+  every server-evaluated candidate, including unavailable candidates and their
+  target-specific reason. The declaration and candidate booleans are
+  independent gates. `TARGET_OUT_OF_REACH = 6` is candidate-level;
+  `NO_TARGET_IN_REACH = 3` remains the declaration-level answer.
+- **Selectors are echoed, not interpreted.** Attack and End Turn require a
+  non-empty `declaration_id`. Turn-clock Move requires one; world-clock Move
+  requires it empty. A non-empty selector received after a world-clock
+  transition is stale and must not become a free move. Unknown, mismatched,
+  stale, or now-unavailable selectors fail with `FAILED_PRECONDITION`.
+- **Unreadability is per verb.** `UNREADABLE` covers the character/action
+  dependency matrix: Attack needs the character and compiled action, Move needs
+  its own character/economy dependencies, and End Turn needs neither. One bad
+  Attack must not erase independently executable Move or End Turn offers.
+- **No magic boundary and no speculative targets.** This contract adds no
+  spell, spell-slot, concentration, magical-resource, or magical-targeting
+  field, and `TargetKind` has only `NONE`, `MEMBER`, and `PATH` beyond
+  `UNSPECIFIED`. A later executor must earn any later kind.
 - **Typed event bodies now, done properly.** rpg-toolkit#941's accepted
   direction — beats record a declared kind and a typed body, session projects
   them — not a stopgap over `kindOf`-unmarshals-the-JSON. A client reads
   `Event.body` and **never decodes `payload`**; `payload` remains for the kinds
   with no body yet (`JOINED`, `EXITED`, `ENDED`, `SCENE_OPENED`, `TICK`,
   `UNKNOWN`).
-- **`Declaration.shortfall` (string) stays** for v0.1.131 readers and carries
-  `why.text`; a new client reads `why`.
+- **`Declaration.shortfall` and flat `target` are removed and reserved.**
+  `why.text` is the sole prose refusal; `candidates` is the nested target list.
+  This intentional source break is carried with `breaking-change-approved`.
 - **Not a roster read.** `Participant` carries no position; it lists the
   members of the fight the asker is *in*, who have by construction seen each
   other. Where a participant stands is still `GetView`'s, gated by sight.
 
 Deliberately not in this proto: monster behavior, ranged weapons and cover,
-reactions/opportunity attacks, death saves, a session-level equip verb.
+reactions/opportunity attacks, death saves, a session-level equip verb, magic,
+spells, spell slots, concentration, magical resources, or future target kinds.
 
 ## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
 
@@ -428,8 +449,9 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
   action can declare a save gate this seam has no vocabulary for. It arrives
   with the work that calls for it.
 - **The combat-turn fields are on the wire before the SDK.** `Participant`,
-  `Standing`, `Sighting.name`, `AttackRef`, `Shortfall`, `Declaration.target`
-  and the typed `Event.body` are contract today and projection tomorrow:
+  `Standing`, `Sighting.name`, full-ref `AttackRef`, `Shortfall`, nested
+  declarations/candidates and the typed `Event.body` are contract today and
+  projection tomorrow:
   rpg-api leaves them unset until rpg-toolkit#1010/#1137/#866/#941/#1168 tag.
   A client written against them renders what arrives and must not treat an
   unset `body` or an empty `participants` as a defect meanwhile.

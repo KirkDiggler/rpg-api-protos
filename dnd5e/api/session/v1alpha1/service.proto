@@ -163,9 +163,11 @@ message ExitResponse {
 //     happens. Afford's VERB_MOVE declaration reports that M ahead of time.
 //
 // Both are rules refusals, not caller defects: FAILED_PRECONDITION, exactly as
-// ErrCannotAfford already maps on Attack, never INVALID_ARGUMENT. Free roam is
-// untouched — a member on the world clock pays nothing and is never asked
-// whose turn it is.
+// ErrCannotAfford already maps on Attack, never INVALID_ARGUMENT. On the turn
+// clock `declaration_id` is required and selects the current compiled Move
+// offer. On the world clock it must be empty. A non-empty selector arriving
+// after a transition to the world clock is stale and must be refused; it must
+// never become a free move. Free roam otherwise remains unpriced.
 //
 // INVALID_ARGUMENT for an empty or broken path, a bad position, or a step
 // between two cells that nothing joins; FAILED_PRECONDITION if it is not the
@@ -177,6 +179,8 @@ message MoveRequest {
   // The cells to walk through, in order, each adjacent to the last and the
   // first adjacent to where the member currently stands.
   repeated Position path = 3;
+  // Required on the turn clock; empty on the world clock.
+  string declaration_id = 4;
 }
 
 // MoveResponse mirrors session.MoveOutput.
@@ -229,21 +233,27 @@ message MoveResponse {
 //     EndTurn carry for the same question.
 //   - NO TARGET IN REACH. The target stands further than the weapon reaches:
 //     one cell for melee, two with the reach property (rpg-toolkit#1010,
-//     ErrOutOfReach). A ranged weapon stays refused as today. Afford's
-//     per-target ATTACK declarations are the same gate asked ahead of time —
-//     a target that is not in a declaration will be refused here.
+//     ErrOutOfReach). A ranged weapon stays refused as today. Afford's nested
+//     TargetCandidate entries are the same gate asked ahead of time — an
+//     unavailable or absent target will be refused here.
 //   - ACTION BUDGET. ErrCannotAfford, "action: 1 needed, 0 left", as above.
 //
 // AN EMPTY HAND IS NOT A REFUSAL. A character with nothing equipped swings an
 // unarmed strike — the catalog ref "unarmed-strike", bludgeoning — because
 // that is the rule, not a gap (rpg-toolkit#1168). ErrBadAttack stays for a
 // sheet the rulebook cannot read at all.
+//
+// `declaration_id` is required and must select the current compiled Attack
+// offer. Unknown, stale, mismatched, or now-unavailable selectors are refused
+// with FAILED_PRECONDITION; the client refreshes and never retries implicitly.
 message AttackRequest {
   string session = 1;
   // Who swings.
   string attacker = 2;
   // Who they swing at.
   string target = 3;
+  // Non-empty opaque selector echoed from Afford.
+  string declaration_id = 4;
 }
 
 // AttackResponse mirrors session.AttackOutput.
@@ -319,11 +329,9 @@ message TurnResponse {
 // cannot tell who is asking and a client-supplied ID wired through unchecked
 // turns a caller-scoped read into one that answers about anybody.
 //
-// NOT_FOUND if the session, encounter or member is absent; FAILED_PRECONDITION
-// if the member is on the turn clock and has no loadable sheet (a monster, or a
-// malformed record — a character already in a fight has one by construction),
-// or if the rulebook cannot compile this member's price, which Attack would
-// refuse the same way.
+// NOT_FOUND if the session, encounter or member is absent. Session/world load
+// failures fail the read; unreadable character/action dependencies are instead
+// projected per verb as UNREADABLE so independent declarations still arrive.
 message AffordRequest {
   string session = 1;
   // Whose budget is being asked about — the caller's own.
@@ -339,27 +347,20 @@ message AffordRequest {
 // carries can-or-cannot per verb, with the Slot a client lights and the
 // Shortfall it can repeat. See Declaration in types.proto and ADR-0042.
 //
-// THE ECONOMY'S ANSWER, THEN THE TURN'S AND REACH'S TOO. Through
-// session/v0.21.3 this priced the budget and nothing else — Attack did not
-// check whose turn it was, so neither did Afford. The combat-turn contract
-// (rpg-project#249) makes every refusal Attack can give announceable here
-// first, as Declaration.why: not your turn, no target in reach, the budget.
-// A client that reads the declarations never sends a swing the server will
-// refuse, and never learns a rule to manage that.
-//
-// ONE ATTACK DECLARATION PER TARGET IN REACH (rpg-toolkit#1010): the list is
-// the client's highlight of who can be swung at, with `target` set on each.
-// No candidate in reach is still an answer — one ATTACK declaration,
-// affordable false, why.reason NO_TARGET_IN_REACH, no target. A monk's bonus
-// strike, an off-hand swing, a flurry: further declarations of the same
-// shape, never new fields.
+// THE COMPLETE CURRENT GATE. Each declaration is one compiled action/cost
+// variant with a deterministic selector, fixed target kind, and availability
+// under every gate applicable to that verb. Attack carries its exact full-ref
+// AttackRef and all server-evaluated candidates nested on that variant,
+// including unavailable candidates and their target-specific reasons. Move
+// carries remaining feet; End Turn is independently gated by clock/turn only.
+// The client never computes reach, cost, eligibility, or refusal precedence.
 message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
   ClockKind clock = 1;
-  // One entry per verb the seam prices: VERB_ATTACK and VERB_MOVE. Attack is
-  // can-or-cannot; Move also carries `remaining` (feet) so a client can bound
-  // a path preview without knowing the speed rule (rpg-toolkit#1169).
+  // One entry per compiled Attack variant plus Move and End Turn. Move also
+  // carries `remaining` (feet) so a client can bound a path preview without
+  // knowing the speed rule (rpg-toolkit#1169).
   //
   // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
   // an empty list as "unknown" or as a shorter way of asking again: free roam
@@ -374,11 +375,15 @@ message AffordResponse {
 //
 // There is deliberately no "end the current turn" form — that would be the
 // privileged-clock question wearing a verb's clothes (see TurnRequest).
-// FAILED_PRECONDITION if the member is not in a fight or it is not their turn.
+// `declaration_id` is required and must select the current compiled End Turn
+// offer. FAILED_PRECONDITION if it is empty, unknown, stale, the member is not
+// in a fight, or it is not their turn.
 message EndTurnRequest {
   string session = 1;
   // Whose turn is ending — and it must be THEIR turn.
   string member = 2;
+  // Non-empty opaque selector echoed from Afford.
+  string declaration_id = 3;
 }
 
 // EndTurnResponse mirrors session.EndTurnOutput.

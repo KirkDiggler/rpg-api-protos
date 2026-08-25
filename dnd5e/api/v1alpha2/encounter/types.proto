@@ -352,9 +352,9 @@ message Entity {
 
 // CharacterData — player-controlled character.
 //
-// Equipment on the wire (protos#187): equipped/inventory/slots/armor_class_detail ride
-// this message because the character HUD/sheet reads them off the same hydrated
-// CharacterData the encounter already snapshots — no separate fetch on popover open
+// Owner-private character facts and equipment share this one projection; there is no
+// consumer-specific HUD wrapper. equipped/inventory/slots/armor_class_detail ride this
+// message because character surfaces read one hydrated CharacterData projection
 // (rpg-dnd5e-web#531 CONTRACT.md §8: a second source of truth would disagree with the
 // encounter's view of the character). In-encounter equip changes push updated
 // CharacterData on the encounter stream like any other state change; the character-scoped
@@ -364,7 +364,6 @@ message CharacterData {
   Ref class_ref = 1; // {module:"dnd5e", type:"class", id:"fighter"}
   Ref race_ref = 2;
   string player_id = 3; // who controls this character
-  // level still TODO — see rpg-api-protos#183
 
   // equipped maps slot key -> the Ref of the item worn/wielded there. Slot keys are opaque
   // strings to the web (defined by `slots` below). Item display fields are looked up by Ref
@@ -403,6 +402,46 @@ message CharacterData {
   // verbatim, sibling of armor_class_detail. Toolkit's EquipmentView composes it; rpg-api
   // passes it through.
   string main_hand_damage = 8;
+
+  int32 level = 9;
+  // temp remains zero until the toolkit character state owns temporary HP.
+  HitPoints hit_points = 10;
+  // Base sheet speed. Turn movement remaining comes only from SessionService.Afford.
+  int32 base_speed_feet = 11;
+  repeated FeatureView features = 12;
+  repeated ConditionView conditions = 13;
+  // Non-magical feature/class resources only. SpellSlots and legacy ClassResources
+  // are explicitly excluded.
+  repeated ResourceView resources = 14;
+}
+
+// FeatureView is an owner-private, display-ready owned feature. detail is composed by
+// the server/toolkit, never raw feature JSON.
+message FeatureView {
+  Ref ref = 1;
+  string name = 2;
+  string detail = 3;
+  // Present when this feature consumes a projected resource.
+  optional string resource_key = 4;
+}
+
+// ConditionView is an owner-private, display-ready active condition. detail is composed
+// by the server/toolkit, never raw condition JSON.
+message ConditionView {
+  Ref ref = 1;
+  string name = 2;
+  string detail = 3;
+  // Present only for a player-observable member source.
+  optional string source_member = 4;
+}
+
+// ResourceView is a non-magical feature/class resource owned by this character.
+message ResourceView {
+  // Opaque rulebook core/resources.ResourceKey.
+  string key = 1;
+  string name = 2;
+  int32 current = 3;
+  int32 maximum = 4;
 }
 
 // Item is a display-ready piece of equipment or gear. Every field beyond `ref`/`name` is

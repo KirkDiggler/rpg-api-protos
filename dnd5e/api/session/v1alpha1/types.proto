@@ -194,7 +194,7 @@ enum DamageType {
   DAMAGE_TYPE_THUNDER = 13;
 }
 
-// ShortfallReason names WHY a declaration is unaffordable, as a value a UI can
+// ShortfallReason names WHY a declaration or candidate is unavailable, as a value a UI can
 // act on rather than prose it can only repeat. Lands with rpg-toolkit#1010
 // (reach) and the structured Shortfall it carries.
 //
@@ -218,11 +218,17 @@ enum ShortfallReason {
   SHORTFALL_REASON_NO_TARGET_IN_REACH = 3;
   // The member is downed and cannot act — what the verbs refuse as ErrDowned.
   SHORTFALL_REASON_DOWNED = 4;
-  // The rulebook could not compile this member's price — the sheet is
-  // unreadable (ErrBadAttack for anything but an empty hand, which compiles to
-  // the unarmed strike instead, rpg-toolkit#1168). Afford reports it rather
-  // than failing the read, so the rest of the declarations still arrive.
+  // A provider dependency required by this verb could not be read. Attack
+  // requires the character and its compiled action; Move requires the
+  // character and movement economy; End Turn requires neither and remains
+  // governed only by its clock/turn gate. Afford reports the dependency
+  // failure per verb so one unreadable action does not erase independent
+  // Move or End Turn declarations.
   SHORTFALL_REASON_UNREADABLE = 5;
+  // The named target failed the attack's reach gate. This is candidate-level;
+  // NO_TARGET_IN_REACH remains the declaration-level answer when no candidate
+  // can be attacked.
+  SHORTFALL_REASON_TARGET_OUT_OF_REACH = 6;
 }
 
 // Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.
@@ -243,8 +249,8 @@ enum Currency {
   CURRENCY_MOVEMENT = 4;
 }
 
-// Verb names a seam action Afford can price. Mirrors session.Verb
-// ("attack" / "move").
+// Verb names a seam action Afford can gate. Mirrors session.Verb
+// ("attack" / "move" / "end_turn").
 //
 // A closed set owned by the session package rather than a reuse of the
 // rulebook's own action vocabulary: a declaration is a question about what THIS
@@ -260,6 +266,19 @@ enum Verb {
   // now priced: free-roam walking spends nothing and so never appears in a
   // declaration (the world clock has no declarations at all).
   VERB_MOVE = 2;
+  // End Turn — committing the active member's turn. It has no action-economy
+  // price and is governed only by its clock/turn gate.
+  VERB_END_TURN = 3;
+}
+
+// TargetKind tells a client which selector shape a declaration accepts. This
+// first production wave includes only the three currently executable verbs;
+// future target kinds arrive with a proven executor, not in advance.
+enum TargetKind {
+  TARGET_KIND_UNSPECIFIED = 0;
+  TARGET_KIND_NONE = 1;
+  TARGET_KIND_MEMBER = 2;
+  TARGET_KIND_PATH = 3;
 }
 
 // Slot names which of a turn's three economy shapes a Declaration draws from.
@@ -620,23 +639,20 @@ message Participant {
 // Economy — what a member can still declare
 // =============================================================================
 
-// Declaration is one verb a member could still declare this turn, and whether
-// they can pay for it. Mirrors session.Declaration.
-//
-// DECLARATIONS, NOT REMAINING CURRENCIES (ADR-0042). A read that answered
-// {action: 0, bonus: 1} would still hand a client the raw ledger and trust it
-// to know that a swing costs an action and that Extra Attack banks capacity —
-// the D&D-in-the-client violation the economy exists to prevent, moved one read
-// earlier. A Declaration answers the question a client actually has, CAN I DO
-// THIS, and keeps the arithmetic where it has always lived: server-side, behind
-// the same SpendProfile a real swing pays through.
-//
-// THE SAME PRICE ATTACK PAYS, never a second copy of it. The SDK prices a
-// declaration by charging a sheet it loaded for the call and hands to nobody,
-// through the identical gate the Attack door pays a real swing through. If
-// Attack and Afford could ever disagree, one of them would be pricing wrong;
-// routing both through one gate is what makes that impossible by construction
-// rather than merely tested for.
+// TargetCandidate is one current live-sight member evaluated for an Attack
+// declaration. Availability here is target-specific and independent from the
+// declaration's turn/economy gate; global reasons are not copied onto every
+// candidate.
+message TargetCandidate {
+  string member = 1;
+  bool available = 2;
+  Shortfall why = 3;
+}
+
+// Declaration is one server-compiled action/cost variant. Declarations, not
+// remaining currencies (ADR-0042): the client renders availability, identity,
+// target kind, and candidates verbatim and never derives game rules. Attack,
+// Move, and End Turn regenerate the selected offer before execution.
 message Declaration {
   // Which seam action this prices.
   Verb verb = 1;
@@ -645,28 +661,14 @@ message Declaration {
   // verb "usually" costs — so a class table changing what an action buys
   // changes this automatically.
   Slot slot = 2;
-  // Whether the member could pay for this verb right now.
-  //
-  // PLAIN bool, not `optional bool`: false is an ANSWER, not an absence — the
-  // same false-vs-absent law AtlasProp's blocking flags keep. The SDK strips
-  // omitempty from this field for exactly that reason. Absence of the
-  // question is instead AffordResponse.declarations being empty, on the world
-  // clock, where the economy does not apply at all.
-  bool affordable = 3;
-  // What ran out, in the SAME words a refused Attack would use — "action: 1
-  // needed, 0 left" — because a client that cannot repeat a refusal in the
-  // player's own words has been handed a boolean and nothing else. Empty when
-  // affordable: an empty string beside affordable = true is itself the answer
-  // ("nothing ran out"), not the absence of one.
-  //
-  // Free-form and stays a string, for the reason Sighting.channel does: the
-  // text is the SDK's own error wording, which it has not sealed into a
-  // vocabulary, and rpg-api does not invent one (rule 1).
-  //
-  // KEPT FOR v0.1.131 READERS; SUPERSEDED BY `why`. This is the same text as
-  // why.text, and a producer that sets one sets both. A new client reads
-  // `why` — the structured form it can branch on — and never this.
-  string shortfall = 4;
+  // Whether every gate applicable to this verb currently passes. This is
+  // broader than whether one currency can pay.
+  bool available = 3;
+
+  // Removed in the intentional production-contract reshape. why.text is the
+  // sole prose refusal and candidates replace the former flat target.
+  reserved 4, 6;
+  reserved "shortfall", "target";
   // How much of this verb's own currency is left, in that currency's natural
   // unit — feet, for VERB_MOVE (rpg-toolkit#1169). PRESENT for VERB_MOVE,
   // ABSENT for VERB_ATTACK.
@@ -674,7 +676,7 @@ message Declaration {
   // A NUMBER, NOT A PRICE, because Move has no fixed cost until a path is
   // chosen: what a walk costs is a fact about the path, and Afford is asked
   // before there is one. So a Move declaration answers the question Afford CAN
-  // answer without a path — how far this turn still reaches — and `affordable`
+  // answer without a path — how far this turn still reaches — and `available`
   // answers only whether ANY step at all is still possible. A client bounds its
   // path preview to this figure instead of knowing the speed rule; the
   // Boundary Rule keeps "a fighter walks 30 ft" off the client the same way it
@@ -696,38 +698,23 @@ message Declaration {
   // rpg-api's projection must keep absent absent: a nil that became 0 would
   // tell a client its attack has no feet left.
   optional int32 remaining = 5;
-  // ATTACK: the candidate target this declaration prices. ONE DECLARATION PER
-  // TARGET IN REACH (rpg-project#249 §6, Kirk): Afford gates each candidate
-  // through the same reach check Attack refuses with (melee one cell, the
-  // reach property two; ranged stays refused as today, rpg-toolkit#1010) and
-  // emits {VERB_ATTACK, slot, affordable, target} for each one that passes.
-  // That list IS the client's "enemies in reach" highlight — reach is never
-  // computed client-side, it is read off these. When NO candidate is in reach
-  // the seam still answers, once: a single ATTACK declaration with
-  // affordable = false, why.reason = NO_TARGET_IN_REACH and this field unset.
-  //
-  // `optional` because absent and "" must stay distinct: a MOVE declaration
-  // has no target at all, and the no-target-in-reach ATTACK declaration has
-  // none either — neither is a target whose id happens to be empty.
-  //
-  // Further strikes are FURTHER DECLARATIONS of this same shape, not new
-  // fields: a monk's Martial Arts bonus strike is {VERB_ATTACK, SLOT_BONUS,
-  // target}; an off-hand swing and a flurry likewise. What the die is, and
-  // that DEX applies, are rules inside the toolkit and never on the wire. An
-  // empty main hand prices the catalog ref "unarmed-strike" (BLUDGEONING) the
-  // same way — the rule, not a refusal (rpg-toolkit#1168).
-  //
-  // Lands with rpg-toolkit#1010.
-  optional string target = 6;
-  // Why this is unaffordable, structured. PRESENT EXACTLY WHEN affordable ==
-  // false — the Outcome/Formed presence law: a message that is there or not,
-  // and its absence beside affordable = true is the answer "nothing ran out".
-  // Carries the same text `shortfall` does, plus the reason and the figures a
-  // UI acts on. Lands with rpg-toolkit#1010 (reach) on the structured form.
+  // Present exactly when available is false. The server owns refusal
+  // precedence; target-only failure uses NO_TARGET_IN_REACH here.
   Shortfall why = 7;
+  // Opaque deterministic selector for this current compiled offer. The client
+  // echoes it and never parses it.
+  string id = 8;
+  // The sole public Attack identity. Present on compiled Attack declarations;
+  // absent for Move, End Turn, and early verb-level blockers.
+  AttackRef attack = 9;
+  // Attack -> MEMBER, Move -> PATH, End Turn -> NONE.
+  TargetKind target_kind = 10;
+  // Every target evaluated for this Attack variant, including unavailable
+  // targets and their server-authored reasons. Empty for Move and End Turn.
+  repeated TargetCandidate candidates = 11;
 }
 
-// Shortfall is the structured reason a declaration cannot be paid for. Lands
+// Shortfall is the structured reason a declaration or candidate is unavailable. Lands
 // with rpg-toolkit#1010 as session.Shortfall.
 //
 // STRUCTURED SO THE UI CAN ACT ON IT; TEXT STAYS FOR NARRATION. The string
@@ -752,8 +739,8 @@ message Shortfall {
   int32 left = 4;
   // The refusal in the SDK's own words — "action: 1 needed, 0 left",
   // "movement: 20 ft needed, 15 ft left", "not your turn", "no target in
-  // reach". The same text Declaration.shortfall carries and the same text the
-  // verb's FAILED_PRECONDITION would.
+  // reach". This is the declaration's sole prose refusal and is the same text
+  // the verb's FAILED_PRECONDITION would use.
   string text = 5;
 }
 
@@ -767,9 +754,10 @@ message Shortfall {
 // that produced them did not. This is the AttackProfile's identity projected —
 // ref, name and damage type — and nothing of its arithmetic.
 message AttackRef {
-  // The catalog ref the attack compiled from — "longsword", "unarmed-strike".
-  // An OPEN set, so a string: the client already maps refs to models and
-  // icons, and the catalog grows without this contract changing.
+  // The full core.Ref.String() the attack compiled from, for example
+  // "dnd5e:weapons:longsword". Bare definition IDs such as "longsword" are
+  // invalid. An OPEN set, so a string: the catalog grows without this contract
+  // changing.
   string ref = 1;
   // Display name. "Longsword"; "Unarmed strike" for an empty hand
   // (rpg-toolkit#1168).

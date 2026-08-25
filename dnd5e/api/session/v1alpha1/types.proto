@@ -982,3 +982,49 @@ message AtlasRegion {
   string archetype = 4;
   Lighting lighting = 5;
 }
+
+// =============================================================================
+// Doors
+// =============================================================================
+
+// DoorState is what a door is doing right now.
+//
+// A door's state is ENCOUNTER STATE, NOT ATLAS GEOMETRY. GetAtlas carries a
+// door's edges (AtlasDoorway — construction truth, cached once); this enum is
+// the live half, read via GetDoors and updated from DOOR events. A door is one
+// state over a set of edges (rpg-toolkit#1123): every edge of a wide gate
+// opens and locks together.
+enum DoorState {
+  DOOR_STATE_UNSPECIFIED = 0;
+  DOOR_STATE_OPEN = 1;
+  DOOR_STATE_CLOSED = 2;
+  DOOR_STATE_LOCKED = 3;
+}
+
+// DoorLock is an authored lock, carried not interpreted.
+//
+// The DC is public knowledge down to the number — full data until v1.0
+// (rpg-project#269 §0), and so is an attempt's rolled total (UnlockResponse,
+// DoorChanged). The told-not-compared law is about a different boundary: the
+// session rolls the check and the toolkit COMPOSITION learns only the
+// verdict, never the total — what the composition may know and what the wire
+// shows are separate questions, and this paragraph answers only the first.
+message DoorLock {
+  // Authored difficulty.
+  int32 dc = 1;
+  // Opaque rulebook ref for the ability the check uses, e.g. "dex".
+  string ability = 2;
+  // Opaque item ref for a named tool, e.g. "dnd5e:item:thieves-tools".
+  // Empty when the lock names none — the reference tomb's does not.
+  string tool = 3;
+}
+
+// DoorInfo is one door's identity and live state.
+message DoorInfo {
+  // The same id AtlasDoorway.connection carries — join the two to know
+  // WHERE the door is; this message says WHAT it is doing.
+  string door = 1;
+  DoorState state = 2;
+  // Set only while state is LOCKED.
+  DoorLock lock = 3;
+}

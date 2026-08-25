@@ -239,9 +239,9 @@ message MoveResponse {
 //   - ACTION BUDGET. ErrCannotAfford, "action: 1 needed, 0 left", as above.
 //
 // AN EMPTY HAND IS NOT A REFUSAL. A character with nothing equipped swings an
-// unarmed strike — the catalog ref "unarmed-strike", bludgeoning — because
-// that is the rule, not a gap (rpg-toolkit#1168). ErrBadAttack stays for a
-// sheet the rulebook cannot read at all.
+// unarmed strike — catalog ref "dnd5e:weapons:unarmed-strike", bludgeoning —
+// because that is the rule, not a gap (rpg-toolkit#1168). ErrBadAttack stays
+// for a sheet the rulebook cannot read at all.
 //
 // `declaration_id` is required and must select the current compiled Attack
 // offer. Unknown, stale, mismatched, or now-unavailable selectors are refused
@@ -352,15 +352,17 @@ message AffordRequest {
 // under every gate applicable to that verb. Attack carries its exact full-ref
 // AttackRef and all server-evaluated candidates nested on that variant,
 // including unavailable candidates and their target-specific reasons. Move
-// carries remaining feet; End Turn is independently gated by clock/turn only.
-// The client never computes reach, cost, eligibility, or refusal precedence.
+// carries provider-authored remaining feet for display/context only; End Turn
+// is independently gated by clock/turn only. The client never computes reach,
+// cost, eligibility, or refusal precedence.
 message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
   ClockKind clock = 1;
   // One entry per compiled Attack variant plus Move and End Turn. Move also
-  // carries `remaining` (feet) so a client can bound a path preview without
-  // knowing the speed rule (rpg-toolkit#1169).
+  // carries provider-authored `remaining` feet for display/context only
+  // (rpg-toolkit#1169). Clients do not convert it to cells or derive path cost;
+  // the server authoritatively prices and accepts or refuses the whole path.
   //
   // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
   // an empty list as "unknown" or as a shorter way of asking again: free roam

@@ -669,25 +669,15 @@ message Declaration {
   // sole prose refusal and candidates replace the former flat target.
   reserved 4, 6;
   reserved "shortfall", "target";
-  // How much of this verb's own currency is left, in that currency's natural
-  // unit — feet, for VERB_MOVE (rpg-toolkit#1169). PRESENT for VERB_MOVE,
-  // ABSENT for VERB_ATTACK.
+  // Provider-authored display/context for how much movement remains, in feet
+  // (rpg-toolkit#1169). PRESENT for VERB_MOVE, ABSENT for VERB_ATTACK.
   //
-  // A NUMBER, NOT A PRICE, because Move has no fixed cost until a path is
-  // chosen: what a walk costs is a fact about the path, and Afford is asked
-  // before there is one. So a Move declaration answers the question Afford CAN
-  // answer without a path — how far this turn still reaches — and `available`
-  // answers only whether ANY step at all is still possible. A client bounds its
-  // path preview to this figure instead of knowing the speed rule; the
-  // Boundary Rule keeps "a fighter walks 30 ft" off the client the same way it
-  // keeps "a swing costs an action" off it.
-  //
-  // FIVE FEET PER CELL IS THE SERVER'S ARITHMETIC. A client never converts feet
-  // to cells on its own authority: it may round this figure down to whole
-  // cells to grey out a preview, and nothing more, because the server prices
-  // the WHOLE requested path before the first step and refuses it whole —
-  // "movement: 20 ft needed, 15 ft left" — whatever the preview thought. The
-  // preview is a courtesy; the refusal is the rule.
+  // A NUMBER, NOT A PATH PRICE, because Move has no fixed cost until a path is
+  // chosen. Clients may display this value verbatim but must not convert it to
+  // cells, derive a path budget or cost from it, or use it to decide whether a
+  // path will be accepted. The server prices the WHOLE requested path before
+  // the first step and refuses it whole; `available` is likewise the server's
+  // answer about whether any step is currently possible.
   //
   // `optional`, and this is the OTHER presence law at this seam — the
   // Outcome/Formed one (a message that is present or not), not the bool one

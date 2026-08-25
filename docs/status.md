@@ -79,8 +79,9 @@ shape and consumer drift, it shows up here as a "rough edge."
   `AttackResponse.attack` (rpg-toolkit#866); `ShortfallReason`, `Currency`,
   `Shortfall` + the original declaration refusal shape (rpg-toolkit#1010), now
   superseded by #252's nested declaration/candidate contract; Attack's refusals
-  documented, empty hand → `unarmed-strike` (rpg-toolkit#1168); `oneof
-  Event.body` with seven typed bodies, `payload` kept for untyped kinds
+  documented, empty hand → `dnd5e:weapons:unarmed-strike`
+  (rpg-toolkit#1168); `oneof Event.body` with seven typed bodies, `payload` kept
+  for untyped kinds
   (rpg-toolkit#941). See
   [architecture/components/session-service.md](architecture/components/session-service.md)
   "The combat turn".

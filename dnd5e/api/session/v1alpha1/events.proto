@@ -244,9 +244,9 @@ message DamageComponent {
   string source = 1;
   string source_ref = 2;
   string dice = 3;
-  repeated int32 rolls = 4;
+  repeated int32 final_rolls = 4;
   int32 flat_bonus = 5;
-  string damage_type = 6;
+  DamageType damage_type = 6;
   // Presence distinguishes an additive component from immunity's real zero.
   optional double multiplier = 7;
 }

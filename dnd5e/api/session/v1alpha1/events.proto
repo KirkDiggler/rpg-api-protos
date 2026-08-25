@@ -239,6 +239,24 @@ message Downed {
   string member = 1;
 }
 
+// DamageComponent is one ordered source-attributed input to resolved damage.
+message DamageComponent {
+  string source = 1;
+  string source_ref = 2;
+  string dice = 3;
+  repeated int32 final_rolls = 4;
+  int32 flat_bonus = 5;
+  DamageType damage_type = 6;
+  // Presence distinguishes an additive component from immunity's real zero.
+  optional double multiplier = 7;
+}
+
+// AttackModifierSource identifies one source of advantage or disadvantage.
+message AttackModifierSource {
+  string source_ref = 1;
+  string source_id = 2;
+}
+
 // Struck: an attack landed (EVENT_KIND_STRUCK). The numbers AttackResponse
 // gives the attacker, here for every witness, plus what was swung.
 message Struck {
@@ -255,6 +273,9 @@ message Struck {
   // What was swung — ref, name, damage type. Lands with rpg-toolkit#866.
   AttackRef attack = 7;
   bool critical = 8;
+  repeated DamageComponent damage_components = 9;
+  repeated AttackModifierSource advantage_sources = 10;
+  repeated AttackModifierSource disadvantage_sources = 11;
 }
 
 // Missed: an attack did not land (EVENT_KIND_MISSED). A separate body rather

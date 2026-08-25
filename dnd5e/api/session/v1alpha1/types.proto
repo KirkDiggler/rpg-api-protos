@@ -874,14 +874,18 @@ message AtlasProp {
   // the name-to-yaw map is ONE client-side calibrated table serving both
   // orientations, not something this transport derives or implies.
   //
-  // GRID_KIND_SQUARE atlases have no hex orientation and no established
-  // facing vocabulary yet; leave this empty there until one exists.
+  // GRID_KIND_SQUARE atlases carry no authored facings TODAY for a supply
+  // reason, not a vocabulary one: the single producer of this field — the
+  // dungeonspec dialect — authors hex dungeons only. The compass names are
+  // grid-independent by construction, so a square authoring path, when one
+  // exists, uses these same eight words; nothing here reserves a different
+  // set for it.
   //
   // This is deliberately a different shape from `Placement.facing` (dnd5e/
   // api/v1alpha2/encounter/types.proto) — that field is a fixed hex-direction
-  // INDEX for a runtime observation's turn-driven orientation; this one is an
-  // orientation-aware authored NAME for a dungeon-builder placement, and the
-  // two vocabularies do not interconvert.
+  // INDEX for a runtime observation's turn-driven orientation; this one is a
+  // world-space compass NAME authored in the dungeon builder, and the two
+  // vocabularies do not interconvert.
   string facing = 5;
 
   // offset_x and offset_y are an authored within-cell visual nudge, each a

@@ -225,17 +225,22 @@ message MoveResponse {
 // naming the currency ("action: 1 needed, 0 left"). Afford reports that budget
 // before the refusal.
 //
-// THREE REFUSALS, ALL FAILED_PRECONDITION, ALL ANNOUNCED BY AFFORD FIRST
-// (rpg-project#249). None is a caller defect and none is INVALID_ARGUMENT:
+// RULE REFUSALS ARE FAILED_PRECONDITION AND ANNOUNCED BY AFFORD FIRST
+// (rpg-project#249). None is a caller defect or INVALID_ARGUMENT:
 //
 //   - NOT YOUR TURN. Only the fight's active member swings; anyone else in
 //     the bubble gets the SDK's ErrNotYourTurn — the same sentinel Move and
 //     EndTurn carry for the same question.
-//   - NO TARGET IN REACH. The target stands further than the weapon reaches:
-//     one cell for melee, two with the reach property (rpg-toolkit#1010,
-//     ErrOutOfReach). A ranged weapon stays refused as today. Afford's nested
-//     TargetCandidate entries are the same gate asked ahead of time — an
-//     unavailable or absent target will be refused here.
+//   - DOWNED. ErrDowned blocks Attack (and Move), but never End Turn; End Turn
+//     remains governed solely by its clock/turn gate.
+//   - UNREADABLE. An unreadable character or Attack dependency emits an early
+//     blocked Attack declaration rather than making the Attack row disappear.
+//   - NO TARGET IN REACH. When no candidate is available, the compiled Attack
+//     declaration is disabled with NO_TARGET_IN_REACH without dropping its
+//     candidate rows. A named member beyond weapon reach (one cell for melee,
+//     two with reach) remains in those rows with candidate-level
+//     TARGET_OUT_OF_REACH (rpg-toolkit#1010, ErrOutOfReach). A ranged weapon
+//     stays refused as today. An unavailable or absent target is refused here.
 //   - ACTION BUDGET. ErrCannotAfford, "action: 1 needed, 0 left", as above.
 //
 // AN EMPTY HAND IS NOT A REFUSAL. A character with nothing equipped swings an
@@ -272,10 +277,11 @@ message AttackResponse {
   uint64 seq = 7;
   SaveReport saved = 8;
   DeliveryReport delivery = 9;
-  // What was swung — ref, name and damage type. The beat line's "6 slashing"
-  // and "with a longsword" come from here; the numbers above came across the
-  // seam from the first swing and the weapon that produced them did not.
-  // Lands with rpg-toolkit#866.
+  // What was swung — ref, name and damage type. This must equal the selected
+  // Declaration.attack and the corresponding Struck.attack or Missed.attack;
+  // the provider must not offer one Attack and resolve another. The beat line's
+  // "6 slashing" and "with a longsword" come from here. Lands with
+  // rpg-toolkit#866.
   AttackRef attack = 10;
 }
 
@@ -347,22 +353,37 @@ message AffordRequest {
 // carries can-or-cannot per verb, with the Slot a client lights and the
 // Shortfall it can repeat. See Declaration in types.proto and ADR-0042.
 //
-// THE COMPLETE CURRENT GATE. Each declaration is one compiled action/cost
-// variant with a deterministic selector, fixed target kind, and availability
-// under every gate applicable to that verb. Attack carries its exact full-ref
-// AttackRef and all server-evaluated candidates nested on that variant,
-// including unavailable candidates and their target-specific reasons. Move
-// carries provider-authored remaining feet for display/context only; End Turn
-// is independently gated by clock/turn only. The client never computes reach,
-// cost, eligibility, or refusal precedence.
+// THE COMPLETE CURRENT GATE. Each compiled declaration is one action/cost
+// variant with a fixed target kind and availability under every gate applicable
+// to that verb. Every compiled Attack, turn-clock Move, and End Turn has a
+// non-empty selector. Every compiled Attack carries its exact full-ref
+// AttackRef and every current live-sight member except the actor exactly once,
+// including unavailable candidates and their target-specific reasons; a live
+// holding with no position fails Afford. Candidate why is present if and only
+// if candidate available is false. Candidate-level TARGET_OUT_OF_REACH remains
+// alongside its row; declaration-level NO_TARGET_IN_REACH disables the Attack
+// without removing rows.
+//
+// EARLY BLOCKERS ARE ROWS, NOT OMISSIONS. If a per-verb gate stops compilation,
+// Afford still emits that verb's declaration (including Attack) with
+// available=false, why present, empty id, absent attack, empty candidates, and
+// its fixed target kind. Compiled offers disabled by later budget/target gates
+// retain their non-empty id and, for Attack, attack and candidate rows. The
+// fixed mapping for compiled and blocked rows is Attack -> MEMBER, Move -> PATH,
+// End Turn -> NONE; UNSPECIFIED is a producer defect. remaining is present only
+// for Move and absent for Attack and End Turn. DOWNED blocks Attack and Move
+// only; End Turn is governed solely by clock/turn. The client never computes
+// reach, cost, eligibility, or refusal precedence.
 message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
   ClockKind clock = 1;
-  // One entry per compiled Attack variant plus Move and End Turn. Move also
-  // carries provider-authored `remaining` feet for display/context only
-  // (rpg-toolkit#1169). Clients do not convert it to cells or derive path cost;
-  // the server authoritatively prices and accepts or refuses the whole path.
+  // One entry per compiled Attack variant, or an Attack blocker when Attack
+  // compilation cannot proceed, plus independently compiled/blocked Move and
+  // End Turn rows. Move carries provider-authored `remaining` feet for
+  // display/context only (rpg-toolkit#1169). Clients do not convert it to cells
+  // or derive path cost; the server authoritatively prices and accepts or
+  // refuses the whole path.
   //
   // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
   // an empty list as "unknown" or as a shorter way of asking again: free roam

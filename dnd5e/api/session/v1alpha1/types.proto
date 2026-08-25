@@ -156,16 +156,18 @@ enum MemberKind {
 // answer projected onto Participant and Seen, the same treatment GetWhere gave
 // position.
 //
-// TWO VALUES, AND NOT "DOWN". Downed is at zero hit points and out of the
-// fight; a bare "down" also reads as PRONE, a posture condition on a member
-// still acting (Kirk's ruling, rpg-toolkit#1084). Death saves, stable and
-// revived are not here because nothing in v1 produces them — a value arrives
-// the day the SDK can say it.
+// TWO VALUES, AND NOT "DOWN". Downed is at zero hit points: Attack and Move
+// are blocked, but the member remains in initiative and End Turn still follows
+// only the clock/turn gate. A bare "down" also reads as PRONE, a posture
+// condition on a member still acting (Kirk's ruling, rpg-toolkit#1084). Death
+// saves, stable and revived are not here because nothing in v1 produces them —
+// a value arrives the day the SDK can say it.
 enum Standing {
   STANDING_UNSPECIFIED = 0;
   // On their feet, in the fight.
   STANDING_UP = 1;
-  // At zero hit points, out of the fight; still on the map and in the roster.
+  // At zero hit points; Attack and Move blocked, still in initiative so End
+  // Turn remains governed solely by clock/turn, and still on map and roster.
   STANDING_DOWNED = 2;
 }
 
@@ -200,9 +202,9 @@ enum DamageType {
 //
 // Each value is one of the refusals the matching verb would give, named here
 // BEFORE the refusal — the same promise Afford has always made, extended from
-// the economy to the turn and to reach. A client greys a target for
-// NO_TARGET_IN_REACH and dims a shape for NO_BUDGET; it never parses `text`
-// to tell them apart.
+// the economy to the turn and to reach. A client greys a candidate for
+// TARGET_OUT_OF_REACH and disables an Attack declaration for
+// NO_TARGET_IN_REACH or NO_BUDGET; it never parses `text` to tell them apart.
 enum ShortfallReason {
   SHORTFALL_REASON_UNSPECIFIED = 0;
   // The currency ran out — what Attack refuses as ErrCannotAfford ("action: 1
@@ -211,12 +213,13 @@ enum ShortfallReason {
   // It is not this member's turn — what Attack, Move and EndTurn refuse as
   // ErrNotYourTurn.
   SHORTFALL_REASON_NOT_YOUR_TURN = 2;
-  // Nothing to swing at within reach — what Attack refuses as ErrOutOfReach
-  // (rpg-toolkit#1010). This is the one shortfall that arrives on a
-  // declaration with NO target: when no candidate is in reach the seam still
-  // says so, once, rather than saying nothing.
+  // No candidate is currently available to Attack — the declaration-level
+  // refusal corresponding to ErrOutOfReach (rpg-toolkit#1010). It disables the
+  // Attack declaration without removing any candidate rows; each named reach
+  // failure uses TARGET_OUT_OF_REACH on that candidate.
   SHORTFALL_REASON_NO_TARGET_IN_REACH = 3;
-  // The member is downed and cannot act — what the verbs refuse as ErrDowned.
+  // The member is downed. This blocks Attack and Move as ErrDowned; it does not
+  // block End Turn, which is governed solely by its clock/turn gate.
   SHORTFALL_REASON_DOWNED = 4;
   // A provider dependency required by this verb could not be read. Attack
   // requires the character and its compiled action; Move requires the
@@ -626,8 +629,9 @@ message Participant {
   // every member it can list.
   string name = 2;
   MemberKind kind = 3;
-  // On their feet or downed. A downed participant stays in the order; they do
-  // not act.
+  // On their feet or downed. A downed participant stays in the order; Attack
+  // and Move are blocked, while End Turn remains governed solely by its
+  // clock/turn gate.
   Standing standing = 4;
   // Whether it is this member's turn. EXACTLY ONE TRUE on the turn clock —
   // the same member TurnResponse.active names — so a client marks the active
@@ -639,13 +643,18 @@ message Participant {
 // Economy — what a member can still declare
 // =============================================================================
 
-// TargetCandidate is one current live-sight member evaluated for an Attack
-// declaration. Availability here is target-specific and independent from the
-// declaration's turn/economy gate; global reasons are not copied onto every
-// candidate.
+// TargetCandidate is one member in a compiled Attack's complete candidate
+// universe: every current live-sight holding (`current_via` non-empty) except
+// the actor appears exactly once. Stale memories, undisclosed members, and the
+// actor are excluded. A live holding whose position is missing fails Afford;
+// it must never be silently omitted.
 message TargetCandidate {
   string member = 1;
+  // The target-specific gate, independent from the declaration's turn/economy
+  // gate. A declaration may be unavailable while this remains true.
   bool available = 2;
+  // Present if and only if available is false. TARGET_OUT_OF_REACH is a
+  // candidate-level reason; global turn/economy reasons are never copied here.
   Shortfall why = 3;
 }
 
@@ -661,8 +670,10 @@ message Declaration {
   // verb "usually" costs — so a class table changing what an action buys
   // changes this automatically.
   Slot slot = 2;
-  // Whether every gate applicable to this verb currently passes. This is
-  // broader than whether one currency can pay.
+  // Whether every gate applicable to this verb currently passes. This is the
+  // intentional source/JSON-name rename from `affordable = 3` to
+  // `available = 3`: tag and wire shape stay fixed, but generated source names
+  // and the JSON name change from `affordable` to `available`.
   bool available = 3;
 
   // Removed in the intentional production-contract reshape. why.text is the
@@ -670,7 +681,8 @@ message Declaration {
   reserved 4, 6;
   reserved "shortfall", "target";
   // Provider-authored display/context for how much movement remains, in feet
-  // (rpg-toolkit#1169). PRESENT for VERB_MOVE, ABSENT for VERB_ATTACK.
+  // (rpg-toolkit#1169). Present only for VERB_MOVE declarations; absent for
+  // every VERB_ATTACK and VERB_END_TURN declaration.
   //
   // A NUMBER, NOT A PATH PRICE, because Move has no fixed cost until a path is
   // chosen. Clients may display this value verbatim but must not convert it to
@@ -688,20 +700,30 @@ message Declaration {
   // rpg-api's projection must keep absent absent: a nil that became 0 would
   // tell a client its attack has no feet left.
   optional int32 remaining = 5;
-  // Present exactly when available is false. The server owns refusal
-  // precedence; target-only failure uses NO_TARGET_IN_REACH here.
+  // Present if and only if available is false. The server owns refusal
+  // precedence. NO_TARGET_IN_REACH disables a compiled Attack without removing
+  // its candidate rows.
   Shortfall why = 7;
-  // Opaque deterministic selector for this current compiled offer. The client
-  // echoes it and never parses it.
+  // Opaque deterministic selector for this current compiled offer. Non-empty
+  // on every compiled Attack, turn-clock Move, and End Turn declaration; empty
+  // on an early per-verb blocker. The client echoes it and never parses it.
   string id = 8;
-  // The sole public Attack identity. Present on compiled Attack declarations;
-  // absent for Move, End Turn, and early verb-level blockers.
+  // The sole public Attack identity. Present on every compiled Attack,
+  // including compiled offers disabled by budget or target gates; absent for
+  // Move, End Turn, and early per-verb blockers.
   AttackRef attack = 9;
-  // Attack -> MEMBER, Move -> PATH, End Turn -> NONE.
+  // Fixed for every compiled or blocked declaration: Attack -> MEMBER,
+  // Move -> PATH, End Turn -> NONE. UNSPECIFIED is a producer defect.
   TargetKind target_kind = 10;
-  // Every target evaluated for this Attack variant, including unavailable
-  // targets and their server-authored reasons. Empty for Move and End Turn.
+  // Every member in the ruled candidate universe exactly once, including
+  // unavailable targets and their server-authored reasons. NO_TARGET_IN_REACH
+  // does not remove these rows. Empty for Move, End Turn, and early blockers.
   repeated TargetCandidate candidates = 11;
+  // Presence summary: an early per-verb blocker still emits its declaration
+  // with available=false, why present, empty id, absent attack, empty
+  // candidates, and the fixed target_kind. In particular, Afford emits the
+  // Attack blocker even when Attack compilation cannot proceed. Compiled
+  // offers use the field-presence rules above.
 }
 
 // Shortfall is the structured reason a declaration or candidate is unavailable. Lands
@@ -736,8 +758,10 @@ message Shortfall {
 
 // AttackRef identifies WHAT was swung — weapon identity, which the seam has
 // dropped on the floor since the first swing (rpg-toolkit#866). Lands with
-// rpg-toolkit#866 as session.AttackRef, carried on AttackResponse and on the
-// Struck/Missed event bodies.
+// rpg-toolkit#866 as session.AttackRef, carried on compiled Attack
+// Declarations, AttackResponse, and the Struck/Missed event bodies. For one
+// selected execution, all three occurrences must be equal; the provider must
+// not offer one Attack and resolve another.
 //
 // Without it a beat line can say "17 vs AC 13, 6 damage" and not "6
 // slashing" or "with a longsword": the numbers crossed the seam and the thing

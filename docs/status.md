@@ -19,20 +19,28 @@ shape and consumer drift, it shows up here as a "rough edge."
 - **Session production combat experience (rpg-api-protos#252,
   rpg-project#270, 2026-08-25)** — contract-first, before toolkit/API/web.
   `Declaration` is intentionally reshaped in place from flat per-target rows to
-  one compiled action/cost variant with `available`, `why`, opaque `id`, the
-  sole full `core.Ref.String()` `AttackRef`, fixed `TargetKind`, and nested
-  `TargetCandidate` entries (including unavailable candidates and their
-  server-authored reasons). Removed `shortfall = 4` and `target = 6` are
-  reserved by tag and name; the PR requires `breaking-change-approved`.
-  `VERB_END_TURN = 3` and candidate-level `TARGET_OUT_OF_REACH = 6` are added.
-  Attack/End Turn and turn-clock Move echo declaration selectors; world-clock
-  Move requires an empty selector, and a stale non-empty selector never becomes
-  a free move. `UNREADABLE` now documents the per-verb character/action
-  dependency matrix. `CharacterData` is no longer equipment-only: direct fields
-  9–14 add level, HP, base speed, feature, condition, and non-magical resource
-  views, with temporary HP zero until toolkit ownership and `SpellSlots` /
-  legacy `ClassResources` excluded. No `CharacterHud`, magic fields, or future
-  target kinds are introduced. Proto/docs only; no generated-mechanics tests.
+  one compiled action/cost variant. The migration explicitly renames
+  `affordable = 3` to `available = 3`: tag/type stay fixed, while generated
+  source names and the default JSON name change. Removed `shortfall = 4` and
+  `target = 6` are reserved by tag/name; the PR requires
+  `breaking-change-approved`. A compiled Attack includes every current
+  live-sight member except the actor exactly once; missing live position fails
+  Afford, candidate `why` is present iff unavailable, TARGET_OUT_OF_REACH is
+  candidate-level, and NO_TARGET_IN_REACH disables the declaration without
+  deleting rows. Every compiled Attack/turn Move/End Turn has a non-empty ID;
+  every early per-verb blocker remains a row (including an uncompileable
+  Attack) with `available=false`, `why`, empty ID, absent attack, empty
+  candidates, and fixed target kind. `remaining` is Move-only. DOWNED blocks
+  Attack/Move only; End Turn uses solely clock/turn. The selected
+  `Declaration.attack`, `AttackResponse.attack`, and Struck/Missed attack must
+  match as one full `core.Ref.String()` `AttackRef`. Selector clock rules remain
+  fail-closed. `CharacterData` fields 9–14 add level, HP, speed, features,
+  conditions, and non-magical resources only for the authenticated owner;
+  foreign `Entity.character` projections withhold them, so peers receive no
+  exact private sheet data. Temporary HP stays zero until toolkit ownership and
+  `SpellSlots` / legacy `ClassResources` are excluded. No `CharacterHud`, magic
+  fields, or future target kinds are introduced. Proto/docs only; no
+  generated-mechanics tests.
 
 - **Dungeon Builder restart: authoring REPLACED, regions on the atlas
   (rpg-api-protos feat/256-dungeon-authoring-v2, rpg-project PR #255 /

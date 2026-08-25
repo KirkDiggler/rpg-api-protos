@@ -97,9 +97,9 @@ Fifteen, mirroring the SDK verbs one-for-one.
 | `Join` | `Join` | `JoinRequest:JoinResponse` | Players only. Takes an absolute cell — a caller places somebody on the map, not in a chamber |
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error. **On the turn clock it spends** (rpg-toolkit#1169): only the active member walks (`ErrNotYourTurn`), and the whole path is priced at 5 ft/cell and paid before the first step (`ErrCannotAfford`, "movement: N ft needed, M ft left"). Both `FAILED_PRECONDITION`. The old blanket in-a-fight refusal (`ErrInBubble`) is gone from this verb |
-| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford`. Three `FAILED_PRECONDITION` refusals, all announced by `Afford` first: not your turn, no target in reach (rpg-toolkit#1010), action budget. An empty hand is **not** a refusal — it swings `dnd5e:weapons:unarmed-strike` (rpg-toolkit#1168). Response carries `attack: AttackRef` (ref, name, damage type — rpg-toolkit#866) |
+| `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford`. `Afford` announces not-your-turn, DOWNED, unreadable dependency, no-target-in-reach, and action-budget blockers first. DOWNED blocks Attack and Move, not End Turn. An empty hand is **not** a refusal — it swings `dnd5e:weapons:unarmed-strike` (rpg-toolkit#1168). Response carries the same full-ref `AttackRef` selected from the declaration and recorded by Struck/Missed |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below. Carries `participants[]` beside `order[]` — name, kind, standing, active per member (rpg-toolkit#1137) |
-| `Afford` | `Afford` | `AffordRequest:AffordResponse` | Nested compiled offers, not a flat target list and not remaining currencies. One Attack declaration represents one authored action/cost variant and carries `id`, the sole `AttackRef`, `target_kind = MEMBER`, and every evaluated `TargetCandidate`, including unavailable candidates and their target-specific `why`. Move carries `target_kind = PATH` plus provider-authored, display/context-only remaining feet; End Turn carries `target_kind = NONE`. `available` is the full per-verb gate and declaration `why` is present exactly when false. Empty on the world clock is the answer |
+| `Afford` | `Afford` | `AffordRequest:AffordResponse` | Nested compiled offers, not a flat target list and not remaining currencies. A compiled Attack carries non-empty `id`, the sole `AttackRef`, `target_kind = MEMBER`, and every current live-sight member except the actor exactly once. Move uses `PATH` and display/context-only `remaining`; End Turn uses `NONE`. Early per-verb blockers remain rows with empty ID/detail and authoritative `why`. `available` is the full per-verb gate. Empty on the world clock is the answer |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
 | `Dissolve` | `Dissolve` | `DissolveRequest:DissolveResponse` | Cause required. The fight is reached *through* a member, because a fight has no name |
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
@@ -307,7 +307,10 @@ already holds — but until the named toolkit issue closes, the proto comment
 says *"lands with rpg-toolkit#n"* rather than *"mirrors session.X"*.
 
 The production combat experience revision is an intentional in-place source
-break: removed declaration tags/names are reserved and the PR requires the
+break: `Declaration.affordable = 3` is renamed to `available = 3`. Tag 3 and
+its wire type remain fixed, but generated source accessors and the default JSON
+name change from `affordable` to `available`, so this is a JSON-name/source
+break. Removed declaration tags/names are reserved and the PR requires the
 `breaking-change-approved` label.
 
 | Addition | Where | Waits on |
@@ -319,7 +322,7 @@ break: removed declaration tags/names are reserved and the PR requires the
 | `enum DamageType` (13 values) + `message AttackRef { ref, name, damage_type }` + `AttackResponse.attack = 10` | types, service | rpg-toolkit#866 |
 | `enum ShortfallReason`, `enum Currency`, `message Shortfall { reason, currency, needed, left, text }` + `Declaration.why = 7` | types | rpg-toolkit#1010 (structured form) |
 | `TargetKind`, nested `TargetCandidate`, and `Declaration { available, why, id, attack, target_kind, candidates }`; removed `shortfall = 4` / `target = 6` reserved | types | session combat experience, rpg-project#270 |
-| Attack's three refusals documented (not your turn / no target in reach / action budget); empty hand → `dnd5e:weapons:unarmed-strike` | service | rpg-toolkit#1010, #1168 |
+| Attack blockers documented (turn / DOWNED / unreadable / target / budget); empty hand → `dnd5e:weapons:unarmed-strike` | service | rpg-toolkit#1010, #1168 |
 | `oneof Event.body { TurnEnded, Downed, Struck, Missed, FightStarted, FightEnded, Moved }` (tags 10–16) | events | rpg-toolkit#941 |
 
 Rulings carried into the shape (design §6):
@@ -328,22 +331,39 @@ Rulings carried into the shape (design §6):
   `ShortfallReason`, `Currency`, `Standing` are enums because a UI branches
   on them and the set is the rulebook's. `AttackRef.ref` stays a string because
   the catalog is open, but its value is now the complete `core.Ref.String()`
-  (for example `dnd5e:weapons:longsword`), never a bare definition ID.
+  (for example `dnd5e:weapons:longsword`), never a bare definition ID. The
+  selected `Declaration.attack` must equal `AttackResponse.attack` and the
+  corresponding `Struck.attack` or `Missed.attack`; one offered Attack cannot
+  silently resolve as another.
 - **Nested Attack declarations.** Reach is never computed client-side. One
-  declaration represents one exact authored Attack/cost variant and carries
-  every server-evaluated candidate, including unavailable candidates and their
-  target-specific reason. The declaration and candidate booleans are
-  independent gates. `TARGET_OUT_OF_REACH = 6` is candidate-level;
-  `NO_TARGET_IN_REACH = 3` remains the declaration-level answer.
+  declaration represents one exact authored Attack/cost variant. Its candidate
+  universe is every current live-sight holding (`CurrentVia` non-empty) except
+  the actor, each exactly once; stale/undisclosed members are excluded and a
+  live holding with no position fails Afford rather than disappearing. Available
+  and unavailable candidates remain in the rows, and candidate `why` is present
+  if and only if candidate `available=false`. The declaration and candidate
+  booleans are independent gates. `TARGET_OUT_OF_REACH = 6` is candidate-level;
+  `NO_TARGET_IN_REACH = 3` disables the top-level declaration without removing
+  candidate rows.
+- **Compiled and blocked presence is fixed.** Every compiled Attack,
+  turn-clock Move, and End Turn has a non-empty ID. Every compiled Attack also
+  carries its exact `AttackRef` and candidate rows. An early per-verb blocker
+  remains a declaration—including an Attack that could not compile—with
+  `available=false`, `why` present, empty ID, absent attack, empty candidates,
+  and fixed target kind (Attack `MEMBER`, Move `PATH`, End Turn `NONE`). Compiled
+  offers disabled by later gates retain their compiled fields. `remaining` is
+  present only on Move and absent on Attack/End Turn. No declaration emits
+  `UNSPECIFIED` target kind.
 - **Selectors are echoed, not interpreted.** Attack and End Turn require a
   non-empty `declaration_id`. Turn-clock Move requires one; world-clock Move
   requires it empty. A non-empty selector received after a world-clock
   transition is stale and must not become a free move. Unknown, mismatched,
   stale, or now-unavailable selectors fail with `FAILED_PRECONDITION`.
-- **Unreadability is per verb.** `UNREADABLE` covers the character/action
-  dependency matrix: Attack needs the character and compiled action, Move needs
-  its own character/economy dependencies, and End Turn needs neither. One bad
-  Attack must not erase independently executable Move or End Turn offers.
+- **Blockers are per verb.** `UNREADABLE` covers the character/action dependency
+  matrix: Attack needs the character and compiled action, Move needs its own
+  character/economy dependencies, and End Turn needs neither. DOWNED likewise
+  blocks Attack and Move only. One bad/downed Attack must not erase independently
+  executable Move or End Turn; End Turn is governed solely by clock/turn.
 - **No magic boundary and no speculative targets.** This contract adds no
   spell, spell-slot, concentration, magical-resource, or magical-targeting
   field, and `TargetKind` has only `NONE`, `MEMBER`, and `PATH` beyond
@@ -354,9 +374,12 @@ Rulings carried into the shape (design §6):
   `Event.body` and **never decodes `payload`**; `payload` remains for the kinds
   with no body yet (`JOINED`, `EXITED`, `ENDED`, `SCENE_OPENED`, `TICK`,
   `UNKNOWN`).
-- **`Declaration.shortfall` and flat `target` are removed and reserved.**
-  `why.text` is the sole prose refusal; `candidates` is the nested target list.
-  This intentional source break is carried with `breaking-change-approved`.
+- **The declaration migration is explicitly source/JSON breaking.**
+  `affordable = 3` becomes `available = 3`, changing generated source names and
+  the default JSON name while preserving tag 3 and its wire type.
+  `Declaration.shortfall` and flat `target` are removed and reserved;
+  `why.text` is the sole prose refusal and `candidates` is the nested target
+  list. The break is carried with `breaking-change-approved`.
 - **Not a roster read.** `Participant` carries no position; it lists the
   members of the fight the asker is *in*, who have by construction seen each
   other. Where a participant stands is still `GetView`'s, gated by sight.

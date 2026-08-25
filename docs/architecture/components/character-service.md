@@ -28,7 +28,13 @@ The surviving owner-gated read/equipment surface is
 `dnd5e.api.v1alpha2.encounter.CharacterData`. The namespace is historical, but
 this is one general owner-private character projection, **not an
 equipment-only payload** and not a consumer-specific `CharacterHud` wrapper.
-Missing and foreign character IDs remain indistinguishable at the owner gate.
+The host populates fields 9–14 only after binding the requested character to
+its authenticated owner. Although the historical message type also appears in
+the legacy encounter `Entity.character` union, every foreign-viewer projection
+withholds fields 9–14; message reuse never authorizes another player's exact
+level, HP, speed, features, conditions, or resources. Peers receive only the
+separately approved public encounter/sight projection. Missing and foreign
+character IDs remain indistinguishable at the owner gate.
 
 The production combat experience adds these fields directly after existing
 fields 1–8:

@@ -774,10 +774,13 @@ message Declaration {
   // presence law `attack` keeps, for the same reason.
   //
   // A SIBLING OF `attack` RATHER THAN A ONEOF WITH IT. A oneof would make it a
-  // wire-level error for one declaration to carry both, and the monk's
-  // bonus-action unarmed strike is exactly the case that plausibly wants an
-  // attack identity AND an activation origin. Sealing that off against a
-  // shape we can already name is what ADR-0007 exists to remember.
+  // wire-level error for one declaration to carry both — and the monk's
+  // bonus-action unarmed strike is exactly that: VERB_ATTACK on SLOT_BONUS,
+  // gated on having taken the Attack action, which plausibly wants a weapon
+  // identity AND the feature that granted the swing. That is a case we can
+  // already name rather than a hypothetical, so the wire does not rule it out
+  // in advance. If it turns out one declaration never needs both, a oneof can
+  // be adopted later; a oneof adopted now cannot be undone without a break.
   AbilityRef ability = 12;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty

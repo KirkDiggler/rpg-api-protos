@@ -14,6 +14,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.presentation.v1alph
 // not drift under old plans.
 enum DicePhysicsSchema {
   DICE_PHYSICS_SCHEMA_UNSPECIFIED = 0;
+
+  // DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 is the current stable playback
+  // family: 60 Hz, at most 480 steps, and D20 bodies only.
   DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 = 1;
 }
 
@@ -87,8 +90,10 @@ message RigidBodyState {
 // DiceBodyInitial is one die body at throw start.
 //
 // The repeated list of initials is the group's fixed body set for the attempt.
-// Later additive damage groups reuse this list shape rather than introducing a
-// second single-die contract.
+// Hosts validate 1-20 stable bodies per plan, and
+// DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 accepts DICE_SHAPE_D20 bodies
+// only. Later additive damage groups reuse this list shape rather than
+// introducing a second single-die contract.
 message DiceBodyInitial {
   string die_id = 1;
   DiceShape shape = 2;
@@ -115,7 +120,9 @@ message DiceBodyCheckpoint {
 //
 // The contract carries ORDERED CONTACTS, not exact per-frame trajectory
 // streaming. Each checkpoint names the step that hit, the thing hit, and the
-// bounded body states immediately after that contact.
+// bounded body states immediately after that contact. Hosts validate 60 Hz,
+// step values within the first 480 steps, at most 128 contacts per plan, and
+// at most 256 total checkpoint body states across all `after` lists.
 message ContactCheckpoint {
   uint32 step = 1;
   string primary_die_id = 2;
@@ -151,7 +158,13 @@ message ThrowTerminal {
 //
 // It is LIVE-ONLY presentation data: a bounded sparse pre-simulation tied to an
 // already-known game beat by `authority_seq`. The draft carries no roller
-// authority, no hit/miss, no damage, and no replay obligation.
+// authority, no hit/miss, no damage, and no replay obligation. Host/client
+// validation rules bind the wire without adding fields: 1-20 stable bodies,
+// DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 with D20 bodies only, 60 Hz,
+// <=480 steps, <=128 contacts, <=256 total checkpoint body states, `attempt`
+// 1-32, `collider_fingerprint` exactly 32 bytes, encoded message size at most
+// 64 KiB, and every quaternion normalized within absolute norm error <=
+// 0.0001.
 message DiceThrowDraft {
   uint32 schema_version = 1;
   string presentation_id = 2;
@@ -169,7 +182,12 @@ message DiceThrowDraft {
 //
 // `roller` is SERVER-BOUND identity, not client-declared truth. The published
 // plan stays presentation-only: it repeats the decorative physics data tied to
-// `authority_seq`, and nothing here can alter the combat result.
+// `authority_seq`, and nothing here can alter the combat result. The same
+// bounded validation contract applies on publish/broadcast: 1-20 stable bodies,
+// DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 with D20 bodies only, 60 Hz,
+// <=480 steps, <=128 contacts, <=256 total checkpoint body states, `attempt`
+// 1-32, 32-byte `collider_fingerprint`, encoded size <=64 KiB, and quaternion
+// norm error <= 0.0001.
 message DiceThrowPlan {
   uint32 schema_version = 1;
   string session = 2;

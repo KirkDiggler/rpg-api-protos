@@ -2,7 +2,7 @@
 name: SessionPresentationService
 description: Shared live-session dice-throw presentation contract — validates and fans out decorative rigid-body throw plans without carrying combat truth
 updated: 2026-08-27
-confidence: high for the contract shape — verified by buf lint/format/breaking plus generated Go/TypeScript compilation; runtime confidence waits on rpg-api#852 and rpg-dnd5e-web#837
+confidence: high for the contract shape — verified by buf format/lint/breaking/generate plus make mocks; runtime confidence waits on rpg-api#852 and rpg-dnd5e-web#837
 ---
 
 # SessionPresentationService
@@ -132,10 +132,25 @@ motion:
   streaming; and
 - terminals close the same body set with `SETTLED` or `OFF_TABLE` only.
 
-Numeric safety bounds, collider validation, duplicate-release handling, and
-member/session authentication live with the host implementation in `rpg-api`.
-The proto's job is to keep the shape narrow enough that those checks are
-possible and obvious.
+The current host/client validation contract is explicit even though it does not
+add fields:
+
+- `DiceThrowDraft` / `DiceThrowPlan` carry **1-20 stable bodies** per attempt.
+- `DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1` currently accepts
+  **`DICE_SHAPE_D20` bodies only**.
+- Playback is authored for **60 Hz** and steps must stay within **480**.
+- A plan may carry at most **128** contacts.
+- All `ContactCheckpoint.after` entries combined may carry at most **256**
+  checkpoint body states.
+- `attempt` is bounded to **1-32**.
+- `collider_fingerprint` is exactly **32 bytes**.
+- Encoded draft/plan size is capped at **64 KiB**.
+- Every quaternion must be normalized within absolute norm error
+  **<= 0.0001**.
+
+These are validation rules for the live host/client pair in `rpg-api` and
+`rpg-dnd5e-web`, not new wire fields. The proto's job is to keep the shape
+narrow enough that those checks are possible and obvious.
 
 ## Consumer state
 
@@ -152,6 +167,7 @@ service and not a live runtime surface yet.
 Per repo policy, there are no hand-written protobuf mechanics tests here. The
 contract evidence is:
 
+- `buf format -w`
 - `buf lint`
 - `buf format --diff --exit-code`
 - `buf breaking --against ...main`

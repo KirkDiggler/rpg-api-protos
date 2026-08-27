@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-08-23
+updated: 2026-08-27
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -54,6 +54,8 @@ rpg-api-protos/
     service.proto                # SessionService — 14 RPCs mirroring the SDK verbs (no Traverse: a walk crosses a doorway; GetWhere answers "where am I"); not yet consumed (rpg-api W2 in flight)
     types.proto                  # Position (double x/y, mirrors spatial.Position), Member, CharacterState, Sighting, AtlasDoorway/Boundary/Region, Lighting, SaveReport, ...
     events.proto                 # Event stream — flat per-recipient envelope + EventKind; no snapshot, GetStory is the resync path
+  dnd5e/api/session/presentation/v1alpha1/  # presentation-only live-session dice throw relay (rpg-project#289 / #303); group-shaped, no replay, both consumers assigned
+    service.proto                # SessionPresentationService — PublishDiceThrow + StreamDiceThrows; validates/broadcasts shared rigid-body throw plans without carrying outcome authority
   sandbox/api/v1alpha1/
     sandbox_common.proto        # GenerativeRoomConfig, RoomShape, etc. — defined, not consumed
     sandbox_room.proto          # SandboxRoomService — defined, not consumed

@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-25
+updated: 2026-08-27
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,21 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Shared dice presentation contract (rpg-api-protos#256,
+  rpg-project#289 / #303, 2026-08-27)** — additive new subpackage
+  `dnd5e/api/session/presentation/v1alpha1`, provider-first before the
+  `rpg-api` relay (`rpg-api#852`) and `rpg-dnd5e-web` playback
+  (`rpg-dnd5e-web#837`). Two RPCs only: `PublishDiceThrow` validates one
+  client-generated `DiceThrowDraft` and answers with the published
+  `DiceThrowPlan`; `StreamDiceThrows` fans that same plan out live to roller
+  and witnesses. The plan is group-shaped from day one — bodies, sparse
+  contact checkpoints, per-body `SETTLED`/`OFF_TABLE` terminals — so later
+  damage handfuls add enum values and more repeated entries rather than a
+  second service. Explicitly presentation-only: live/no-replay intended host in
+  rpg-api (Redis-backed fanout), server-bound `roller`, and no hit/miss,
+  damage, HP, target legality, or Story authority on the wire. Evidence here is
+  buf/generation only; runtime confidence waits on the consumer legs.
 
 - **Session production combat experience (rpg-api-protos#252,
   rpg-project#270, 2026-08-25)** — contract-first, before toolkit/API/web.
@@ -422,6 +437,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 2 RPCs, answers with the session atlas itself; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
 | `dnd5e.session.SessionService` | High (contract) / no consumer yet — new (rpg-api-protos#222, re-transcribed against session/v0.12.0 in #226, `GetWhere` added at v0.13.0 in #228, 2026-08-16). Confidence is unusually cheap here: the shapes were not designed, they were transcribed from a shipped SDK and machine-checked against it, so "is this the right shape?" reduces to a question the toolkit already answered. What is genuinely unverified is the same thing every pre-consumer service has — that it survives contact with an orchestrator (rpg-api W2, queued) |
+| `dnd5e.session.presentation.SessionPresentationService` | High (contract) / no consumer yet — new (rpg-api-protos#256, 2026-08-27). Presentation-only live-session dice throw plans: `PublishDiceThrow` + `StreamDiceThrows`, group-shaped bodies/contacts/terminals, server-bound `roller`, intended live/no-replay Redis-backed host in rpg-api. Both consumer issues are already assigned (`rpg-api#852`, `rpg-dnd5e-web#837`), so this is consumer-pending rather than speculative unused proto |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |
 | `api.SpawnService` | Low — defined, not consumed |

@@ -1,0 +1,237 @@
+syntax = "proto3";
+
+package dnd5e.api.session.presentation.v1alpha1;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/presentation/v1alpha1;sessionpresentationpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.presentation.v1alpha1";
+
+// DicePhysicsSchema names the fixed-step playback/choreography family a plan
+// was authored against.
+//
+// This is PRESENTATION-ONLY schema, not game authority. New simulation
+// families land additively as new enum values; an existing value's meaning does
+// not drift under old plans.
+enum DicePhysicsSchema {
+  DICE_PHYSICS_SCHEMA_UNSPECIFIED = 0;
+  DICE_PHYSICS_SCHEMA_RAPIER_DUNGEON_D20_V1 = 1;
+}
+
+// DiceShape names one rigid-body die shape in the shared throw group.
+//
+// The contract is GROUP-SHAPED on purpose: later damage handfuls extend the
+// existing repeated-body shape instead of replacing this service. Future die
+// kinds add enum values; they do not reinterpret the existing ones.
+enum DiceShape {
+  DICE_SHAPE_UNSPECIFIED = 0;
+  DICE_SHAPE_D4 = 1;
+  DICE_SHAPE_D6 = 2;
+  DICE_SHAPE_D8 = 3;
+  DICE_SHAPE_D10 = 4;
+  DICE_SHAPE_D12 = 5;
+  DICE_SHAPE_D20 = 6;
+}
+
+// DiceStaticContactKind names the authored static collider classes a shared
+// throw may report.
+//
+// Only authored world geometry needed for conversationally identical playback
+// belongs here. Characters, monsters, props, and any gameplay collision are out
+// of scope for this presentation service.
+enum DiceStaticContactKind {
+  DICE_STATIC_CONTACT_KIND_UNSPECIFIED = 0;
+  DICE_STATIC_CONTACT_KIND_WALL = 1;
+  DICE_STATIC_CONTACT_KIND_DOOR = 2;
+}
+
+// DiceTerminalKind names the terminal presentation outcome of one die body.
+//
+// These are PRESENTATION terminals only. The service never carries hit/miss,
+// damage, HP, or any other game result authority.
+enum DiceTerminalKind {
+  DICE_TERMINAL_KIND_UNSPECIFIED = 0;
+  DICE_TERMINAL_KIND_SETTLED = 1;
+  DICE_TERMINAL_KIND_OFF_TABLE = 2;
+}
+
+// Vector3 is one finite presentation-space vector.
+//
+// It is deliberately not another shared Position: these values are rigid-body
+// coordinates and velocities, not dungeon cells or toolkit spatial positions.
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// Quaternion is one finite presentation-space rigid-body orientation.
+message Quaternion {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+// RigidBodyState is the full rigid-body pose and velocity snapshot used at
+// spawn, sparse checkpoints, and terminal settlement.
+//
+// It exists to replay a bounded decorative plan, not to establish any gameplay
+// truth.
+message RigidBodyState {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+  Vector3 linear_velocity = 3;
+  Vector3 angular_velocity = 4;
+}
+
+// DiceBodyInitial is one die body at throw start.
+//
+// The repeated list of initials is the group's fixed body set for the attempt.
+// Later additive damage groups reuse this list shape rather than introducing a
+// second single-die contract.
+message DiceBodyInitial {
+  string die_id = 1;
+  DiceShape shape = 2;
+  RigidBodyState state = 3;
+}
+
+// StaticColliderContact names the authored wall/door collider a die contacted.
+//
+// `collider_id` is validated against the server's current session world slice;
+// clients do not invent arbitrary collider URLs or identities.
+message StaticColliderContact {
+  DiceStaticContactKind kind = 1;
+  string collider_id = 2;
+}
+
+// DiceBodyCheckpoint is one body's snapped state after a reported contact.
+message DiceBodyCheckpoint {
+  string die_id = 1;
+  RigidBodyState state = 2;
+}
+
+// ContactCheckpoint is one sparse shared-contact checkpoint in the fixed-step
+// throw plan.
+//
+// The contract carries ORDERED CONTACTS, not exact per-frame trajectory
+// streaming. Each checkpoint names the step that hit, the thing hit, and the
+// bounded body states immediately after that contact.
+message ContactCheckpoint {
+  uint32 step = 1;
+  string primary_die_id = 2;
+  oneof target {
+    StaticColliderContact static_collider = 3;
+    string other_die_id = 4;
+  }
+  repeated DiceBodyCheckpoint after = 5;
+}
+
+// DiceBodyTerminal is one die's terminal presentation truth.
+//
+// A die either settles in-bounds or finishes OFF_TABLE for presentation retry
+// handling. Neither case changes the already-authoritative combat outcome this
+// throw is illustrating.
+message DiceBodyTerminal {
+  string die_id = 1;
+  uint32 step = 2;
+  DiceTerminalKind kind = 3;
+  RigidBodyState state = 4;
+}
+
+// ThrowTerminal is the terminal summary for the whole throw group.
+//
+// It closes the bounded body set for the attempt: one terminal per die, no
+// replay log and no second authority channel.
+message ThrowTerminal {
+  repeated DiceBodyTerminal dice = 1;
+}
+
+// DiceThrowDraft is the client-generated draft submitted for validation and
+// publication.
+//
+// It is LIVE-ONLY presentation data: a bounded sparse pre-simulation tied to an
+// already-known game beat by `authority_seq`. The draft carries no roller
+// authority, no hit/miss, no damage, and no replay obligation.
+message DiceThrowDraft {
+  uint32 schema_version = 1;
+  string presentation_id = 2;
+  uint64 authority_seq = 3;
+  uint32 attempt = 4;
+  DicePhysicsSchema physics_schema = 5;
+  bytes collider_fingerprint = 6;
+  repeated DiceBodyInitial bodies = 7;
+  repeated ContactCheckpoint contacts = 8;
+  ThrowTerminal terminal = 9;
+}
+
+// DiceThrowPlan is the validated shared throw plan broadcast to the roller and
+// every witness in the session.
+//
+// `roller` is SERVER-BOUND identity, not client-declared truth. The published
+// plan stays presentation-only: it repeats the decorative physics data tied to
+// `authority_seq`, and nothing here can alter the combat result.
+message DiceThrowPlan {
+  uint32 schema_version = 1;
+  string session = 2;
+  string presentation_id = 3;
+  uint64 authority_seq = 4;
+  string roller = 5;
+  uint32 attempt = 6;
+  DicePhysicsSchema physics_schema = 7;
+  bytes collider_fingerprint = 8;
+  repeated DiceBodyInitial bodies = 9;
+  repeated ContactCheckpoint contacts = 10;
+  ThrowTerminal terminal = 11;
+}
+
+// PublishDiceThrowRequest asks the host to validate and publish one draft for
+// the caller's live session presentation.
+//
+// `member` is the claimed acting member and MUST be authenticated/bound by the
+// host. The request does not carry result authority, witness commands, or a
+// free-form roller label.
+message PublishDiceThrowRequest {
+  string session = 1;
+  string member = 2;
+  DiceThrowDraft draft = 3;
+}
+
+// PublishDiceThrowResponse returns the validated plan in the SAME shape the
+// live stream carries.
+//
+// Caller and witnesses consume one published form, not separate local-vs-remote
+// projections.
+message PublishDiceThrowResponse {
+  DiceThrowPlan plan = 1;
+}
+
+// StreamDiceThrowsRequest subscribes one member to live presentation plans for
+// a session.
+//
+// This stream is LIVE-ONLY and intentionally NO-REPLAY: the intended host is a
+// Redis-backed fanout for current throws, not a historical event log. Reconnect
+// settles from current authoritative state and local fallback rules rather than
+// by replaying stale choreography from this service.
+message StreamDiceThrowsRequest {
+  string session = 1;
+  string member = 2;
+}
+
+// SessionPresentationService carries shared rigid-body dice throw plans for a
+// live session.
+//
+// It is a separate PRESENTATION-ONLY seam on purpose: SessionService and Story
+// keep combat truth, while this service validates and fans out decorative throw
+// plans that must never carry or change that truth.
+service SessionPresentationService {
+  // PublishDiceThrow validates one client-generated draft, binds it to the
+  // authenticated roller/session, and returns the published plan. The draft is
+  // compact and bounded; unsafe or mismatched presentation metadata is the
+  // server's problem to reject rather than the client's freedom to invent.
+  rpc PublishDiceThrow(PublishDiceThrowRequest) returns (PublishDiceThrowResponse);
+
+  // StreamDiceThrows delivers validated plans for live shared playback. Best
+  // effort and no replay by design: witnesses either receive the current throw
+  // live or settle/fallback from the already-authoritative game beat.
+  rpc StreamDiceThrows(StreamDiceThrowsRequest) returns (stream DiceThrowPlan);
+}

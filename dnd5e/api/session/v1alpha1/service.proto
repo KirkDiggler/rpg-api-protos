@@ -409,6 +409,66 @@ message EndTurnRequest {
   string declaration_id = 3;
 }
 
+// ActivateRequest uses a combat ability or feature the member already carries
+// — Dodge, Dash, Disengage, Help, Hide, Rage, Second Wind.
+//
+// `declaration_id` is required and must select the current compiled Activate
+// offer, which is also WHICH ability is being used: the selector identifies one
+// of seven rows, so there is no ability ref on this request. A client that sent
+// a ref instead of a selector would be naming the ability itself, which is the
+// thing Afford exists to have already decided.
+//
+// Unknown, stale, mismatched or now-unavailable selectors are refused with
+// FAILED_PRECONDITION; the client refreshes and never retries implicitly. The
+// same code covers a spent slot, exhausted charges, and the ability's own
+// refusal — each of which Afford reported ahead of the attempt.
+message ActivateRequest {
+  string session = 1;
+  // Who is activating. Bound to the authenticated caller by the host.
+  string member = 2;
+  // Non-empty opaque selector echoed from Afford.
+  string declaration_id = 3;
+  // Required when the selected declaration's target_kind is MEMBER, which at
+  // level 1 means Help and nothing else. Empty for the other six, and a
+  // populated target on a TARGET_KIND_NONE declaration is INVALID_ARGUMENT
+  // rather than a value quietly ignored.
+  string target = 4;
+}
+
+// ActivateResponse is an acknowledgement, by Kirk's ruling (rpg-project#300):
+// *"empty ack for success or an error."*
+//
+// # It says nothing about what the member can do next
+//
+// The rulebook's own ActivateAbilityOutput carries a refreshed ability list,
+// and returning that here would put a SECOND declaration surface on the wire
+// beside Afford — two RPCs answering "what can I do", free to disagree, with
+// the client left to learn which one wins. The client re-reads Afford. One
+// round trip more; exactly one source of truth.
+//
+// # A refusal is an ERROR, never a field
+//
+// There is no success bool and no error string, and that is load-bearing rather
+// than minimal. The rulebook underneath returns (output{Success:false}, nil)
+// for "not in combat", "unknown ability", "no charges left" and every feature
+// refusal. A host that forwarded those as a successful response would make an
+// empty success and an empty refusal THE SAME BYTES — a silent no-op, which is
+// precisely what an ack this thin cannot survive. The host translates:
+// Success:false becomes FAILED_PRECONDITION carrying the rulebook's own words.
+//
+// # Why it is not literally empty
+//
+// saved and delivery are not "what you can do next" — they are S6's law, which
+// every mutating verb at this seam keeps: a partial save is an error carrying a
+// populated report, never a silent shrug. An activation writes a sheet and
+// publishes a condition, so both can be half-done, and a caller told only
+// "fine" would have no way to tell a durable rage from one that never reached
+// disk.
+message ActivateResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
 // EndTurnResponse mirrors session.EndTurnOutput.
 message EndTurnResponse {
   // Who acts now.
@@ -815,6 +875,11 @@ service SessionService {
   // caller's own budget, bound to the authenticated member as GetWhere is
   // (toolkit#1138, ADR-0042).
   rpc Afford(AffordRequest) returns (AffordResponse);
+
+  // Activate uses a combat ability or feature the member already carries. The
+  // selector says which one; there are seven at level 1 and only Help takes a
+  // target.
+  rpc Activate(ActivateRequest) returns (ActivateResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

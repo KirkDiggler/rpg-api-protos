@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos quality scorecard
 description: Per-service grade with rationale — a graded scorecard the janitor will update over time
-updated: 2026-08-23
+updated: 2026-08-27
 confidence: low-medium — first draft grades from a read-through of every .proto file plus grep against rpg-api / rpg-dnd5e-web; expect Kirk to adjust
 ---
 
@@ -176,6 +176,37 @@ from the proto alone. Re-grade once the rpg-api PR lands. Grew a
 `dungeon_key` field on `StartEncounterRequest` and a `ListDungeons` RPC
 (rpg-api-protos#200, 2026-07-30, Dungeon Builder arc) — both additive,
 grade unchanged by this addition alone.
+
+### dnd5e.session.presentation.SessionPresentationService — B+ (provisional)
+
+Added 2026-08-27 in rpg-api-protos#256, no consumer yet — but again this is
+consumer PR pending, not speculative schema: `rpg-api#852` is the immediate
+relay/validation host and `rpg-dnd5e-web#837` is the immediate playback leg of
+`rpg-project#289` / approved design `#303`. The bounded-context cut is the
+right one: presentation-only shared rigid-body throws live on their own seam
+instead of leaking replay policy, physics vocabulary, or decorative transport
+into `SessionService`'s combat-truth contract.
+
+Main strengths:
+- The authority boundary is explicit in the shape, not just the prose:
+  `authority_seq` is correlation only, `roller` is server-bound on the
+  published plan, and there are no hit/miss, damage, HP, target, or Story
+  fields to accidentally grow into a second outcome channel.
+- The contract is group-shaped from day one (`bodies`, sparse `contacts`,
+  per-body terminals), which is the right forward seam for later damage
+  handfuls. Future die kinds and physics families are additive enum values,
+  not a replacement service.
+- `Vector3`/`Quaternion` avoid minting a fourth `Position` while keeping the
+  rigid-body vocabulary local to the presentation package.
+- Live-only/no-replay intent is documented directly on the stream surface,
+  matching the design's Redis-backed fanout rather than pretending this is a
+  durable log.
+
+Held below A by: no runtime host/playback evidence yet, no proof yet that the
+chosen bounds/validation policy survives real off-table, reconnect, and missed-
+release behavior in the two-browser walk, and contract-generation evidence only
+(`buf lint`, `buf breaking`, generated SDKs) until those consumer PRs land.
+Re-grade once `rpg-api#852` and `rpg-dnd5e-web#837` are merged and walked.
 
 ### dnd5e.authoring.AuthoringService — B+ (provisional)
 

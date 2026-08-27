@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos data model
 description: Common message types, envelopes, error and pagination patterns, and known shape collisions
-updated: 2026-08-16
+updated: 2026-08-27
 confidence: high — verified by reading every .proto and grepping field reuse across files
 ---
 
@@ -118,6 +118,39 @@ message ValidationWarning { field, message, type; }
 
 For dice, see `api.v1alpha1.DiceRoll` (the result form, in `dice.proto`)
 — there is no notation-form message in the dnd5e package.
+
+### Session presentation rigid-body throw shapes (`dnd5e/api/session/presentation/v1alpha1/service.proto`)
+
+```proto
+message Vector3 { float x = 1; float y = 2; float z = 3; }
+message Quaternion { float x = 1; float y = 2; float z = 3; float w = 4; }
+message RigidBodyState {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+  Vector3 linear_velocity = 3;
+  Vector3 angular_velocity = 4;
+}
+message DiceBodyInitial { string die_id = 1; DiceShape shape = 2; RigidBodyState state = 3; }
+message ContactCheckpoint {
+  uint32 step = 1;
+  string primary_die_id = 2;
+  oneof target { StaticColliderContact static_collider = 3; string other_die_id = 4; }
+  repeated DiceBodyCheckpoint after = 5;
+}
+message DiceBodyTerminal { string die_id = 1; uint32 step = 2; DiceTerminalKind kind = 3; RigidBodyState state = 4; }
+```
+
+These are presentation-only physics shapes for `SessionPresentationService`,
+not gameplay positions. The package deliberately uses `Vector3` rather than
+minting a fourth `Position` message: dungeon cells stay on
+`dnd5e.api.session.v1alpha1.Position`, while rigid-body pose/velocity live on
+this separate seam.
+
+The higher-level plan messages stay compact and group-shaped:
+`DiceThrowDraft`/`DiceThrowPlan` carry one bounded body list, sparse ordered
+contact checkpoints, and per-body terminal truth (`SETTLED`/`OFF_TABLE`). They
+carry no hit/miss, damage, or HP authority — `authority_seq` is only
+correlation to already-authoritative session combat truth.
 
 `Condition.condition_data` (line 106) is `bytes` carrying toolkit-owned
 JSON. The pattern: enum identifies the condition; toolkit owns the

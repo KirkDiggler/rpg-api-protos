@@ -232,6 +232,15 @@ enum ShortfallReason {
   // NO_TARGET_IN_REACH remains the declaration-level answer when no candidate
   // can be attacked.
   SHORTFALL_REASON_TARGET_OUT_OF_REACH = 6;
+  // The ability's own precondition failed — already raging, already at full
+  // hit points. NOT a budget: nothing ran out, no currency is populated, and
+  // waiting will not help the way it does for NO_BUDGET. `text` carries the
+  // feature's own words.
+  //
+  // This is the seam's word for what character.Feature.CanActivate refuses,
+  // which is a different question from what the economy refuses. A client that
+  // collapsed the two would tell a raging barbarian to come back next turn.
+  SHORTFALL_REASON_UNAVAILABLE = 7;
 }
 
 // Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.
@@ -250,10 +259,19 @@ enum Currency {
   // Feet, not a count. `needed` and `left` on a MOVEMENT shortfall are in feet,
   // at the server's five per cell.
   CURRENCY_MOVEMENT = 4;
+  // Charges of a named feature resource — rage uses, Second Wind uses, ki
+  // points. A count, like the three slots.
+  //
+  // WHICH resource is named only in `text`. This seam does not enumerate the
+  // rulebook's resource keys, for the same reason Verb does not enumerate the
+  // rulebook's actions: the catalog grows without this contract changing, and
+  // a client that branched on the specific pool would be deriving rules.
+  // `needed` and `left` are the figures it shows.
+  CURRENCY_CHARGES = 5;
 }
 
 // Verb names a seam action Afford can gate. Mirrors session.Verb
-// ("attack" / "move" / "end_turn").
+// ("attack" / "move" / "end_turn" / "activate").
 //
 // A closed set owned by the session package rather than a reuse of the
 // rulebook's own action vocabulary: a declaration is a question about what THIS
@@ -272,11 +290,22 @@ enum Verb {
   // End Turn — committing the active member's turn. It has no action-economy
   // price and is governed only by its clock/turn gate.
   VERB_END_TURN = 3;
+  // Activate — using a combat ability or feature the character already
+  // carries: Dodge, Dash, Disengage, Help, Hide, Rage, Second Wind.
+  //
+  // THE FIRST VERB THAT EMITS MORE THAN ONE DECLARATION. Attack, Move and End
+  // Turn each compile exactly one offer, and every reader written before this
+  // could assume one row per verb. Activate cannot: six abilities share the
+  // action slot, and a barbarian has Rage on the bonus slot at the same moment
+  // Attack sits on the action one. Slot lives on the declaration, so they
+  // cannot share a row. See Declaration's own note.
+  VERB_ACTIVATE = 4;
 }
 
-// TargetKind tells a client which selector shape a declaration accepts. This
-// first production wave includes only the three currently executable verbs;
-// future target kinds arrive with a proven executor, not in advance.
+// TargetKind tells a client which selector shape a declaration accepts. Its
+// values arrive with a proven executor, not in advance — which is why Activate
+// added a verb and no new kind: the seven level-1 activations are answered by
+// NONE and MEMBER, both of which already had one.
 enum TargetKind {
   TARGET_KIND_UNSPECIFIED = 0;
   TARGET_KIND_NONE = 1;
@@ -661,7 +690,19 @@ message TargetCandidate {
 // Declaration is one server-compiled action/cost variant. Declarations, not
 // remaining currencies (ADR-0042): the client renders availability, identity,
 // target kind, and candidates verbatim and never derives game rules. Attack,
-// Move, and End Turn regenerate the selected offer before execution.
+// Move, End Turn and Activate regenerate the selected offer before execution.
+//
+// # One row per OFFER, not one row per verb
+//
+// Attack, Move and End Turn each compile exactly one, so for three verbs the
+// two readings coincided. VERB_ACTIVATE separates them: a level-1 barbarian
+// gets seven Activate declarations, and `slot` is what distinguishes Rage on
+// the bonus shape from Dodge on the action one. A consumer that indexes
+// declarations by verb, or that treats a second row for a verb as a producer
+// defect, is reading a coincidence as a contract.
+//
+// `id` remains the only thing execution echoes, and it is per-offer — so the
+// selector already identified the right row before there was more than one.
 message Declaration {
   // Which seam action this prices.
   Verb verb = 1;
@@ -713,12 +754,31 @@ message Declaration {
   // Move, End Turn, and early per-verb blockers.
   AttackRef attack = 9;
   // Fixed for every compiled or blocked declaration: Attack -> MEMBER,
-  // Move -> PATH, End Turn -> NONE. UNSPECIFIED is a producer defect.
+  // Move -> PATH, End Turn -> NONE, Activate -> MEMBER for Help and NONE for
+  // the rest. UNSPECIFIED is a producer defect.
+  //
+  // Activate is the first verb whose kind varies by WHICH offer it is rather
+  // than by which verb it is: Help prompts for an ally, and the other six
+  // prompt for nothing. The rulebook draws a further line between "targets the
+  // actor" (Dodge, Rage) and "targets nobody" (Dash) that this enum
+  // deliberately does not: both are the same instruction to a client — do not
+  // prompt — and whose sheet the effect lands on is the rulebook's business.
   TargetKind target_kind = 10;
   // Every member in the ruled candidate universe exactly once, including
   // unavailable targets and their server-authored reasons. NO_TARGET_IN_REACH
   // does not remove these rows. Empty for Move, End Turn, and early blockers.
   repeated TargetCandidate candidates = 11;
+  // The sole public activation identity. Present on every compiled Activate
+  // declaration, including one disabled by a budget, charge or feature gate;
+  // absent for Attack, Move, End Turn, and early per-verb blockers. The same
+  // presence law `attack` keeps, for the same reason.
+  //
+  // A SIBLING OF `attack` RATHER THAN A ONEOF WITH IT. A oneof would make it a
+  // wire-level error for one declaration to carry both, and the monk's
+  // bonus-action unarmed strike is exactly the case that plausibly wants an
+  // attack identity AND an activation origin. Sealing that off against a
+  // shape we can already name is what ADR-0007 exists to remember.
+  AbilityRef ability = 12;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -778,6 +838,28 @@ message AttackRef {
   string name = 2;
   // The kind of damage it deals. Closed set, enum — see DamageType.
   DamageType damage_type = 3;
+}
+
+// AbilityRef identifies WHAT is being activated — the combat ability or
+// feature behind a VERB_ACTIVATE declaration. Mirrors session.AbilityRef.
+//
+// It exists for the same reason AttackRef does: a declaration the client
+// renders verbatim needs an identity, and "Rage" is not derivable from
+// VERB_ACTIVATE the way "Move" is from VERB_MOVE. Attack has one identity per
+// weapon; Activate has one per thing the character carries, and there are
+// seven of them at level 1.
+message AbilityRef {
+  // The full core.Ref.String() — "dnd5e:combat_abilities:dodge",
+  // "dnd5e:features:rage". Bare IDs such as "rage" are invalid. An OPEN set,
+  // so a string: the catalog grows without this contract changing.
+  //
+  // For correlation and for a client's own icon table. NEVER for a rules
+  // decision — a client that branched on this ref to decide what a button does
+  // would be deriving 5e, which is the whole thing declarations prevent.
+  string ref = 1;
+  // Display name — "Dodge", "Rage", "Second Wind". Authored by the ability
+  // itself, never derived from the ref by the client.
+  string name = 2;
 }
 
 // =============================================================================

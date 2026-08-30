@@ -865,6 +865,33 @@ message AbilityRef {
   string name = 2;
 }
 
+// ReactionRef identifies WHAT a strike was taken as, when the strike was a
+// reaction rather than a declared action. Carried on the Struck and Missed
+// bodies; absent on an ordinary swing.
+//
+// The third identity in this family, and the only thing the wire cannot say
+// about an opportunity attack (rpg-project#316). Every number an OA produces —
+// roll, total, the AC it beat, damage, weapon, crit, components — already
+// crosses on Struck/Missed, because an opportunity attack IS a strike and
+// records through the same path a declared swing does. What does not cross is
+// why a fighter dealt damage during a monster's turn. Without this the log
+// still tells the truth and reads as a bug.
+//
+// A client that ignores the field renders exactly as it does today.
+message ReactionRef {
+  // The full core.Ref.String() of the condition or feature that reacted, for
+  // example "dnd5e:conditions:opportunity_attack". An OPEN set, so a string:
+  // Shield, Uncanny Dodge and Hellish Rebuke join it without this contract
+  // changing.
+  //
+  // For correlation and for a client's own icon table. NEVER for a rules
+  // decision.
+  string ref = 1;
+  // Display name — "Opportunity Attack". Authored by the reacting rule
+  // itself, never derived from the ref by the client.
+  string name = 2;
+}
+
 // =============================================================================
 // Reports every mutating verb carries back
 // =============================================================================

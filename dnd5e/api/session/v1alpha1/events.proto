@@ -287,6 +287,10 @@ message Struck {
   repeated DamageComponent damage_components = 9;
   repeated AttackModifierSource advantage_sources = 10;
   repeated AttackModifierSource disadvantage_sources = 11;
+  // Set when this strike was a reaction rather than a declared action — an
+  // opportunity attack lands here, during somebody else's turn. Absent on an
+  // ordinary swing, which is how a witness tells the two apart.
+  ReactionRef reaction = 12;
 }
 
 // Missed: an attack did not land (EVENT_KIND_MISSED). A separate body rather
@@ -302,6 +306,10 @@ message Missed {
   // What was swung. Must equal the selected Declaration.attack and the
   // corresponding AttackResponse.attack. Lands with rpg-toolkit#866.
   AttackRef attack = 6;
+  // Set when this strike was a reaction rather than a declared action — see
+  // Struck.reaction. A missed opportunity attack is still worth naming: the
+  // reactor spent their reaction on it.
+  ReactionRef reaction = 7;
 }
 
 // FightStarted: two sides came into contact and a fight began

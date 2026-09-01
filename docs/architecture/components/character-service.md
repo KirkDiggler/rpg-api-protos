@@ -1,14 +1,14 @@
 ---
 name: CharacterService
 description: D&D 5e character creation, draft lifecycle, equipment management, and reference data
-updated: 2026-08-25
+updated: 2026-09-01
 confidence: high — verified by reading dnd5e/api/v1alpha1/character.proto end-to-end
 ---
 
 # CharacterService
 
 The largest service by RPC count. Defined in
-`dnd5e/api/v1alpha1/character.proto` (1,237 lines). Owns every
+`dnd5e/api/v1alpha1/character.proto`. Owns every
 character-related operation: draft creation flow, ability score
 rolls, validation, finalization, equipment management, and the
 reference data lookups (races, classes, backgrounds, equipment,
@@ -16,10 +16,10 @@ spells) that the character-creation UI needs.
 
 ## File and shape
 
-- `dnd5e/api/v1alpha1/character.proto` — 1,237 lines.
+- `dnd5e/api/v1alpha1/character.proto`.
 - 1 service, ~32 RPCs, ~80 messages.
-- Imports `choices.proto`, `common.proto`, `enums.proto`,
-  `equipment_types.proto`.
+- Imports the neutral `customization/v1alpha1/types.proto` contract plus
+  `choices.proto`, `common.proto`, `enums.proto`, and `equipment_types.proto`.
 
 ## Owner-private v1alpha2 `CharacterData`
 
@@ -80,7 +80,7 @@ draft so the client can re-render without a separate `Get`.
 | `UpdateBackground` | Background |
 | `UpdateAbilityScores` | AbilityScores |
 | `UpdateSkills` | Skill proficiencies |
-| `UpdateAppearance` | Appearance (skin tone, primary/secondary color, eye color) |
+| `UpdateAppearance` | Appearance with neutral hair customization intent |
 
 ### Validation and finalization (3 RPCs)
 
@@ -149,6 +149,31 @@ internally by rpg-api for storage.
 
 Includes `EquipmentSlots equipment_slots = 19`, ability scores,
 features, proficiencies, hit points, etc.
+
+### `Appearance`
+
+`Appearance` keeps the established character/draft envelope and adds
+`dnd5e.api.customization.v1alpha1.HairCustomization hair = 5`. The former
+shader-specific fields are removed rather than repurposed: tags 1–4 and names
+`skin_tone`, `primary_color`, `secondary_color`, and `eye_color` are reserved.
+Reserving both wire numbers and source names prevents future fields from reusing
+those identities or silently reinterpreting retained color data.
+
+Presence is intentional:
+
+| Field | Absent | Present |
+|---|---|---|
+| `Appearance.hair` | Use all provider hair defaults | Read the nested hair intent |
+| `HairCustomization.scalp` / `.facial_hair` | Use that provider default | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it |
+| `HairCustomization.color_srgb` | Use provider color | Packed sRGB `0xRRGGBB` |
+| `HairCustomization.roughness` | Use provider roughness | Finite value in `[0,1]` |
+
+The contract is provider-neutral. The API implementation owns persistence,
+semantic numeric validation, and verbatim projection of this intent; it does
+not interpret `style_ref` or turn it into a path. The asset/render provider owns
+its style catalog, defaults, style resolution, and material realization. This
+repository change defines that contract only; it does not claim the API or web
+implementation has landed.
 
 ### `ValidationResult` (in common.proto:122)
 

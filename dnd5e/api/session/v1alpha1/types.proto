@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dnd5e.api.session.v1alpha1;
 
+import "dnd5e/api/customization/v1alpha1/types.proto";
+
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
@@ -427,18 +429,17 @@ message PublicMemberInfo {
   // itself instead of deriving it from the member id's naming convention.
   // Empty for players.
   string monster_ref = 6;
-  // The customization shelf. Always set; empty today on purpose — see
+  // Public visual identity projected to the roster. Always set; see
   // Customization.
   Customization customization = 7;
 }
 
-// Customization is deliberately EMPTY in v1 — a shelf, not a payload
-// (rpg-project#264's ruling, 2026-08-25). What customization IS on the new
-// Synty assets is undecided, and the old system's shader color strings
-// (v1alpha1 character.proto Appearance) are NOT carried forward; whatever
-// the new contract turns out to be lands HERE and only here
-// (ideas/characters/customization), so no other message moves when it does.
-message Customization {}
+// Customization is public visual identity, not owner-private sheet or rules
+// data. Hair uses the neutral customization package so character creation and
+// roster projection speak the same semantics without exposing provider paths.
+message Customization {
+  dnd5e.api.customization.v1alpha1.HairCustomization hair = 1;
+}
 
 // MemberOutcome is where a member stood when something closed around them.
 // Mirrors session.MemberOutcome.

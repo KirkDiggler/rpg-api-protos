@@ -1,22 +1,64 @@
 ---
-name: Shared types (common, enums, choices, equipment_types)
-description: D&D 5e cross-service types — ability scores, validation, choices, conditions, enums, equipment data
-updated: 2026-08-09
+name: Shared types (customization, common, enums, choices, equipment_types)
+description: D&D 5e cross-service types — visual customization, ability scores, validation, choices, conditions, enums, equipment data
+updated: 2026-09-01
 confidence: high — shared PlacementOffset verified by schema and generated Go/TypeScript compilation; remaining inventory last audited 2026-05-02
 ---
 
 # Shared types
 
-These files don't define their own services; they hold the types that
-`CharacterService` and `EncounterService` both depend on. Together
-they're roughly 2,400 lines of contract:
+These files don't define their own services; they hold reusable types shared
+across character, session, and encounter contracts. Together they're roughly
+2,400 lines of contract:
 
 | File | Lines | Contents |
 |---|---|---|
+| `dnd5e/api/customization/v1alpha1/types.proto` | ~30 | Provider-neutral style and hair customization intent |
 | `dnd5e/api/v1alpha1/enums.proto` | 896 | All dnd5e enums |
 | `dnd5e/api/v1alpha1/common.proto` | 210 | AbilityScores, PlacementOffset, validation types, Modifier, Resource, Condition, SourceRef |
 | `dnd5e/api/v1alpha1/choices.proto` | 262 | Choice, ChoiceSubmission, ChoiceData, options, selections |
 | `dnd5e/api/v1alpha1/equipment_types.proto` | 66 | Equipment, WeaponData, ArmorData, GearData, Cost, Weight |
+
+## `customization/v1alpha1/types.proto` — neutral visual intent
+
+This package is neutral rather than nested under CharacterService or
+SessionService because both character creation and public roster projection
+must carry the same customization semantics. It defines:
+
+- `StyleSelection`: a oneof between opaque `style_ref` and explicit `none`.
+- `HairCustomization`: scalp and facial-hair selections plus optional packed
+  sRGB color and material roughness.
+
+A `style_ref` is provider-owned opaque identity, never a filesystem or asset
+path. The package deliberately carries no catalog/profile paths and no
+race-, class-, or asset-pack-specific vocabulary.
+
+### Presence contract
+
+| Location | Absent | Present |
+|---|---|---|
+| containing `HairCustomization` message | Use all provider defaults | Read per-field intent |
+| `scalp` or `facial_hair` selection message | Use that provider default | `style_ref` selects a style; `none` explicitly requests no style |
+| `color_srgb` | Use provider color | Unsigned packed sRGB `0xRRGGBB` |
+| `roughness` | Use provider roughness | Finite value in `[0,1]` |
+
+The distinction between an absent selection message and a present `none` arm is
+load-bearing: absence delegates to the provider, while `none` is explicit user
+intent.
+
+### API and provider ownership
+
+The future API consumer owns storing this neutral intent, validating generic
+numeric invariants, and projecting it verbatim into character and public roster
+contracts. It must not parse style refs or derive asset paths. The provider owns
+catalog membership, defaults, resolving refs to renderable pieces, and material
+implementation. The proto establishes the seam; it does not claim those
+runtime consumers have landed.
+
+The legacy `Appearance` tags 1–4 and names `skin_tone`, `primary_color`,
+`secondary_color`, and `eye_color` are reserved. Those shader-specific fields
+were removed, and reserving both identities prevents future fields from reusing
+those identities or silently reinterpreting retained data.
 
 ## `enums.proto` — every dnd5e enum
 

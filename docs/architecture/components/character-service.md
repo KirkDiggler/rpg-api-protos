@@ -164,16 +164,20 @@ Presence is intentional:
 | Field | Absent | Present |
 |---|---|---|
 | `Appearance.hair` | Use all provider hair defaults | Read the nested hair intent |
-| `HairCustomization.scalp` / `.facial_hair` | Use that provider default | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it |
+| `HairCustomization.scalp` / `.facial_hair` | Use that provider default | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it; no oneof arm is invalid and must be rejected by the API |
 | `HairCustomization.color_srgb` | Use provider color | Packed sRGB `0xRRGGBB` |
 | `HairCustomization.roughness` | Use provider roughness | Finite value in `[0,1]` |
+
+A present `StyleSelection` with no oneof arm is invalid input, not another
+spelling of absence, and the API implementation must reject it.
 
 The contract is provider-neutral. The API implementation owns persistence,
 semantic numeric validation, and verbatim projection of this intent; it does
 not interpret `style_ref` or turn it into a path. The asset/render provider owns
-its style catalog, defaults, style resolution, and material realization. This
-repository change defines that contract only; it does not claim the API or web
-implementation has landed.
+its style catalog, defaults, style resolution, and material realization.
+Metalness is intentionally absent from the contract and remains provider-owned.
+This repository change defines that contract only; it does not claim the API or
+web implementation has landed.
 
 ### `ValidationResult` (in common.proto:122)
 

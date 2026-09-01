@@ -25,7 +25,8 @@ This package is neutral rather than nested under CharacterService or
 SessionService because both character creation and public roster projection
 must carry the same customization semantics. It defines:
 
-- `StyleSelection`: a oneof between opaque `style_ref` and explicit `none`.
+- `StyleSelection`: a oneof between opaque `style_ref` and explicit `none`;
+  a present message with no arm is invalid input.
 - `HairCustomization`: scalp and facial-hair selections plus optional packed
   sRGB color and material roughness.
 
@@ -38,13 +39,14 @@ race-, class-, or asset-pack-specific vocabulary.
 | Location | Absent | Present |
 |---|---|---|
 | containing `HairCustomization` message | Use all provider defaults | Read per-field intent |
-| `scalp` or `facial_hair` selection message | Use that provider default | `style_ref` selects a style; `none` explicitly requests no style |
+| `scalp` or `facial_hair` selection message | Use that provider default | `style_ref` selects a style; `none` explicitly requests no style; no oneof arm is invalid and must be rejected by the API |
 | `color_srgb` | Use provider color | Unsigned packed sRGB `0xRRGGBB` |
 | `roughness` | Use provider roughness | Finite value in `[0,1]` |
 
 The distinction between an absent selection message and a present `none` arm is
 load-bearing: absence delegates to the provider, while `none` is explicit user
-intent.
+intent. A present `StyleSelection` with no oneof arm is invalid input, not
+another spelling of absence, and the API implementation must reject it.
 
 ### API and provider ownership
 
@@ -52,7 +54,8 @@ The future API consumer owns storing this neutral intent, validating generic
 numeric invariants, and projecting it verbatim into character and public roster
 contracts. It must not parse style refs or derive asset paths. The provider owns
 catalog membership, defaults, resolving refs to renderable pieces, and material
-implementation. The proto establishes the seam; it does not claim those
+implementation. Metalness is intentionally absent from the contract and
+remains provider-owned. The proto establishes the seam; it does not claim those
 runtime consumers have landed.
 
 The legacy `Appearance` tags 1–4 and names `skin_tone`, `primary_color`,

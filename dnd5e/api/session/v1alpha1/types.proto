@@ -438,6 +438,9 @@ message PublicMemberInfo {
 // data. Hair uses the neutral customization package so character creation and
 // roster projection speak the same semantics without exposing provider paths.
 message Customization {
+  // API-side presentation addition approved by rpg-api-protos#262,
+  // rpg-project#347, and Journey rpg-project#346. This is not a field from the
+  // toolkit session SDK.
   dnd5e.api.customization.v1alpha1.HairCustomization hair = 1;
 }
 

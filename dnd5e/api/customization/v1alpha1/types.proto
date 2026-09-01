@@ -10,6 +10,8 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.customization.v1alpha1";
 
 // Selects either a provider-owned style or explicitly no style. An absent
 // StyleSelection message on a containing field means use the provider default.
+// A present StyleSelection with no selection arm is invalid input and must be
+// rejected by the API; it does not mean provider default.
 message StyleSelection {
   oneof selection {
     // Opaque provider-owned reference. This is never a filesystem or asset path.
@@ -21,6 +23,8 @@ message StyleSelection {
 
 // Describes provider-neutral hair rendering intent. Field absence uses provider
 // defaults; the provider owns style resolution and material interpretation.
+// Metalness is intentionally absent from this contract and remains
+// provider-owned.
 message HairCustomization {
   // Scalp-hair selection. An absent selection message uses the provider default.
   StyleSelection scalp = 1;

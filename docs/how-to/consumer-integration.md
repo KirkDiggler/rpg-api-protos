@@ -21,13 +21,19 @@ pinning model, and the failure modes.
 | Go | `gen/go/...` | `protocolbuffers/go` + `grpc/go` (no `require_unimplemented_servers`) |
 | TypeScript | `gen/ts/...` | `bufbuild/es target=ts` (Connect-ES; one plugin handles both messages and services) |
 
-CI then:
-1. Force-pushes `gen/` to a `generated` branch.
-2. Auto-increments the latest root `vX.Y.Z` git tag.
-3. Tags the same generated commit as `gen/go/vX.Y.Z` for the nested
-   Go module.
-4. Preserves the root release/npm publication flow for
-   `@kirkdiggler/rpg-api-protos`.
+CI then runs one serialized release transaction from the `main` push:
+1. Constructs the generated commit locally and records the main source SHA in
+   its commit message.
+2. Selects the next version from final root tags matching `vX.Y.Z` only, or
+   reuses the latest complete pair when rerunning the same source SHA.
+3. Creates and validates annotated `vX.Y.Z` and `gen/go/vX.Y.Z` tags on that
+   generated commit and validates an isolated npm package workspace.
+4. Atomically force-updates `generated` while creating both tags without
+   force; a rejected ref leaves all three remote refs unchanged.
+5. Creates or updates the GitHub release by explicit root tag and publishes
+   `@kirkdiggler/rpg-api-protos@X.Y.Z` from that same main-triggered job.
+
+A partial tag pair fails closed rather than allocating another version.
 
 See [regenerate-sdks.md](regenerate-sdks.md) for the local equivalent.
 
@@ -130,11 +136,14 @@ Standard npm install:
 npm install @kirkdiggler/rpg-api-protos
 ```
 
-Each root `vX.Y.Z` release retains the existing npm publication
-semantics. The additional `gen/go/vX.Y.Z` tag is only for Go module
-resolution and does not create a second npm release. `package.json`
-pins to either a specific version or `^0.1.0` / `latest` for active
-development.
+The serialized main-branch release job derives npm version `X.Y.Z` from the
+root `vX.Y.Z` tag in an isolated publication workspace. Before publishing, it
+queries that exact package version: a missing version is published, a version
+with the same root/source/generated identity is an idempotent success, and a
+query failure or identity mismatch fails closed. The additional
+`gen/go/vX.Y.Z` tag is only for Go module resolution and does not create a
+second npm or GitHub release. Consumers pin a specific package version or use
+a range / `latest` according to their update policy.
 
 ### Usage shape
 
@@ -208,8 +217,15 @@ boundary. See [breaking-change-workflow.md](breaking-change-workflow.md).
 - **`buf format` clean locally but CI flags formatting.** Unlikely if
   you ran `buf format -w`; possible if your buf version is older than
   CI's. Run `brew upgrade buf` (macOS) periodically.
+- **Release validation or one ref update fails.** Validation completes before
+  publication, and the generated branch plus both tags are one atomic push, so
+  no remote release ref advances. A same-source complete pair is reused on a
+  rerun; a partial pair stops the job.
+- **GitHub or npm publication fails after refs land.** Rerunning the same source
+  reuses its tag pair. GitHub release creation/update runs again, while npm is
+  published only when the exact root version is absent.
 - **Force-push to `generated` overwrites local commits.** Don't commit
-  to `generated`. The branch is force-pushed every CI run.
+  to `generated`. The branch is force-updated by the release transaction.
 
 ## Visualizing the contract surface
 

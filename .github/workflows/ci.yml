@@ -63,6 +63,9 @@ jobs:
       - name: Test refgen tool
         run: cd tools/refgen && go test ./...
 
+      - name: Test generated release transaction
+        run: scripts/test-generated-release-transaction.sh
+
       - name: Install mockgen
         run: go install go.uber.org/mock/mockgen@latest
 
@@ -96,6 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint-and-format, generate-and-test]
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: rpg-api-protos-generated-release
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -129,94 +135,175 @@ jobs:
           go mod init github.com/KirkDiggler/rpg-api-protos/gen/go
           go mod tidy
       
-      - name: Create release branch
+      - name: Construct and validate local release
         run: |
-          # Create or update release branch with generated code
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Create release branch
-          git checkout -B generated
-          
-          # Remove gen/ from gitignore temporarily
-          sed '/^gen\/$/d' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore
-          
-          # Add generated code
-          git add gen/
-          git add .gitignore
-          
-          # Commit if there are changes
-          git diff --staged --quiet || git commit -m "chore: update generated code and mocks"
-          
-          # Push release branch
-          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" generated --force
-          
-          # Fetch all tags from origin
-          git fetch --tags origin
-          
-          # Get the latest root tag and increment it. Module-qualified tags do
-          # not participate in the release version clock.
-          LATEST_TAG="$(git tag -l 'v*' | sort -V | tail -1)"
-          if [ -z "$LATEST_TAG" ]; then LATEST_TAG="v0.0.0"; fi
-          NEW_TAG="$(printf '%s\n' "$LATEST_TAG" | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')"
-          GO_MODULE_TAG="gen/go/$NEW_TAG"
-          GENERATED_COMMIT="$(git rev-parse HEAD)"
-          
-          echo "Latest root tag: $LATEST_TAG"
-          echo "New root tag: $NEW_TAG"
-          echo "New Go module tag: $GO_MODULE_TAG"
-          
-          # Keep the root release tag and add the nested-module tag on the
-          # exact same generated commit.
-          git tag -a "$NEW_TAG" -m "Generated code for $NEW_TAG" "$GENERATED_COMMIT"
-          git tag -a "$GO_MODULE_TAG" -m "Generated Go module for $NEW_TAG" "$GENERATED_COMMIT"
+          set -euo pipefail
 
-          # Validate the module/tag shape and both annotated tag targets before
-          # publishing either tag.
-          MODULE_PATH="$(cd gen/go && go list -m)"
+          SOURCE_SHA="${{ github.sha }}"
           REPOSITORY_MODULE_PATH="github.com/${{ github.repository }}"
-          EXPECTED_MODULE_PATH="$REPOSITORY_MODULE_PATH/gen/go"
-          if [ "$MODULE_PATH" != "$EXPECTED_MODULE_PATH" ]; then
-            echo "Expected Go module $EXPECTED_MODULE_PATH, found $MODULE_PATH" >&2
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKED_OUT_SHA" != "$SOURCE_SHA" ]; then
+            echo "Expected checkout $SOURCE_SHA, found $CHECKED_OUT_SHA" >&2
             exit 1
           fi
-          MODULE_TAG_PREFIX="${MODULE_PATH#"$REPOSITORY_MODULE_PATH/"}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --force --tags origin
+
+          # Construct a generated commit locally. Its trailer is the durable,
+          # repository-owned identity used to recognize same-source reruns.
+          git checkout -B generated "$SOURCE_SHA"
+          sed '/^gen\/$/d' .gitignore > .gitignore.tmp
+          mv .gitignore.tmp .gitignore
+          git add gen/ .gitignore
+          git commit --allow-empty \
+            -m "chore: update generated code and mocks" \
+            -m "Source-SHA: $SOURCE_SHA"
+          CANDIDATE_COMMIT="$(git rev-parse HEAD)"
+
+          PLAN_FILE="$(mktemp)"
+          scripts/plan-generated-release.sh \
+            "$SOURCE_SHA" \
+            "$CANDIDATE_COMMIT" \
+            "$REPOSITORY_MODULE_PATH" > "$PLAN_FILE"
+          # The planner emits constrained KEY=value fields only.
+          # shellcheck disable=SC1090
+          . "$PLAN_FILE"
+          rm "$PLAN_FILE"
+
+          if [ "$REUSE_RELEASE" = "true" ]; then
+            # Publish from the immutable tagged commit, not from a newly
+            # generated retry workspace whose tool dependencies may have moved.
+            git reset --hard "$GENERATED_COMMIT"
+          else
+            git tag -a "$NEW_TAG" \
+              -m "Generated code for $NEW_TAG" "$GENERATED_COMMIT"
+            git tag -a "$GO_MODULE_TAG" \
+              -m "Generated Go module for $NEW_TAG" "$GENERATED_COMMIT"
+          fi
+
+          # Validate the complete local release before any remote ref changes.
+          ACTUAL_MODULE_PATH="$(cd gen/go && go list -m)"
+          if [ "$ACTUAL_MODULE_PATH" != "$MODULE_PATH" ]; then
+            echo "Expected Go module $MODULE_PATH, found $ACTUAL_MODULE_PATH" >&2
+            exit 1
+          fi
           EXPECTED_GO_MODULE_TAG="$MODULE_TAG_PREFIX/$NEW_TAG"
           if [ "$GO_MODULE_TAG" != "$EXPECTED_GO_MODULE_TAG" ]; then
             echo "Expected Go module tag $EXPECTED_GO_MODULE_TAG, found $GO_MODULE_TAG" >&2
             exit 1
           fi
           for TAG in "$NEW_TAG" "$GO_MODULE_TAG"; do
-            if [ "$(git cat-file -t "$TAG")" != "tag" ]; then
+            if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ]; then
               echo "Expected annotated tag: $TAG" >&2
               exit 1
             fi
-            if [ "$(git rev-parse "$TAG^{}")" != "$GENERATED_COMMIT" ]; then
+            if [ "$(git rev-parse "refs/tags/$TAG^{commit}")" != "$GENERATED_COMMIT" ]; then
               echo "Tag $TAG does not point to generated commit $GENERATED_COMMIT" >&2
               exit 1
             fi
           done
 
-          git push --atomic "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
-            "refs/tags/$NEW_TAG" "refs/tags/$GO_MODULE_TAG"
-          
-          # Export both tag names for later steps.
+          RELEASE_SOURCE="$(git show -s --format='%(trailers:key=Source-SHA,valueonly)' "$GENERATED_COMMIT")"
+          if [ "$RELEASE_SOURCE" != "$SOURCE_SHA" ]; then
+            echo "Generated commit $GENERATED_COMMIT does not record source $SOURCE_SHA" >&2
+            exit 1
+          fi
+
+          # Build and inspect the npm payload in an isolated workspace. The
+          # checked-in package version remains untouched.
+          NPM_WORKSPACE="$RUNNER_TEMP/npm-release-$NPM_VERSION"
+          rm -rf "$NPM_WORKSPACE"
+          mkdir -p "$NPM_WORKSPACE/gen"
+          cp package.json package-lock.json README.md "$NPM_WORKSPACE/"
+          cp -R gen/ts "$NPM_WORKSPACE/gen/ts"
+          (
+            cd "$NPM_WORKSPACE"
+            npm version --no-git-tag-version "$NPM_VERSION"
+            npm pkg set \
+              "rpgApiProtosRelease.tag=$NEW_TAG" \
+              "rpgApiProtosRelease.goModuleTag=$GO_MODULE_TAG" \
+              "rpgApiProtosRelease.sourceCommit=$SOURCE_SHA" \
+              "rpgApiProtosRelease.generatedCommit=$GENERATED_COMMIT"
+            npm pack --dry-run --json > npm-pack.json
+            NPM_VERSION="$NPM_VERSION" node <<'NODE'
+          const fs = require("fs");
+          const pkg = require("./package.json");
+          const pack = JSON.parse(fs.readFileSync("npm-pack.json", "utf8"));
+          if (!Array.isArray(pack) || !pack[0]?.files?.some((file) => file.path.startsWith("gen/ts/"))) {
+            throw new Error("npm payload does not contain generated TypeScript");
+          }
+          if (pkg.version !== process.env.NPM_VERSION) {
+            throw new Error(`expected npm version ${process.env.NPM_VERSION}, found ${pkg.version}`);
+          }
+          NODE
+            rm npm-pack.json
+          )
+          NPM_PACKAGE="$(cd "$NPM_WORKSPACE" && node -p 'require("./package.json").name')"
+          if [ "$NPM_PACKAGE" != "@kirkdiggler/rpg-api-protos" ]; then
+            echo "Unexpected npm package identity: $NPM_PACKAGE" >&2
+            exit 1
+          fi
+
+          echo "Latest strict root tag: $LATEST_TAG"
+          echo "Release root tag: $NEW_TAG"
+          echo "Go module tag: $GO_MODULE_TAG"
+          echo "Generated commit: $GENERATED_COMMIT"
+          echo "Reuse release: $REUSE_RELEASE"
+
           {
+            echo "SOURCE_SHA=$SOURCE_SHA"
+            echo "GENERATED_COMMIT=$GENERATED_COMMIT"
             echo "NEW_TAG=$NEW_TAG"
             echo "GO_MODULE_TAG=$GO_MODULE_TAG"
+            echo "NPM_VERSION=$NPM_VERSION"
+            echo "NPM_PACKAGE=$NPM_PACKAGE"
+            echo "NPM_WORKSPACE=$NPM_WORKSPACE"
           } >> "$GITHUB_ENV"
-      
-      - name: Create GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          generate_release_notes: true
-      
-      - name: Publish to npm
-        if: startsWith(github.ref, 'refs/tags/v')
+
+      - name: Atomically publish generated branch and release tags
         run: |
-          # Copy generated TypeScript to package root
-          cp -r gen/ts/* .
-          npm publish --access public
+          set -euo pipefail
+          git push --atomic origin \
+            "+$GENERATED_COMMIT:refs/heads/generated" \
+            "refs/tags/$NEW_TAG:refs/tags/$NEW_TAG" \
+            "refs/tags/$GO_MODULE_TAG:refs/tags/$GO_MODULE_TAG"
+
+      - name: Check GitHub release publication
+        run: |
+          set -euo pipefail
+          DECISION="$(scripts/release-publication-status.sh \
+            github "${{ github.repository }}" "$NEW_TAG")"
+          echo "GitHub release $NEW_TAG: $DECISION"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.NEW_TAG }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish npm package if absent
+        run: |
+          set -euo pipefail
+          DECISION="$(scripts/release-publication-status.sh \
+            npm "$NPM_PACKAGE" "$NPM_VERSION" "$NEW_TAG" \
+            "$GO_MODULE_TAG" "$SOURCE_SHA" "$GENERATED_COMMIT")"
+          case "$DECISION" in
+            publish)
+              (cd "$NPM_WORKSPACE" && npm publish --access public)
+              ;;
+            already-published)
+              echo "$NPM_PACKAGE@$NPM_VERSION already has release identity $NEW_TAG; skipping publish"
+              ;;
+            *)
+              echo "Unexpected npm publication decision: $DECISION" >&2
+              exit 1
+              ;;
+          esac
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -15,22 +15,30 @@ an auto-incremented root tag and a module-qualified Go tag.
 
 ## What the pipeline does
 
-`.github/workflows/ci.yml` `publish-packages` job:
+`.github/workflows/ci.yml` runs `publish-packages` only for a `main` push and
+serializes that job with other release jobs:
 
 1. Generates code: `buf generate` writes `gen/go` and `gen/ts`.
-2. Generates mocks: `make mocks` runs `mockgen` against the gRPC
-   client interfaces and writes them under `gen/go`.
-3. Sets up the Go module: `cd gen/go && go mod init && go mod tidy`.
-4. Force-pushes a `generated` branch with the contents of `gen/`.
-5. Computes the next version from root `v*` tags only.
-6. Creates annotated root `vX.Y.Z` and Go module
-   `gen/go/vX.Y.Z` tags on the exact same generated commit, validates
-   the module/tag shape locally, and pushes both tags.
-7. Retains the existing GitHub release and npm publication semantics;
-   the root tag remains their release identity.
+2. Generates mocks: `make mocks` writes the gRPC client mocks under `gen/go`.
+3. Sets up the nested Go module and constructs a local generated commit whose
+   `Source-SHA` trailer records the triggering main commit.
+4. Selects only final root tags matching `vX.Y.Z` for the version clock. A
+   rerun of the latest source reuses its complete root/module pair; a partial
+   pair fails closed.
+5. Creates annotated root `vX.Y.Z` and `gen/go/vX.Y.Z` tags on the exact same
+   generated commit and verifies the module path, derived `gen/go` prefix,
+   annotated tag objects, peeled targets, and source identity.
+6. Builds an isolated npm workspace, derives version `X.Y.Z` with
+   `npm version --no-git-tag-version`, and inspects the package payload.
+7. After all local validation, performs one atomic push containing the forced
+   `generated` update and both create-only tags.
+8. From that same main-triggered job, creates or updates the GitHub release by
+   explicit root tag and queries/publishes that exact npm version. A matching
+   npm version is an idempotent success; query failures and identity mismatches
+   fail closed.
 
-Verified by reading the workflow directly. Steps 4-7 only run on
-pushes to `main`.
+There is no tag-triggered publication workflow. The module-qualified Go tag
+creates neither a second GitHub release nor a second npm package version.
 
 ## Local generation (rarely needed)
 
@@ -75,7 +83,8 @@ go get github.com/KirkDiggler/rpg-api-protos/gen/go@vX.Y.Z
 ```
 
 The repository ref for that version is `gen/go/vX.Y.Z`. The root
-`vX.Y.Z` tag remains present for the existing release/npm flow.
+`vX.Y.Z` tag is the explicit GitHub release identity and maps to npm version
+`X.Y.Z` in the serialized main-branch release transaction.
 
 Historical root tags through `v0.1.147` lack the required `gen/go/`
 prefix and are not resolvable for this nested module. Use the exact
@@ -128,6 +137,12 @@ gets the latest.
 - **`make mocks` fails.** The CI installs `mockgen` first
   (`go install go.uber.org/mock/mockgen@latest`). Missing locally
   → install it.
+- **A release rerun sees one tag but not its pair.** CI fails closed; it does
+  not allocate or rewrite another version. Repair requires an explicit release
+  decision rather than an automatic retry.
+- **GitHub/npm fails after the atomic ref push.** Rerun the same main job. It
+  reuses the complete tag pair, creates or updates the root GitHub release,
+  and publishes npm only if the exact root-derived version is absent.
 
 ## See also
 

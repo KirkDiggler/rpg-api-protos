@@ -10,8 +10,10 @@ confidence: high — verified by reading every .proto file, buf.yaml, .github/wo
 rpg-api-protos is the contract layer between `rpg-api` (Go gRPC server) and
 `rpg-dnd5e-web` (TypeScript Connect-ES client). It is buf-managed: `.proto`
 files are the source of truth, `buf generate` produces Go and TypeScript SDKs
-on every merge to main, and a force-pushed `generated` branch plus paired root
-and module-qualified tags publishes them to Go modules and npm.
+on every merge to main, and the serialized main-branch release transaction
+publishes a force-updated `generated` branch plus paired root and
+module-qualified tags. That same transaction publishes the root release to
+GitHub and npm.
 
 This repo never runs at runtime. Its only output is the shape of the wire and
 the consequences of changing that shape.
@@ -82,24 +84,29 @@ buf breaking        (blocking; PR may carry `breaking-change-approved` label to 
     ▼
 PR merged to main
     │
-    ▼
+    ▼ serialized `publish-packages` job
 buf generate     → gen/go (protoc-gen-go + grpc-go)
                   → gen/ts (bufbuild/es target=ts, Connect)
 make mocks       → mockgen-generated mocks for all gRPC clients
     │
-    ▼
-git checkout -B generated  (force-push)
-git tag vX.Y.Z+1           (auto-increment root v* tags only)
-git tag gen/go/vX.Y.Z+1    (same generated commit)
+    ▼ local construction and validation (no remote writes)
+generated commit records Source-SHA: <main commit>
+latest ^v[0-9]+\.[0-9]+\.[0-9]+$ tag selects vX.Y.Z+1
+annotated vX.Y.Z+1 + gen/go/vX.Y.Z+1 peel to that generated commit
+npm workspace derives version X.Y.Z+1 and validates its package payload
     │
-    ▼
-GitHub release  + npm publish (@kirkdiggler/rpg-api-protos; root tag identity)
-                + Go modules consumption via @generated or @vX.Y.Z
+    ▼ one atomic git push
++<commit>:generated + create-only vX.Y.Z + create-only gen/go/vX.Y.Z
+    │
+    ▼ same main-triggered job
+GitHub release(tag_name=vX.Y.Z) + npm publish(version=X.Y.Z)
+                                  + Go consumption via @generated or @vX.Y.Z
 ```
 
-Verified by reading `.github/workflows/ci.yml`. The `generated` branch is
-force-pushed every merge with fresh root and Go module tags — checking out
-`generated` for proto edits will lose work.
+A same-source rerun reuses the latest complete root/module tag pair and retries
+any missing GitHub/npm publication. A partial pair fails closed. The only
+forced ref is `generated`; both tags are create-only, and all three refs are in
+one atomic push. Checking out `generated` for proto edits will still lose work.
 
 ## The contract rules
 
@@ -302,7 +309,9 @@ review. Reconciliation tracked as part of **issue #140**.
 - `gen/go` consumed by `rpg-api` via `go.mod`:
   `github.com/KirkDiggler/rpg-api-protos/gen/go@<version>`, resolved from
   `gen/go/vX.Y.Z` tags for releases after the module-tag fix.
-- `gen/ts` published to npm: `@kirkdiggler/rpg-api-protos`.
+- `gen/ts` published to npm as `@kirkdiggler/rpg-api-protos@X.Y.Z`, where
+  `X.Y.Z` is derived from the root `vX.Y.Z` tag in the main-triggered release
+  transaction.
 - A `generated` branch with the latest generated commit — sometimes used
   directly via `@generated` for development.
 

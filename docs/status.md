@@ -422,11 +422,15 @@ of which is canonical; the comment is the only signal.
   PR; the workflow then skips the breaking check and emits a CI annotation
   noting the override. See
   [breaking-change-workflow.md](how-to/breaking-change-workflow.md).
-- The `generated` branch is force-pushed by CI on every main merge with
-  fresh root `vX.Y.Z` and nested-module `gen/go/vX.Y.Z` tags on the same
-  generated commit. Root tags through `v0.1.147` predate the nested-module
-  tag fix. Worth knowing if someone tries to checkout `generated` for proto
-  edits.
+- The serialized main-branch release job validates a complete local release,
+  then atomically force-updates `generated` and creates root `vX.Y.Z` plus
+  nested-module `gen/go/vX.Y.Z` tags on the same generated commit. It directly
+  creates/updates the root GitHub release and publishes npm version `X.Y.Z`;
+  there is no tag-triggered publication job. Same-source reruns reuse a
+  complete pair, while partial pairs fail closed. Root tags through
+  `v0.1.147` predate the nested-module tag fix and require exact generated-
+  commit pseudo-versions for Go. Worth knowing if someone tries to checkout
+  `generated` for proto edits.
 
 ## Per-service confidence
 

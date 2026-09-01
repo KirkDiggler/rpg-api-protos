@@ -463,6 +463,7 @@ message Item {
   string icon_key = 4; // reference key into the asset-owned manifest — keys, not enums
   string kind = 5; // "weapon" | "shield" | "armor" | "gear" — open vocabulary, not an enum
   repeated string slot_keys = 6; // slot keys this item may occupy, e.g. ["main_hand", "off_hand"]
+  int32 quantity = 7; // total copies owned; updated producers always send > 0
 }
 
 // SlotDef is one equip socket a character exposes. Server-owned data, not a client enum —

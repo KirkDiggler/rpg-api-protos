@@ -147,8 +147,9 @@ enum EventKind {
   // ARRIVING, NOT A CLOSED SET (ruled on rpg-project#350); the full
   // trigger set is owned where perception lives, with the sight-seam
   // design round. Recipient-scoped by design: a concealed, unknown door is
-  // absent from a non-knower's door-lists and masked as an ordinary wall
-  // in their geometry (see GetAtlasResponse), so the beat that introduces
+  // absent from a non-knower's door-lists and — between two visible
+  // spaces — masked as an ordinary wall in their geometry (see
+  // GetAtlasResponse), so the beat that introduces
   // it carries everything the client needs to patch its cached view — the
   // load-once, beat-refreshed law (rpg-project#264). This is
   // rpg-toolkit#1020's shelf coming due for doors, per the standing ruling
@@ -441,14 +442,23 @@ message DoorRevealed {
   // knower's GetAtlas carries for it, absent from this recipient's cached
   // atlas until now. Every edge of a wide door arrives together
   // (rpg-toolkit#1123: a door is one state over a set of edges).
+  //
+  // ONE ACCEPTED DISCLOSURE, named so it is never mistaken for a leak or
+  // a client bug (rpg-project#351): at a region-guarding door these pairs
+  // name one cell of hidden floor per entrance, before any region reveal
+  // — knowing where a door is includes knowing it leads somewhere. The
+  // patched-atlas state that follows, doorways into cells not yet in
+  // `cells`, is legal; a client tolerates it until REGION_REVEALED
+  // arrives.
   repeated AtlasDoorway doorways = 2;
-  // The truth at the door's own edges, REPLACING THE MASK: this
-  // recipient's cached atlas holds a synthetic ordinary wall boundary
-  // there (see GetAtlasResponse — a concealed door presents as a wall
-  // until found), and these are the boundaries a knower's atlas holds
-  // instead. Empty is the ordinary case and means the mask simply comes
-  // off — a door's edges carry no authored boundary, the doorways above
-  // are the truth. Only the door's own edges — see the message comment on
+  // The truth at the door's own edges. Where the mask applies — a
+  // concealed door between two spaces the member can see (see
+  // GetAtlasResponse) — the recipient's cached atlas holds a synthetic
+  // ordinary wall boundary there, and these replace it. Empty is the
+  // ordinary case and means whatever stood there simply comes off — a
+  // door's edges carry no authored boundary, the doorways above are the
+  // truth; at a concealed region's border there was no mask to remove at
+  // all. Only the door's own edges — see the message comment on
   // narrowness.
   repeated AtlasBoundary boundaries = 3;
 }
@@ -482,7 +492,10 @@ message RegionRevealed {
   // The props standing in the region, exactly as GetAtlasResponse.props
   // would carry them.
   repeated AtlasProp props = 2;
-  // The region's interior boundaries, exactly as
-  // GetAtlasResponse.boundaries would carry them.
+  // Every boundary touching the region's cells — border walls included,
+  // since the never-authored yardstick withheld them all (see
+  // GetAtlasResponse) — exactly as GetAtlasResponse.boundaries would
+  // carry them. Interior-only would leave the revealed room border-wall-
+  // less in the recipient's patched atlas.
   repeated AtlasBoundary boundaries = 3;
 }

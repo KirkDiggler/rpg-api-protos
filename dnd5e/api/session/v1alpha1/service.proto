@@ -694,25 +694,36 @@ message GetAtlasRequest {
 //   - ABSENT FROM EVERY DOOR-LIST: a concealed unfound door's
 //     AtlasDoorway entries do not appear in `doorways`, nor its DoorInfo
 //     in GetDoors — presence in any list, even marked, leaks the secret.
-//   - MASKED AS WALL IN GEOMETRY: `boundaries` gains a synthetic ordinary
-//     boundary at the door's edges, indistinguishable from an authored
-//     wall — nothing marks it. Masked rather than omitted because a
-//     door's edges carry no authored boundary (a door cannot stand in a
-//     wall; the authored wall run has a gap there, filled by the doorway
-//     entry), so pure omission would render a HOLE in the wall run
-//     exactly where the secret is — the absence itself would leak. The
-//     fiction already says what belongs there: a concealed door IS a
-//     wall until found.
-//   - THE ROOM HIDES WITH ITS DOOR (ruled on rpg-project#351: client fog
+//   - MASKED AS WALL IN GEOMETRY, IN ONE CASE ONLY: for a concealed
+//     door between two spaces the member can see, `boundaries` gains a
+//     synthetic ordinary boundary at the door's edges, indistinguishable
+//     from an authored wall — nothing marks it. Masked rather than
+//     omitted because a door's edges carry no authored boundary (a door
+//     cannot stand in a wall; the authored wall run has a gap there,
+//     filled by the doorway entry), so pure omission would render a HOLE
+//     in a visible run exactly where the secret is — the absence itself
+//     would leak. The fiction already says what belongs there: a
+//     concealed door IS a wall until found. At a concealed region's
+//     border NO mask applies — see the third half.
+//   - THE ROOM HIDES WITH ITS DOOR, BY THE NEVER-AUTHORED YARDSTICK
+//     (ruled on rpg-project#351, refined in review round 3: client fog
 //     does not hide unexplored space, so the map itself must keep the
-//     secret). A concealed region a member has not had revealed is
-//     absent ENTIRELY — its cells from `cells`, its AtlasRegion from
-//     `regions`, its props from `props`, its interior boundaries from
-//     `boundaries` — so the space reads as solid mass exactly like
-//     anywhere beyond the map's edge, with the masquerade wall covering
-//     the one gap its door would leave. Every entrance of a concealed
-//     region is itself a concealed door (authoring refuses anything
-//     else), each keeping the two door halves above.
+//     secret). A non-knower's answer is BYTE-IDENTICAL to an atlas in
+//     which the concealed region was never authored: its cells withheld
+//     from `cells`, its AtlasRegion from `regions`, its props from
+//     `props`, and EVERY boundary touching its cells from `boundaries` —
+//     border walls included. Withholding only interior boundaries was
+//     the leak the refinement closed: a border wall left behind would
+//     touch no visible floor, an impossible signature in an honest
+//     atlas, certifying hidden space at a named coordinate. With the
+//     whole border withheld, the space reads as solid mass exactly like
+//     anywhere beyond the map's edge — and no mask applies at the
+//     region's border: its door's edge already reads as solid mass like
+//     the rest of it, and a synthetic wall touching void would carry the
+//     same self-marking signature. Every entrance of a concealed region
+//     is itself a concealed door (authoring refuses anything else), each
+//     absent from the door-lists per the first half; the mask stays the
+//     second half's own.
 //
 // That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
 // doors, per the standing ruling that detection beats are per-player from

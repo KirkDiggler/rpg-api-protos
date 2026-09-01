@@ -149,25 +149,62 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: update generated code and mocks"
           
           # Push release branch
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git generated --force
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" generated --force
           
           # Fetch all tags from origin
           git fetch --tags origin
           
-          # Get the latest tag and increment
-          LATEST_TAG=$(git tag -l "v*" | sort -V | tail -1 || echo "v0.0.0")
+          # Get the latest root tag and increment it. Module-qualified tags do
+          # not participate in the release version clock.
+          LATEST_TAG="$(git tag -l 'v*' | sort -V | tail -1)"
           if [ -z "$LATEST_TAG" ]; then LATEST_TAG="v0.0.0"; fi
-          NEW_TAG=$(echo $LATEST_TAG | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          NEW_TAG="$(printf '%s\n' "$LATEST_TAG" | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')"
+          GO_MODULE_TAG="gen/go/$NEW_TAG"
+          GENERATED_COMMIT="$(git rev-parse HEAD)"
           
-          echo "Latest tag: $LATEST_TAG"
-          echo "New tag: $NEW_TAG"
+          echo "Latest root tag: $LATEST_TAG"
+          echo "New root tag: $NEW_TAG"
+          echo "New Go module tag: $GO_MODULE_TAG"
           
-          # Create and push tag on the generated branch (we're already on it)
-          git tag -a $NEW_TAG -m "Generated code for $NEW_TAG"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $NEW_TAG
+          # Keep the root release tag and add the nested-module tag on the
+          # exact same generated commit.
+          git tag -a "$NEW_TAG" -m "Generated code for $NEW_TAG" "$GENERATED_COMMIT"
+          git tag -a "$GO_MODULE_TAG" -m "Generated Go module for $NEW_TAG" "$GENERATED_COMMIT"
+
+          # Validate the module/tag shape and both annotated tag targets before
+          # publishing either tag.
+          MODULE_PATH="$(cd gen/go && go list -m)"
+          REPOSITORY_MODULE_PATH="github.com/${{ github.repository }}"
+          EXPECTED_MODULE_PATH="$REPOSITORY_MODULE_PATH/gen/go"
+          if [ "$MODULE_PATH" != "$EXPECTED_MODULE_PATH" ]; then
+            echo "Expected Go module $EXPECTED_MODULE_PATH, found $MODULE_PATH" >&2
+            exit 1
+          fi
+          MODULE_TAG_PREFIX="${MODULE_PATH#"$REPOSITORY_MODULE_PATH/"}"
+          EXPECTED_GO_MODULE_TAG="$MODULE_TAG_PREFIX/$NEW_TAG"
+          if [ "$GO_MODULE_TAG" != "$EXPECTED_GO_MODULE_TAG" ]; then
+            echo "Expected Go module tag $EXPECTED_GO_MODULE_TAG, found $GO_MODULE_TAG" >&2
+            exit 1
+          fi
+          for TAG in "$NEW_TAG" "$GO_MODULE_TAG"; do
+            if [ "$(git cat-file -t "$TAG")" != "tag" ]; then
+              echo "Expected annotated tag: $TAG" >&2
+              exit 1
+            fi
+            if [ "$(git rev-parse "$TAG^{}")" != "$GENERATED_COMMIT" ]; then
+              echo "Tag $TAG does not point to generated commit $GENERATED_COMMIT" >&2
+              exit 1
+            fi
+          done
+
+          git push --atomic "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            "refs/tags/$NEW_TAG" "refs/tags/$GO_MODULE_TAG"
           
-          # Export tag for later steps
-          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          # Export both tag names for later steps.
+          {
+            echo "NEW_TAG=$NEW_TAG"
+            echo "GO_MODULE_TAG=$GO_MODULE_TAG"
+          } >> "$GITHUB_ENV"
       
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')

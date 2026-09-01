@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-27
+updated: 2026-09-01
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -423,8 +423,10 @@ of which is canonical; the comment is the only signal.
   noting the override. See
   [breaking-change-workflow.md](how-to/breaking-change-workflow.md).
 - The `generated` branch is force-pushed by CI on every main merge with
-  a fresh tag (`v0.1.86` is the latest as of pull). Worth knowing if
-  someone tries to checkout `generated` for proto edits.
+  fresh root `vX.Y.Z` and nested-module `gen/go/vX.Y.Z` tags on the same
+  generated commit. Root tags through `v0.1.147` predate the nested-module
+  tag fix. Worth knowing if someone tries to checkout `generated` for proto
+  edits.
 
 ## Per-service confidence
 

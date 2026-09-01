@@ -1,7 +1,7 @@
 ---
 name: Consumer integration
 description: How rpg-api (Go) and rpg-dnd5e-web (TypeScript) consume this contract
-updated: 2026-05-04
+updated: 2026-09-01
 confidence: high — verified by reading rpg-api/CLAUDE.md, rpg-api-protos/buf.gen.yaml, .github/workflows/ci.yml
 ---
 
@@ -23,9 +23,11 @@ pinning model, and the failure modes.
 
 CI then:
 1. Force-pushes `gen/` to a `generated` branch.
-2. Auto-increments the latest `vX.Y.Z` git tag.
-3. Publishes to npm (`@kirkdiggler/rpg-api-protos`).
-4. Creates a GitHub release.
+2. Auto-increments the latest root `vX.Y.Z` git tag.
+3. Tags the same generated commit as `gen/go/vX.Y.Z` for the nested
+   Go module.
+4. Preserves the root release/npm publication flow for
+   `@kirkdiggler/rpg-api-protos`.
 
 See [regenerate-sdks.md](regenerate-sdks.md) for the local equivalent.
 
@@ -40,16 +42,37 @@ Per `rpg-api/CLAUDE.md`, the recommended pull command is:
 GOPROXY=direct go get github.com/KirkDiggler/rpg-api-protos/gen/go@generated
 ```
 
-`@generated` resolves to the latest commit on the `generated`
-branch as a Go module pseudo-version. Useful during active
-development; less stable than a tag pin.
+`@generated` resolves to the latest commit on the force-pushed
+`generated` branch as a Go module pseudo-version. It is useful during
+active development, but the branch selector moves on every release.
 
-For release stability:
+For an immutable fallback, request an exact generated commit. For
+example, the generated commit for root release `v0.1.147` is:
+
 ```bash
-go get github.com/KirkDiggler/rpg-api-protos/gen/go@v0.1.86
+GOPROXY=direct go get github.com/KirkDiggler/rpg-api-protos/gen/go@1e5c208d02ee4d81f167bc8d5ae272016ca0bd57
 ```
 
-(Tags are auto-incremented; `v0.1.86` is current as of 2026-05-02.)
+Go records the resulting commit-based pseudo-version in `go.mod`;
+that pseudo-version remains a stable pin.
+
+Root tags through `v0.1.147` are **not** resolvable versions of the
+nested `gen/go` module. They were published as `vX.Y.Z` instead of the
+module-qualified `gen/go/vX.Y.Z`, so this historical command fails:
+
+```bash
+go get github.com/KirkDiggler/rpg-api-protos/gen/go@v0.1.147
+```
+
+Releases after the module-tag fix publish both tag forms on the same
+generated commit. Consumers can then use the release version normally:
+
+```bash
+go get github.com/KirkDiggler/rpg-api-protos/gen/go@vX.Y.Z
+```
+
+The Go resolver maps that module version to the repository tag
+`gen/go/vX.Y.Z`. The root `vX.Y.Z` tag remains the release/npm tag.
 
 ### Usage shape
 
@@ -107,8 +130,11 @@ Standard npm install:
 npm install @kirkdiggler/rpg-api-protos
 ```
 
-Each tag publishes a new npm version. `package.json` pins to either a
-specific version or `^0.1.0` / `latest` for active development.
+Each root `vX.Y.Z` release retains the existing npm publication
+semantics. The additional `gen/go/vX.Y.Z` tag is only for Go module
+resolution and does not create a second npm release. `package.json`
+pins to either a specific version or `^0.1.0` / `latest` for active
+development.
 
 ### Usage shape
 
@@ -193,7 +219,8 @@ rpg-api-protos (this repo)
     ├── proto edits on feature branch → buf lint/format/breaking → merge
     │
     ▼ CI generates
-gen/go ─────── force-pushed to `generated` branch ────── @generated
+gen/go ──┬── force-pushed to `generated` branch ─────── @generated
+         └── tagged `gen/go/vX.Y.Z` ─────────────────── @vX.Y.Z
                                                               │
                                                        go mod consumes
                                                               ▼

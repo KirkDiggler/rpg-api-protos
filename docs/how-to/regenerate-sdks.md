@@ -1,7 +1,7 @@
 ---
 name: Regenerate SDKs
 description: How CI generates Go and TypeScript SDKs and how to consume them
-updated: 2026-05-04
+updated: 2026-09-01
 confidence: high — verified by reading buf.gen.yaml and .github/workflows/ci.yml
 ---
 
@@ -10,7 +10,8 @@ confidence: high — verified by reading buf.gen.yaml and .github/workflows/ci.y
 The repo generates two SDK targets: Go (gRPC + grpc-go) and TypeScript
 (Connect-ES via `bufbuild/es`). You should rarely need to do this
 locally — CI does it on every merge to main and force-pushes the
-result to the `generated` branch plus an auto-incremented git tag.
+result to the `generated` branch. The generated commit receives both
+an auto-incremented root tag and a module-qualified Go tag.
 
 ## What the pipeline does
 
@@ -21,10 +22,12 @@ result to the `generated` branch plus an auto-incremented git tag.
    client interfaces and writes them under `gen/go`.
 3. Sets up the Go module: `cd gen/go && go mod init && go mod tidy`.
 4. Force-pushes a `generated` branch with the contents of `gen/`.
-5. Auto-increments the latest `vX.Y.Z` tag and pushes it on the
-   `generated` branch.
-6. Creates a GitHub release.
-7. Publishes to npm: `cp -r gen/ts/* . && npm publish`.
+5. Computes the next version from root `v*` tags only.
+6. Creates annotated root `vX.Y.Z` and Go module
+   `gen/go/vX.Y.Z` tags on the exact same generated commit, validates
+   the module/tag shape locally, and pushes both tags.
+7. Retains the existing GitHub release and npm publication semantics;
+   the root tag remains their release identity.
 
 Verified by reading the workflow directly. Steps 4-7 only run on
 pushes to `main`.
@@ -65,10 +68,27 @@ To pick up a fresh generated branch in rpg-api:
 GOPROXY=direct go get github.com/KirkDiggler/rpg-api-protos/gen/go@generated
 ```
 
-To pin to a specific tag:
+For a release created after the module-tag fix, pin its version:
+
 ```bash
-go get github.com/KirkDiggler/rpg-api-protos/gen/go@v0.1.86
+go get github.com/KirkDiggler/rpg-api-protos/gen/go@vX.Y.Z
 ```
+
+The repository ref for that version is `gen/go/vX.Y.Z`. The root
+`vX.Y.Z` tag remains present for the existing release/npm flow.
+
+Historical root tags through `v0.1.147` lack the required `gen/go/`
+prefix and are not resolvable for this nested module. Use the exact
+generated commit as a stable fallback; Go records an immutable
+pseudo-version:
+
+```bash
+GOPROXY=direct go get github.com/KirkDiggler/rpg-api-protos/gen/go@1e5c208d02ee4d81f167bc8d5ae272016ca0bd57
+```
+
+That commit is the generated output for root release `v0.1.147`.
+Do not use `gen/go@v0.1.147`; the root tag does not identify the
+nested module.
 
 ### TypeScript
 
@@ -84,7 +104,9 @@ Standard `npm install @kirkdiggler/rpg-api-protos`.
 ## Why the `generated` branch exists
 
 Go modules can resolve a branch name as a pseudo-version. `@generated`
-gives you "latest from main" without needing to know the tag.
+gives you "latest from main" without needing to know the tag. An exact
+generated commit gives the same pseudo-version mechanism with an
+immutable selector and is the stable fallback for historical releases.
 rpg-api's `CLAUDE.md` recommends:
 
 ```bash

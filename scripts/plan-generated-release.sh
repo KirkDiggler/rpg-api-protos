@@ -43,16 +43,31 @@ peeled_commit() {
   git rev-parse --verify "refs/tags/$1^{commit}" 2>/dev/null
 }
 
-source_for_tag() {
+inspect_tag_source() {
   local commit
-  local trailers
+  local resolved_source
   local -a source_values
 
-  commit="$(peeled_commit "$1")" || return 1
-  trailers="$(git show -s --format='%(trailers:key=Source-SHA,valueonly)' "$commit")"
-  mapfile -t source_values < <(printf '%s\n' "$trailers" | awk 'NF == 1 { print }')
-  [ "${#source_values[@]}" -eq 1 ] || return 1
-  printf '%s\n' "${source_values[0]}"
+  TAG_SOURCE_STATE=none
+  TAG_SOURCE_VALUE=""
+  commit="$(peeled_commit "$1")" || {
+    TAG_SOURCE_STATE=invalid
+    return
+  }
+  mapfile -t source_values < <(
+    git show -s --format=%B "$commit" |
+      git interpret-trailers --parse |
+      awk 'tolower($0) ~ /^source-sha:/ { sub(/^[^:]*:[[:space:]]*/, ""); print }'
+  )
+  [ "${#source_values[@]}" -gt 0 ] || return 0
+
+  TAG_SOURCE_STATE=invalid
+  [ "${#source_values[@]}" -eq 1 ] || return 0
+  TAG_SOURCE_VALUE="${source_values[0]}"
+  [[ "$TAG_SOURCE_VALUE" =~ ^[0-9a-f]{40}$ ]] || return 0
+  resolved_source="$(git rev-parse --verify "$TAG_SOURCE_VALUE^{commit}" 2>/dev/null)" || return 0
+  [ "$resolved_source" = "$TAG_SOURCE_VALUE" ] || return 0
+  TAG_SOURCE_STATE=valid
 }
 
 mapfile -t ALL_TAGS < <(git for-each-ref --format='%(refname:strip=2)' refs/tags)
@@ -87,32 +102,54 @@ fi
 
 for root_tag in "${RELEASE_VERSIONS[@]}"; do
   module_tag="$MODULE_TAG_PREFIX/$root_tag"
+  root_exists=false
+  module_exists=false
+  root_source_state=none
+  module_source_state=none
   root_source=""
   module_source=""
-  root_is_current=0
-  module_is_current=0
 
   if ref_exists "$root_tag"; then
-    root_source="$(source_for_tag "$root_tag" || true)"
-    [ "$root_source" = "$SOURCE_SHA" ] && root_is_current=1
+    root_exists=true
+    inspect_tag_source "$root_tag"
+    root_source_state="$TAG_SOURCE_STATE"
+    root_source="$TAG_SOURCE_VALUE"
   fi
   if ref_exists "$module_tag"; then
-    module_source="$(source_for_tag "$module_tag" || true)"
-    [ "$module_source" = "$SOURCE_SHA" ] && module_is_current=1
+    module_exists=true
+    inspect_tag_source "$module_tag"
+    module_source_state="$TAG_SOURCE_STATE"
+    module_source="$TAG_SOURCE_VALUE"
   fi
 
-  if [ "$root_is_current" -eq 1 ] || [ "$module_is_current" -eq 1 ]; then
-    if ! ref_exists "$root_tag" || ! ref_exists "$module_tag"; then
-      die "partial release for source $SOURCE_SHA: expected both $root_tag and $module_tag"
-    fi
-    if [ "$root_is_current" -ne 1 ] || [ "$module_is_current" -ne 1 ]; then
-      die "inconsistent release pair for source $SOURCE_SHA: $root_tag and $module_tag have different source identities"
-    fi
+  # Legacy tags have no Source-SHA trailer and may predate module tags. Once
+  # either side records a source, however, the release identity must be a
+  # complete, internally consistent root/module transaction for every source,
+  # not only for the source currently being planned.
+  if [ "$root_source_state" = none ] && [ "$module_source_state" = none ]; then
+    continue
+  fi
+  if [ "$root_exists" != true ] || [ "$module_exists" != true ]; then
+    die "partial source-associated release: expected both $root_tag and $module_tag"
+  fi
+  if [ "$root_source_state" != valid ] || [ "$module_source_state" != valid ]; then
+    die "inconsistent release pair $root_tag and $module_tag: invalid Source-SHA identity"
+  fi
+  [ "$root_source" = "$module_source" ] || \
+    die "inconsistent release pair $root_tag and $module_tag: different source identities"
 
-    root_commit="$(peeled_commit "$root_tag")" || die "$root_tag does not peel to a commit"
-    module_commit="$(peeled_commit "$module_tag")" || die "$module_tag does not peel to a commit"
-    [ "$root_commit" = "$module_commit" ] || \
-      die "release pair $root_tag and $module_tag does not target one generated commit"
+  [ "$(git cat-file -t "refs/tags/$root_tag")" = tag ] || \
+    die "source-associated root tag $root_tag is not annotated"
+  [ "$(git cat-file -t "refs/tags/$module_tag")" = tag ] || \
+    die "source-associated module tag $module_tag is not annotated"
+  root_commit="$(peeled_commit "$root_tag")" || die "$root_tag does not peel to a commit"
+  module_commit="$(peeled_commit "$module_tag")" || die "$module_tag does not peel to a commit"
+  [ "$root_commit" = "$module_commit" ] || \
+    die "release pair $root_tag and $module_tag does not target one generated commit"
+  git merge-base --is-ancestor "$root_source" "$root_commit" || \
+    die "release pair $root_tag and $module_tag is not based on source $root_source"
+
+  if [ "$root_source" = "$SOURCE_SHA" ]; then
     CURRENT_RELEASES+=("$root_tag")
   fi
 done
@@ -123,8 +160,6 @@ fi
 
 if [ "${#CURRENT_RELEASES[@]}" -eq 1 ]; then
   NEW_TAG="${CURRENT_RELEASES[0]}"
-  [ "$NEW_TAG" = "$LATEST_TAG" ] || \
-    die "source $SOURCE_SHA belongs to stale release $NEW_TAG; latest root release is $LATEST_TAG"
   GO_MODULE_TAG="$MODULE_TAG_PREFIX/$NEW_TAG"
   GENERATED_COMMIT="$(peeled_commit "$NEW_TAG")"
   REUSE_RELEASE=true
@@ -139,8 +174,6 @@ else
   REUSE_RELEASE=false
 fi
 
-NPM_VERSION="${NEW_TAG#v}"
-
 printf 'LATEST_TAG=%s\n' "$LATEST_TAG"
 printf 'NEW_TAG=%s\n' "$NEW_TAG"
 printf 'GO_MODULE_TAG=%s\n' "$GO_MODULE_TAG"
@@ -148,5 +181,4 @@ printf 'MODULE_PATH=%s\n' "$MODULE_PATH"
 printf 'MODULE_TAG_PREFIX=%s\n' "$MODULE_TAG_PREFIX"
 printf 'SOURCE_SHA=%s\n' "$SOURCE_SHA"
 printf 'GENERATED_COMMIT=%s\n' "$GENERATED_COMMIT"
-printf 'NPM_VERSION=%s\n' "$NPM_VERSION"
 printf 'REUSE_RELEASE=%s\n' "$REUSE_RELEASE"

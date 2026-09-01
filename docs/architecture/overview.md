@@ -13,7 +13,7 @@ files are the source of truth, `buf generate` produces Go and TypeScript SDKs
 on every merge to main, and the serialized main-branch release transaction
 publishes a force-updated `generated` branch plus paired root and
 module-qualified tags. That same transaction publishes the root release to
-GitHub and npm.
+GitHub. npm publication is unsupported pending rpg-api-protos#263.
 
 This repo never runs at runtime. Its only output is the shape of the wire and
 the consequences of changing that shape.
@@ -89,24 +89,32 @@ buf generate     → gen/go (protoc-gen-go + grpc-go)
                   → gen/ts (bufbuild/es target=ts, Connect)
 make mocks       → mockgen-generated mocks for all gRPC clients
     │
-    ▼ local construction and validation (no remote writes)
+    ▼ local generated candidate (no remote writes)
 generated commit records Source-SHA: <main commit>
-latest ^v[0-9]+\.[0-9]+\.[0-9]+$ tag selects vX.Y.Z+1
-annotated vX.Y.Z+1 + gen/go/vX.Y.Z+1 peel to that generated commit
-npm workspace derives version X.Y.Z+1 and validates its package payload
     │
-    ▼ one atomic git push
-+<commit>:generated + create-only vX.Y.Z + create-only gen/go/vX.Y.Z
+    ▼ under the release lock, immediately before planning
+fetch origin/main + tags; superseded Source-SHA exits successfully (coalesced)
+find a complete same-source pair anywhere in strict release history, or select
+latest ^v[0-9]+\.[0-9]+\.[0-9]+$ tag and allocate vX.Y.Z+1
+validate annotated root/module tags, peeled target, module path, and source
+    │
+    ├── reuse: no ref push
+    │
+    └── new release: one atomic git push
+        +<commit>:generated + create-only vX.Y.Z + create-only gen/go/vX.Y.Z
     │
     ▼ same main-triggered job
-GitHub release(tag_name=vX.Y.Z) + npm publish(version=X.Y.Z)
-                                  + Go consumption via @generated or @vX.Y.Z
+GitHub release(tag_name=vX.Y.Z) + Go consumption via @generated or @vX.Y.Z
 ```
 
-A same-source rerun reuses the latest complete root/module tag pair and retries
-any missing GitHub/npm publication. A partial pair fails closed. The only
-forced ref is `generated`; both tags are create-only, and all three refs are in
-one atomic push. Checking out `generated` for proto edits will still lose work.
+A same-source rerun reuses its complete root/module tag pair even when newer
+releases exist, performs no branch/tag push, and retries only the root GitHub
+release. Any Source-SHA-associated partial or inconsistent pair fails closed.
+A delayed source that is no longer `origin/main` coalesces without remote
+mutation. The only forced ref in a new release is `generated`; both tags are
+create-only, and all three refs are in one atomic push. npm publication is
+unsupported pending rpg-api-protos#263. Checking out `generated` for proto
+edits will still lose work.
 
 ## The contract rules
 
@@ -309,9 +317,9 @@ review. Reconciliation tracked as part of **issue #140**.
 - `gen/go` consumed by `rpg-api` via `go.mod`:
   `github.com/KirkDiggler/rpg-api-protos/gen/go@<version>`, resolved from
   `gen/go/vX.Y.Z` tags for releases after the module-tag fix.
-- `gen/ts` published to npm as `@kirkdiggler/rpg-api-protos@X.Y.Z`, where
-  `X.Y.Z` is derived from the root `vX.Y.Z` tag in the main-triggered release
-  transaction.
+- `gen/ts` generated and compile-checked by CI. npm publication is unsupported
+  pending rpg-api-protos#263, which owns package layout, exports, and clean
+  consumer installation proof.
 - A `generated` branch with the latest generated commit — sometimes used
   directly via `@generated` for development.
 

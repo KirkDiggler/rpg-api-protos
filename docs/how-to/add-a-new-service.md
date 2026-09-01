@@ -1,7 +1,7 @@
 ---
 name: Add a new service
 description: When and how to add a new gRPC service to rpg-api-protos
-updated: 2026-05-02
+updated: 2026-09-01
 confidence: high — based on patterns established by EncounterService and DiceService
 ---
 
@@ -110,7 +110,9 @@ A new service is a doc change too:
 
 ## After merge
 
-- CI auto-publishes the new service to npm and Go modules.
+- CI publishes the generated Go module tags and root GitHub release. It also
+  generates and compile-checks TypeScript, but npm publication is unsupported
+  pending rpg-api-protos#263.
 - rpg-api adds a handler and orchestrator (its own PR; outside-in
   pattern from rpg-api/CLAUDE.md).
 - rpg-dnd5e-web adds Connect-ES client usage.

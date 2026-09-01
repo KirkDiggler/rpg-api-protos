@@ -22,23 +22,24 @@ serializes that job with other release jobs:
 2. Generates mocks: `make mocks` writes the gRPC client mocks under `gen/go`.
 3. Sets up the nested Go module and constructs a local generated commit whose
    `Source-SHA` trailer records the triggering main commit.
-4. Selects only final root tags matching `vX.Y.Z` for the version clock. A
-   rerun of the latest source reuses its complete root/module pair; a partial
-   pair fails closed.
-5. Creates annotated root `vX.Y.Z` and `gen/go/vX.Y.Z` tags on the exact same
-   generated commit and verifies the module path, derived `gen/go` prefix,
-   annotated tag objects, peeled targets, and source identity.
-6. Builds an isolated npm workspace, derives version `X.Y.Z` with
-   `npm version --no-git-tag-version`, and inspects the package payload.
-7. After all local validation, performs one atomic push containing the forced
-   `generated` update and both create-only tags.
-8. From that same main-triggered job, creates or updates the GitHub release by
-   explicit root tag and queries/publishes that exact npm version. A matching
-   npm version is an idempotent success; query failures and identity mismatches
-   fail closed.
+4. Under the serialized release lock, fetches `origin/main` and all tags
+   immediately before planning. If the source is no longer `origin/main`, the
+   job exits successfully as coalesced work without remote mutation.
+5. Searches all strict final root releases for the triggering source. A
+   complete root/module pair is reused even when newer releases exist; any
+   Source-SHA-associated partial or inconsistent pair fails closed. Otherwise,
+   only final root tags matching `vX.Y.Z` advance the version clock.
+6. Creates or reuses annotated root `vX.Y.Z` and `gen/go/vX.Y.Z` tags on the
+   exact same generated commit and verifies the module path, derived `gen/go`
+   prefix, peeled targets, and source identity.
+7. For a new release, performs one atomic push containing the forced
+   `generated` update and both create-only tags. Reuse performs no branch or
+   tag push, so an older release retry cannot rewind `generated`.
+8. From that same main-triggered job, creates or updates the one GitHub release
+   using the explicit root tag.
 
-There is no tag-triggered publication workflow. The module-qualified Go tag
-creates neither a second GitHub release nor a second npm package version.
+There is no tag-triggered publication workflow. npm publication is unsupported
+pending rpg-api-protos#263; #261 performs no npm packaging or publication.
 
 ## Local generation (rarely needed)
 
@@ -83,8 +84,7 @@ go get github.com/KirkDiggler/rpg-api-protos/gen/go@vX.Y.Z
 ```
 
 The repository ref for that version is `gen/go/vX.Y.Z`. The root
-`vX.Y.Z` tag is the explicit GitHub release identity and maps to npm version
-`X.Y.Z` in the serialized main-branch release transaction.
+`vX.Y.Z` tag is the explicit GitHub release identity.
 
 Historical root tags through `v0.1.147` lack the required `gen/go/`
 prefix and are not resolvable for this nested module. Use the exact
@@ -101,14 +101,11 @@ nested module.
 
 ### TypeScript
 
-```typescript
-import { CharacterServiceClient } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_connect';
-import { Character } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_pb';
-
-const client = new CharacterServiceClient(transport);
-```
-
-Standard `npm install @kirkdiggler/rpg-api-protos`.
+`buf generate` produces TypeScript under `gen/ts`, and CI compile-checks that
+output. npm publication is unsupported pending rpg-api-protos#263. Do not use a
+new root release as evidence that `@kirkdiggler/rpg-api-protos@X.Y.Z` exists or
+that its current manifest/import layout is usable. #263 owns the package and
+clean-install import contract; generate locally until it lands.
 
 ## Why the `generated` branch exists
 
@@ -137,12 +134,17 @@ gets the latest.
 - **`make mocks` fails.** The CI installs `mockgen` first
   (`go install go.uber.org/mock/mockgen@latest`). Missing locally
   → install it.
-- **A release rerun sees one tag but not its pair.** CI fails closed; it does
-  not allocate or rewrite another version. Repair requires an explicit release
-  decision rather than an automatic retry.
-- **GitHub/npm fails after the atomic ref push.** Rerun the same main job. It
-  reuses the complete tag pair, creates or updates the root GitHub release,
-  and publishes npm only if the exact root-derived version is absent.
+- **A release job is delayed behind newer main.** The under-lock source fence
+  coalesces it successfully before planning, with no remote mutation.
+- **A release rerun sees a source-associated partial or inconsistent pair.**
+  CI fails closed even when the bad pair belongs to another source; it does not
+  allocate or rewrite another version.
+- **GitHub release publication fails after the atomic ref push.** Rerun the
+  same source. The planner reuses its complete pair even if newer releases
+  exist, skips branch/tag publication, and retries only the root GitHub
+  release, so `generated` cannot rewind.
+- **npm is expected after merge.** npm publication is unsupported pending
+  rpg-api-protos#263 and does not run in #261.
 
 ## See also
 

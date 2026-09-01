@@ -22,18 +22,22 @@ pinning model, and the failure modes.
 | TypeScript | `gen/ts/...` | `bufbuild/es target=ts` (Connect-ES; one plugin handles both messages and services) |
 
 CI then runs one serialized release transaction from the `main` push:
-1. Constructs the generated commit locally and records the main source SHA in
-   its commit message.
-2. Selects the next version from final root tags matching `vX.Y.Z` only, or
-   reuses the latest complete pair when rerunning the same source SHA.
-3. Creates and validates annotated `vX.Y.Z` and `gen/go/vX.Y.Z` tags on that
-   generated commit and validates an isolated npm package workspace.
-4. Atomically force-updates `generated` while creating both tags without
-   force; a rejected ref leaves all three remote refs unchanged.
-5. Creates or updates the GitHub release by explicit root tag and publishes
-   `@kirkdiggler/rpg-api-protos@X.Y.Z` from that same main-triggered job.
+1. Constructs the generated commit locally and records the triggering source
+   SHA in its commit message.
+2. Under the release lock, fetches `origin/main` and tags immediately before
+   planning. A superseded source exits successfully without remote mutation.
+3. Reuses a complete same-source `vX.Y.Z` + `gen/go/vX.Y.Z` pair wherever it
+   appears in strict release history, even when newer releases exist; otherwise
+   the next version is selected from final root tags matching `vX.Y.Z` only.
+4. Validates the module path, source identity, annotated tags, and peeled
+   targets before publication.
+5. For a new release, atomically force-updates `generated` while creating both
+   tags without force; a rejected ref leaves all three remote refs unchanged.
+   Reuse performs no branch or tag push.
+6. Creates or updates the one GitHub release by explicit root tag.
 
-A partial tag pair fails closed rather than allocating another version.
+Any Source-SHA-associated partial or inconsistent tag pair fails closed. npm
+publication is unsupported pending rpg-api-protos#263.
 
 See [regenerate-sdks.md](regenerate-sdks.md) for the local equivalent.
 
@@ -78,7 +82,7 @@ go get github.com/KirkDiggler/rpg-api-protos/gen/go@vX.Y.Z
 ```
 
 The Go resolver maps that module version to the repository tag
-`gen/go/vX.Y.Z`. The root `vX.Y.Z` tag remains the release/npm tag.
+`gen/go/vX.Y.Z`. The root `vX.Y.Z` tag remains the GitHub release identity.
 
 ### Usage shape
 
@@ -129,34 +133,19 @@ Watch for these in rpg-api PRs:
 
 ## rpg-dnd5e-web (TypeScript) integration
 
-### Pinning model
+### Publication status
 
-Standard npm install:
-```bash
-npm install @kirkdiggler/rpg-api-protos
-```
+CI still generates and compile-checks `gen/ts`, but npm is **not a supported
+publication channel**. #261 does not pack, query, or publish
+`@kirkdiggler/rpg-api-protos`. Do not rely on a fresh root GitHub release to
+produce an npm version, and do not treat the current package manifest/import
+layout as a supported consumer contract.
 
-The serialized main-branch release job derives npm version `X.Y.Z` from the
-root `vX.Y.Z` tag in an isolated publication workspace. Before publishing, it
-queries that exact package version: a missing version is published, a version
-with the same root/source/generated identity is an idempotent success, and a
-query failure or identity mismatch fails closed. The additional
-`gen/go/vX.Y.Z` tag is only for Go module resolution and does not create a
-second npm or GitHub release. Consumers pin a specific package version or use
-a range / `latest` according to their update policy.
-
-### Usage shape
-
-```typescript
-import { CharacterServiceClient } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_connect';
-import { Character, CharacterDraft } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_pb';
-import { createConnectTransport } from '@connectrpc/connect-web';
-
-const transport = createConnectTransport({ baseUrl: '/api/grpc' });
-const client = createPromiseClient(CharacterServiceClient, transport);
-
-const draft: CharacterDraft = await client.createDraft({ playerId });
-```
+rpg-api-protos#263 owns the TypeScript package layout, exports, compile output,
+versioning, clean-install import proof, and idempotent npm publication. Until
+that work lands, TypeScript SDK work must use locally generated `gen/ts` output
+or an explicitly coordinated consumer fixture rather than a newly published
+npm package.
 
 ### Drift indicators
 
@@ -217,13 +206,20 @@ boundary. See [breaking-change-workflow.md](breaking-change-workflow.md).
 - **`buf format` clean locally but CI flags formatting.** Unlikely if
   you ran `buf format -w`; possible if your buf version is older than
   CI's. Run `brew upgrade buf` (macOS) periodically.
+- **A delayed release job reaches the lock after newer main.** It fetches and
+  compares its source with `origin/main`, then exits successfully as coalesced
+  work without planning or remote mutation.
 - **Release validation or one ref update fails.** Validation completes before
   publication, and the generated branch plus both tags are one atomic push, so
-  no remote release ref advances. A same-source complete pair is reused on a
-  rerun; a partial pair stops the job.
-- **GitHub or npm publication fails after refs land.** Rerunning the same source
-  reuses its tag pair. GitHub release creation/update runs again, while npm is
-  published only when the exact root version is absent.
+  no remote release ref advances. Any Source-SHA-associated partial or
+  inconsistent pair stops planning.
+- **GitHub release publication fails after refs land.** Rerunning the same
+  source reuses its original tag pair even if newer releases exist, skips all
+  ref pushes, and retries only the root GitHub release. It cannot rewind
+  `generated`.
+- **An npm package is expected for a new release.** npm publication is
+  unsupported pending rpg-api-protos#263; #261 deliberately performs no npm
+  packaging or publication.
 - **Force-push to `generated` overwrites local commits.** Don't commit
   to `generated`. The branch is force-updated by the release transaction.
 
@@ -246,13 +242,13 @@ gen/go ──┬── force-pushed to `generated` branch ─────── 
                                                               ├── orchestrators (entity types — proto leakage today)
                                                               └── tests (mocks from gen/go/.../mocks/)
 
-gen/ts ─────── npm publish ────────── @kirkdiggler/rpg-api-protos
-                                                              │
-                                                       npm install consumes
-                                                              ▼
-                                                          rpg-dnd5e-web
-                                                              │
-                                                              └── src/api/* — Connect-ES client wraps each service
+gen/ts ─────── generated + compile-checked in CI
+    │
+    └── npm publication unsupported pending rpg-api-protos#263
+                                                    │
+                                      future supported package
+                                                    ▼
+                                            rpg-dnd5e-web
 ```
 
 ## See also

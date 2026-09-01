@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   lint-and-format:
@@ -115,7 +114,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
       
       - uses: bufbuild/buf-setup-action@v1
         with:
@@ -135,7 +133,7 @@ jobs:
           go mod init github.com/KirkDiggler/rpg-api-protos/gen/go
           go mod tidy
       
-      - name: Construct and validate local release
+      - name: Construct local generated candidate
         run: |
           set -euo pipefail
 
@@ -149,7 +147,6 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --force --tags origin
 
           # Construct a generated commit locally. Its trailer is the durable,
           # repository-owned identity used to recognize same-source reruns.
@@ -162,7 +159,40 @@ jobs:
             -m "Source-SHA: $SOURCE_SHA"
           CANDIDATE_COMMIT="$(git rev-parse HEAD)"
 
+          {
+            echo "SOURCE_SHA=$SOURCE_SHA"
+            echo "CANDIDATE_COMMIT=$CANDIDATE_COMMIT"
+            echo "REPOSITORY_MODULE_PATH=$REPOSITORY_MODULE_PATH"
+          } >> "$GITHUB_ENV"
+
+      - name: Fence, plan, and validate local release
+        run: |
+          set -euo pipefail
+
+          # This job-level concurrency lock is not FIFO. Refresh both main and
+          # tags immediately before planning so delayed source commits coalesce
+          # rather than publishing after a newer main commit.
+          git fetch --force --tags origin \
+            "+refs/heads/main:refs/remotes/origin/main"
+          SOURCE_STATUS="$(scripts/release-source-status.sh \
+            "$SOURCE_SHA" refs/remotes/origin/main)"
+          case "$SOURCE_STATUS" in
+            current)
+              echo "PUBLISH_RELEASE=true" >> "$GITHUB_ENV"
+              ;;
+            coalesced)
+              echo "PUBLISH_RELEASE=false" >> "$GITHUB_ENV"
+              echo "Source $SOURCE_SHA was superseded by $(git rev-parse refs/remotes/origin/main); coalescing without publication"
+              exit 0
+              ;;
+            *)
+              echo "Unexpected release source status: $SOURCE_STATUS" >&2
+              exit 1
+              ;;
+          esac
+
           PLAN_FILE="$(mktemp)"
+          trap 'rm -f "$PLAN_FILE"' EXIT
           scripts/plan-generated-release.sh \
             "$SOURCE_SHA" \
             "$CANDIDATE_COMMIT" \
@@ -170,11 +200,10 @@ jobs:
           # The planner emits constrained KEY=value fields only.
           # shellcheck disable=SC1090
           . "$PLAN_FILE"
-          rm "$PLAN_FILE"
 
           if [ "$REUSE_RELEASE" = "true" ]; then
-            # Publish from the immutable tagged commit, not from a newly
-            # generated retry workspace whose tool dependencies may have moved.
+            # Validate/release from the immutable tagged commit. Ref publication
+            # is skipped below so an older reused release cannot rewind generated.
             git reset --hard "$GENERATED_COMMIT"
           else
             git tag -a "$NEW_TAG" \
@@ -210,39 +239,8 @@ jobs:
             echo "Generated commit $GENERATED_COMMIT does not record source $SOURCE_SHA" >&2
             exit 1
           fi
-
-          # Build and inspect the npm payload in an isolated workspace. The
-          # checked-in package version remains untouched.
-          NPM_WORKSPACE="$RUNNER_TEMP/npm-release-$NPM_VERSION"
-          rm -rf "$NPM_WORKSPACE"
-          mkdir -p "$NPM_WORKSPACE/gen"
-          cp package.json package-lock.json README.md "$NPM_WORKSPACE/"
-          cp -R gen/ts "$NPM_WORKSPACE/gen/ts"
-          (
-            cd "$NPM_WORKSPACE"
-            npm version --no-git-tag-version "$NPM_VERSION"
-            npm pkg set \
-              "rpgApiProtosRelease.tag=$NEW_TAG" \
-              "rpgApiProtosRelease.goModuleTag=$GO_MODULE_TAG" \
-              "rpgApiProtosRelease.sourceCommit=$SOURCE_SHA" \
-              "rpgApiProtosRelease.generatedCommit=$GENERATED_COMMIT"
-            npm pack --dry-run --json > npm-pack.json
-            NPM_VERSION="$NPM_VERSION" node <<'NODE'
-          const fs = require("fs");
-          const pkg = require("./package.json");
-          const pack = JSON.parse(fs.readFileSync("npm-pack.json", "utf8"));
-          if (!Array.isArray(pack) || !pack[0]?.files?.some((file) => file.path.startsWith("gen/ts/"))) {
-            throw new Error("npm payload does not contain generated TypeScript");
-          }
-          if (pkg.version !== process.env.NPM_VERSION) {
-            throw new Error(`expected npm version ${process.env.NPM_VERSION}, found ${pkg.version}`);
-          }
-          NODE
-            rm npm-pack.json
-          )
-          NPM_PACKAGE="$(cd "$NPM_WORKSPACE" && node -p 'require("./package.json").name')"
-          if [ "$NPM_PACKAGE" != "@kirkdiggler/rpg-api-protos" ]; then
-            echo "Unexpected npm package identity: $NPM_PACKAGE" >&2
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" "$GENERATED_COMMIT"; then
+            echo "Generated commit $GENERATED_COMMIT is not based on source $SOURCE_SHA" >&2
             exit 1
           fi
 
@@ -253,16 +251,14 @@ jobs:
           echo "Reuse release: $REUSE_RELEASE"
 
           {
-            echo "SOURCE_SHA=$SOURCE_SHA"
             echo "GENERATED_COMMIT=$GENERATED_COMMIT"
             echo "NEW_TAG=$NEW_TAG"
             echo "GO_MODULE_TAG=$GO_MODULE_TAG"
-            echo "NPM_VERSION=$NPM_VERSION"
-            echo "NPM_PACKAGE=$NPM_PACKAGE"
-            echo "NPM_WORKSPACE=$NPM_WORKSPACE"
+            echo "REUSE_RELEASE=$REUSE_RELEASE"
           } >> "$GITHUB_ENV"
 
       - name: Atomically publish generated branch and release tags
+        if: env.PUBLISH_RELEASE == 'true' && env.REUSE_RELEASE == 'false'
         run: |
           set -euo pipefail
           git push --atomic origin \
@@ -271,6 +267,7 @@ jobs:
             "refs/tags/$GO_MODULE_TAG:refs/tags/$GO_MODULE_TAG"
 
       - name: Check GitHub release publication
+        if: env.PUBLISH_RELEASE == 'true'
         run: |
           set -euo pipefail
           DECISION="$(scripts/release-publication-status.sh \
@@ -280,30 +277,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or update GitHub release
+        if: env.PUBLISH_RELEASE == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NEW_TAG }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish npm package if absent
-        run: |
-          set -euo pipefail
-          DECISION="$(scripts/release-publication-status.sh \
-            npm "$NPM_PACKAGE" "$NPM_VERSION" "$NEW_TAG" \
-            "$GO_MODULE_TAG" "$SOURCE_SHA" "$GENERATED_COMMIT")"
-          case "$DECISION" in
-            publish)
-              (cd "$NPM_WORKSPACE" && npm publish --access public)
-              ;;
-            already-published)
-              echo "$NPM_PACKAGE@$NPM_VERSION already has release identity $NEW_TAG; skipping publish"
-              ;;
-            *)
-              echo "Unexpected npm publication decision: $DECISION" >&2
-              exit 1
-              ;;
-          esac
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

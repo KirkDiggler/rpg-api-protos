@@ -1,7 +1,7 @@
 ---
 name: Equipment (v1alpha2)
 description: Character-scoped equip/unequip RPCs and CharacterData's equipment fields — live in rpg-api since rpg-api#682, not yet adopted by rpg-dnd5e-web
-updated: 2026-07-21
+updated: 2026-09-01
 confidence: high — verified by reading dnd5e/api/v1alpha2/character/service.proto and encounter/types.proto end-to-end, and by grepping rpg-api / rpg-dnd5e-web **at origin/main** for consumers (see "Live consumers" for why that qualifier matters)
 ---
 
@@ -217,9 +217,11 @@ snapshot path and the out-of-encounter `EquipItem`/`UnequipItem` responses
 compose `CharacterData`'s equipment fields identically, so a client reading
 both surfaces never sees them disagree.
 
-Next step for whoever picks up the web side: bump `@kirkdiggler/rpg-api-protos`
-past `v0.1.108`, then build the v1alpha2-equivalent of `equipmentHooks.ts`
-against `dnd5e/api/v1alpha2/character`.
+The web-side update must wait for rpg-api-protos#263 to establish a supported
+npm package contract; #261 does not publish npm. After that lands, bump
+`@kirkdiggler/rpg-api-protos` past `v0.1.108`, then build the
+v1alpha2-equivalent of `equipmentHooks.ts` against
+`dnd5e/api/v1alpha2/character`.
 
 ## Known rough edges
 

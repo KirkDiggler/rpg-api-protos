@@ -1,6 +1,6 @@
 # RPG API Protocol Buffers
 
-This repository contains the Protocol Buffer definitions for the RPG API with automated CI/CD generation and publishing of Go and TypeScript packages.
+This repository contains the Protocol Buffer definitions for the RPG API with automated CI/CD generation and versioned Go SDK releases. TypeScript is generated and compile-checked, but npm publication is unsupported pending rpg-api-protos#263.
 
 ## Overview
 
@@ -8,7 +8,8 @@ The rpg-api-protos repository provides:
 - ✅ Protocol Buffer definitions for D&D 5e API  
 - ✅ Automated code generation for Go and TypeScript
 - ✅ Mock generation for testing
-- ✅ Package publishing to Go modules and NPM
+- ✅ Versioned Go module tags and GitHub releases
+- ⏸️ npm publication deferred to rpg-api-protos#263
 - ✅ Breaking change detection
 - ✅ Comprehensive linting and formatting
 
@@ -36,16 +37,11 @@ mockClient := mocks.NewMockCharacterServiceClient(ctrl)
 
 ### TypeScript Projects
 
-```bash
-npm install @kirkdiggler/rpg-api-protos
-```
-
-```typescript
-import { CharacterServiceClient } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_connect';
-import { Character } from '@kirkdiggler/rpg-api-protos/dnd5e/api/v1alpha1/character_pb';
-
-const client = new CharacterServiceClient(transport);
-```
+npm publication is currently unsupported. CI generates and compile-checks
+`gen/ts`, but rpg-api-protos#263 must define and prove the package layout,
+exports, build output, and clean-install imports before
+`@kirkdiggler/rpg-api-protos` is a supported install path. Generate TypeScript
+locally with `buf generate` until that work lands.
 
 ## Repository Structure
 

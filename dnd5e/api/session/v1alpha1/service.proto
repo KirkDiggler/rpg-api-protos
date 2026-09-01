@@ -83,7 +83,11 @@ message JoinResponse {
   // What changed in each observer's perception, keyed by observer. Absent
   // observers saw nothing new.
   map<string, Discovery> discovered = 3;
-  // The story sequence of the recorded join.
+  // The JOINING MEMBER'S own number for the recorded join — the actor's
+  // numbering, the same one their event stream speaks. seq is per recipient
+  // (see Event.seq): this number is dense in that member's stream alone,
+  // means nothing in any other member's, and is never the engine's
+  // whole-truth sequence over the shared record.
   uint64 seq = 4;
   // Present if an ending fired on the join.
   Outcome outcome = 5;
@@ -107,7 +111,10 @@ message ExitResponse {
   // What the member knew on the way out — the knowledge that leaves with them
   // rather than staying with the encounter.
   repeated Sighting carry = 2;
-  // The story sequence of the recorded exit.
+  // The EXITING MEMBER'S own number for the recorded exit — the actor's
+  // numbering. seq is per recipient (see Event.seq): dense in that member's
+  // stream alone, meaningless in anyone else's, and never the engine's
+  // whole-truth sequence.
   uint64 seq = 3;
   // Present if the encounter auto-closed because the last member left.
   Outcome closed = 4;
@@ -273,7 +280,11 @@ message AttackResponse {
   bool critical = 5;
   // What was dealt. Zero on a miss.
   int32 damage = 6;
-  // The story sequence of the recorded beat.
+  // The ATTACKER'S own number for the recorded beat — the actor's numbering.
+  // seq is per recipient (see Event.seq): dense in the caller's stream alone,
+  // meaningless in the target's or any witness's, and never the engine's
+  // whole-truth sequence. A witness holds a different number for this same
+  // swing.
   uint64 seq = 7;
   SaveReport saved = 8;
   DeliveryReport delivery = 9;
@@ -476,7 +487,10 @@ message EndTurnResponse {
   // Whether that was the last turn of the round, so the order has come back
   // around.
   bool round_wrapped = 2;
-  // The story sequence of the recorded beat.
+  // The CALLING MEMBER'S own number for the recorded beat — the actor's
+  // numbering. seq is per recipient (see Event.seq): dense in the caller's
+  // stream alone, meaningless in another fighter's, and never the engine's
+  // whole-truth sequence.
   uint64 seq = 3;
   SaveReport saved = 4;
   DeliveryReport delivery = 5;
@@ -516,7 +530,11 @@ message DissolveResponse {
   repeated string members = 1;
   // Why it ended, echoed for a caller handling the response.
   DissolveKind cause = 2;
-  // The story sequence of the recorded beat.
+  // The CALLING MEMBER'S own number for the recorded beat — the actor's
+  // numbering. seq is per recipient (see Event.seq): dense in the caller's
+  // stream alone, meaningless in any other dissolved member's, and never the
+  // engine's whole-truth sequence. Everyone else in `members` holds a
+  // different number for this same ending.
   uint64 seq = 3;
   SaveReport saved = 4;
   DeliveryReport delivery = 5;
@@ -570,7 +588,14 @@ message GetStatusResponse {
 //
 // THE RESYNC SOURCE OF TRUTH (design rule 6). Delivery on StreamEvents is
 // best-effort and carries no replay obligation; a client that notices a gap in
-// `seq` re-queries here from its last known value.
+// its OWN `seq` re-queries here from its last known value.
+//
+// EVERYTHING HERE IS IN THE REQUESTED MEMBER'S NUMBERING, which is theirs
+// alone (see Event.seq — seq is per recipient, dense in that member's stream).
+// The entries returned carry exactly the numbers that member's live stream
+// carried. A seq learned from another member, or a server-side sequence from
+// the engine's own whole-truth numbering, is not a resume point on this stream
+// and asking with one names a beat nobody delivered.
 //
 // NOT_FOUND with the SDK's ErrStoryTrimmed semantics means the requested resume
 // point has aged out of the retention window and the caller must resync from
@@ -580,18 +605,22 @@ message GetStoryRequest {
   string session = 1;
   // The viewer whose story is requested.
   string member = 2;
-  // The INCLUSIVE lower bound: entries begin AT this sequence. To resume after
-  // entry N, pass N+1. Zero means "I hold nothing, send what you have" and is
-  // always answerable, however much has aged out.
+  // The INCLUSIVE lower bound, read in `member`'s OWN numbering — never the
+  // engine's whole-truth sequence and never a number another member reported.
+  // Entries begin AT this sequence. To resume after entry N, pass N+1. Zero
+  // means "I hold nothing, send what you have" and is always answerable,
+  // however much has aged out.
   uint64 from_seq = 3;
 }
 
 // GetStoryResponse carries session.Story's return slice, projected through
 // the SAME converter StreamEvents uses.
 //
-// Each entry is the Event a live subscriber would have received for this seq
-// — kind, typed body, recipient and all — so a client catching up after a gap
-// reads exactly what it missed. Catch-up and live are ONE shape: there is no
+// Each entry is the Event this member's live stream would have carried,
+// numbered exactly as it was numbered there — kind, seq, typed body, recipient
+// and all — so a client catching up after a gap reads exactly what it missed.
+// Catch-up and live agree number for number, because both count the same
+// per-recipient stream (see Event.seq), and they are ONE shape: there is no
 // second, lossier projection of a beat that a client has to decode
 // differently (rpg-api-protos#239 — the old StoryEntry carried only the raw
 // payload, which left caught-up beats untyped in the client's feed).
@@ -1056,6 +1085,7 @@ service SessionService {
   // client must render that is not the caller's own action arrives here —
   // monsters acting, the clock advancing, another member crossing a doorway —
   // single-player included (design rule 2). Best-effort: a recipient that
-  // notices a gap in Event.seq re-queries GetStory (rule 6).
+  // notices a gap in its OWN Event.seq — the numbering is per recipient and
+  // dense in each member's stream alone — re-queries GetStory (rule 6).
   rpc StreamEvents(StreamEventsRequest) returns (stream Event);
 }

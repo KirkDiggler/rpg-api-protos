@@ -272,10 +272,16 @@ Three properties worth holding onto:
   filtered would be reimplementing visibility, and its first mistake would leak
   fog of war.
 - **Delivery is best-effort; the story log is truth** (design rule 6). `seq` is
-  monotonic and gapless per session. A client that notices a gap re-queries
-  `GetStory` from its last known value. The stream carries no replay
-  obligation, which is why there is no snapshot-then-deltas pattern here — the
-  shape `StreamEncounter` and `StreamLobby` both use.
+  monotonic and dense **per recipient**, not per session: each member's stream
+  is numbered for that member alone, so two members receiving the same beat
+  carry different numbers and neither number means anything in the other's
+  stream (ruled on rpg-project#351, built in rpg-toolkit#1377). The dense
+  numbering is what makes a gap honest — a member never observes a hole even
+  though retention trims the shared story underneath. A client that notices a
+  gap in its *own* numbering re-queries `GetStory` from its last known value.
+  The stream carries no replay obligation, which is why there is no
+  snapshot-then-deltas pattern here — the shape `StreamEncounter` and
+  `StreamLobby` both use.
 
 `EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`. The
 vocabulary held **unchanged from v0.9.0 through v0.13.0**, then v0.18.0 both

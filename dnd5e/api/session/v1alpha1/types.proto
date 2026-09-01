@@ -605,7 +605,9 @@ message Sighting {
 // Step is one cell entered during a walk. Mirrors session.Step.
 message Step {
   Position position = 1;
-  // The story sequence of the recorded step.
+  // The WALKER'S own number for the recorded step — the actor's numbering.
+  // seq is per recipient (see Event.seq): dense in the walker's stream alone,
+  // and a witness of the same step holds a different number for it.
   uint64 seq = 2;
 }
 
@@ -635,7 +637,11 @@ message Formed {
   // perception arrives deliberately (stealth against perception,
   // rpg-toolkit#1020), never through geometry.
   repeated string surprised = 2;
-  // The story sequence of the beat that recorded the fight starting.
+  // The ACTOR'S own number for the beat that recorded the fight starting —
+  // the numbering of the member whose verb carried this report back, not a
+  // number the fight has. seq is per recipient (see Event.seq): everyone else
+  // in `order` holds a different number for this same beat, and it is never
+  // the engine's whole-truth sequence.
   uint64 seq = 3;
 }
 
@@ -923,8 +929,9 @@ message DeliveryReport {
   // How many per-recipient events were handed to the stream.
   int32 events = 1;
   // Delivery did not succeed. The verb still succeeded: the story log is the
-  // source of truth, sequences are gapless, and a client that misses an event
-  // notices the hole and re-queries GetStory.
+  // source of truth, every recipient's own sequence is dense (see Event.seq —
+  // seq is per recipient), and a client that misses an event notices the hole
+  // in its own numbering and re-queries GetStory.
   bool failed = 2;
 }
 

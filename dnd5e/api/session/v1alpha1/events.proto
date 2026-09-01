@@ -185,11 +185,29 @@ enum EventKind {
 message Event {
   // The session this event belongs to.
   string session = 1;
-  // The story sequence this event was derived from: monotonic, gapless, and
-  // never renumbered. A recipient that notices a gap has missed an event and
+  // THIS RECIPIENT'S OWN NUMBER for the beat — per recipient, not per beat.
+  // Each member's stream is densely numbered for that member alone (1, 2, 3
+  // over the beats THEY were delivered), monotonic within that stream and
+  // never renumbered. Two members receiving the same beat therefore carry
+  // DIFFERENT numbers here, and neither number names anything in the other's
+  // stream: comparing seqs across recipients is meaningless, and the only
+  // question this field answers is "did MY next number arrive". The dense
+  // numbering is what makes that question honest — a member never observes a
+  // hole, however much of the shared story retention has trimmed underneath
+  // (ruled on rpg-project#351, built in rpg-toolkit#1377).
+  //
+  // So a gap means one thing only: this recipient missed an event, and
   // re-queries GetStory from its last known value (design rule 6 — delivery is
   // best-effort, the story log is truth, and the stream carries no replay
   // obligation).
+  //
+  // NEVER FORWARD A SEQUENCE FROM ANOTHER NUMBERING SPACE INTO THIS FIELD.
+  // The engine keeps its own whole-truth numbering over the shared record, and
+  // a host-driven result can carry one — the SDK's Spawn output is the case
+  // that exists, and its Seq is the record's, not any member's. Those are
+  // different spaces. Copied here, such a number lands in the client's stream
+  // as a gap or a repeat, and the client resyncs against a hole that was never
+  // there.
   uint64 seq = 2;
   // The clock reading when the underlying beat was recorded. The world's clock,
   // not a wall time — hence uint64 rather than google.protobuf.Timestamp, which
@@ -361,7 +379,9 @@ message FightEnded {
 
 // Moved: a member stepped to a new cell (EVENT_KIND_MOVED). Dungeon-absolute,
 // like every position on this seam. One body per step — a walk of four cells
-// is four of these, each with its own seq.
+// is four of these, each numbered in its own recipient's stream (Event.seq is
+// per recipient: the walker and a witness both count all four steps, with
+// different numbers).
 message Moved {
   string member = 1;
   Position to = 2;

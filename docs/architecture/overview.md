@@ -93,28 +93,29 @@ make mocks       → mockgen-generated mocks for all gRPC clients
 generated commit records Source-SHA: <main commit>
     │
     ▼ under the release lock, immediately before planning
-fetch origin/main + tags; superseded Source-SHA exits successfully (coalesced)
+fetch origin/main + tags; inspect all Source-SHA-associated release identities
 find a complete same-source pair anywhere in strict release history, or select
 latest ^v[0-9]+\.[0-9]+\.[0-9]+$ tag and allocate vX.Y.Z+1
 validate annotated root/module tags, peeled target, module path, and source
     │
-    ├── reuse: no ref push
-    │
-    └── new release: one atomic git push
+    ├── stale + no pair: coalesce; no publication
+    ├── verified reuse: no ref push; root GitHub release repair only
+    └── new release: re-fetch/recompare origin/main, then one atomic git push
         +<commit>:generated + create-only vX.Y.Z + create-only gen/go/vX.Y.Z
     │
     ▼ same main-triggered job
-GitHub release(tag_name=vX.Y.Z) + Go consumption via @generated or @vX.Y.Z
+GitHub release(tag_name=vX.Y.Z; generated notes only on create)
 ```
 
 A same-source rerun reuses its complete root/module tag pair even when newer
 releases exist, performs no branch/tag push, and retries only the root GitHub
 release. Any Source-SHA-associated partial or inconsistent pair fails closed.
-A delayed source that is no longer `origin/main` coalesces without remote
-mutation. The only forced ref in a new release is `generated`; both tags are
-create-only, and all three refs are in one atomic push. npm publication is
-unsupported pending rpg-api-protos#263. Checking out `generated` for proto
-edits will still lose work.
+A stale source with no pair coalesces only after that inspection. A source that
+becomes stale after planning performs no ref or external publication. The only
+forced ref in a new release is `generated`; both tags are create-only, and all
+three refs are in one atomic push. npm publication is unsupported pending
+rpg-api-protos#263. Checking out `generated` for proto edits will still lose
+work.
 
 ## The contract rules
 

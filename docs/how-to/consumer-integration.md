@@ -25,16 +25,19 @@ CI then runs one serialized release transaction from the `main` push:
 1. Constructs the generated commit locally and records the triggering source
    SHA in its commit message.
 2. Under the release lock, fetches `origin/main` and tags immediately before
-   planning. A superseded source exits successfully without remote mutation.
+   planning, then inspects release history even when the source is stale.
 3. Reuses a complete same-source `vX.Y.Z` + `gen/go/vX.Y.Z` pair wherever it
-   appears in strict release history, even when newer releases exist; otherwise
-   the next version is selected from final root tags matching `vX.Y.Z` only.
+   appears, even when newer releases exist. A stale source without such a pair
+   coalesces; any source-associated partial pair fails closed. Otherwise the
+   next version is selected from final root tags matching `vX.Y.Z` only.
 4. Validates the module path, source identity, annotated tags, and peeled
    targets before publication.
-5. For a new release, atomically force-updates `generated` while creating both
-   tags without force; a rejected ref leaves all three remote refs unchanged.
-   Reuse performs no branch or tag push.
-6. Creates or updates the one GitHub release by explicit root tag.
+5. Immediately re-fetches and compares `origin/main`. If the source became
+   stale after planning, nothing is published. Otherwise a new release
+   atomically force-updates `generated` while creating both tags without force;
+   reuse performs no branch or tag push.
+6. Creates or recovers the one GitHub release by explicit root tag. Generated
+   notes are added only when creating it, not during existing-release recovery.
 
 Any Source-SHA-associated partial or inconsistent tag pair fails closed. npm
 publication is unsupported pending rpg-api-protos#263.
@@ -207,16 +210,20 @@ boundary. See [breaking-change-workflow.md](breaking-change-workflow.md).
   you ran `buf format -w`; possible if your buf version is older than
   CI's. Run `brew upgrade buf` (macOS) periodically.
 - **A delayed release job reaches the lock after newer main.** It fetches and
-  compares its source with `origin/main`, then exits successfully as coalesced
-  work without planning or remote mutation.
+  compares its source with `origin/main`, then scans release history. Its own
+  verified pair may repair only the root GitHub release; without a pair it
+  coalesces. A partial pair fails closed.
+- **Main advances after release planning.** CI re-fetches immediately before
+  the atomic push and skips both ref and external publication for the stale
+  plan.
 - **Release validation or one ref update fails.** Validation completes before
   publication, and the generated branch plus both tags are one atomic push, so
   no remote release ref advances. Any Source-SHA-associated partial or
   inconsistent pair stops planning.
 - **GitHub release publication fails after refs land.** Rerunning the same
   source reuses its original tag pair even if newer releases exist, skips all
-  ref pushes, and retries only the root GitHub release. It cannot rewind
-  `generated`.
+  ref pushes, and retries only the root GitHub release without appending
+  generated notes. It cannot rewind `generated`.
 - **An npm package is expected for a new release.** npm publication is
   unsupported pending rpg-api-protos#263; #261 deliberately performs no npm
   packaging or publication.

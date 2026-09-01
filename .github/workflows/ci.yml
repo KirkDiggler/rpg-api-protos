@@ -165,41 +165,37 @@ jobs:
             echo "REPOSITORY_MODULE_PATH=$REPOSITORY_MODULE_PATH"
           } >> "$GITHUB_ENV"
 
-      - name: Fence, plan, and validate local release
+      - name: Plan and validate local release
         run: |
           set -euo pipefail
 
           # This job-level concurrency lock is not FIFO. Refresh both main and
-          # tags immediately before planning so delayed source commits coalesce
-          # rather than publishing after a newer main commit.
+          # tags before planning, but always inspect release history: a stale
+          # source may repair its verified pair, and a partial pair must fail.
           git fetch --force --tags origin \
             "+refs/heads/main:refs/remotes/origin/main"
-          SOURCE_STATUS="$(scripts/release-source-status.sh \
-            "$SOURCE_SHA" refs/remotes/origin/main)"
-          case "$SOURCE_STATUS" in
-            current)
-              echo "PUBLISH_RELEASE=true" >> "$GITHUB_ENV"
-              ;;
-            coalesced)
-              echo "PUBLISH_RELEASE=false" >> "$GITHUB_ENV"
-              echo "Source $SOURCE_SHA was superseded by $(git rev-parse refs/remotes/origin/main); coalescing without publication"
-              exit 0
-              ;;
-            *)
-              echo "Unexpected release source status: $SOURCE_STATUS" >&2
-              exit 1
-              ;;
-          esac
 
-          PLAN_FILE="$(mktemp)"
-          trap 'rm -f "$PLAN_FILE"' EXIT
-          scripts/plan-generated-release.sh \
+          PREPARATION_FILE="$(mktemp)"
+          trap 'rm -f "$PREPARATION_FILE"' EXIT
+          scripts/prepare-generated-release.sh \
             "$SOURCE_SHA" \
             "$CANDIDATE_COMMIT" \
-            "$REPOSITORY_MODULE_PATH" > "$PLAN_FILE"
-          # The planner emits constrained KEY=value fields only.
+            "$REPOSITORY_MODULE_PATH" \
+            refs/remotes/origin/main > "$PREPARATION_FILE"
+          # Release preparation emits constrained KEY=value fields only.
           # shellcheck disable=SC1090
-          . "$PLAN_FILE"
+          . "$PREPARATION_FILE"
+
+          {
+            echo "SOURCE_STATUS_AT_PLAN=$SOURCE_STATUS_AT_PLAN"
+            echo "RELEASE_ACTION=$RELEASE_ACTION"
+            echo "PUBLISH_GITHUB_RELEASE=false"
+          } >> "$GITHUB_ENV"
+
+          if [ "$RELEASE_ACTION" = "coalesced" ]; then
+            echo "Stale source $SOURCE_SHA has no complete release pair; coalescing without publication"
+            exit 0
+          fi
 
           if [ "$REUSE_RELEASE" = "true" ]; then
             # Validate/release from the immutable tagged commit. Ref publication
@@ -249,6 +245,7 @@ jobs:
           echo "Go module tag: $GO_MODULE_TAG"
           echo "Generated commit: $GENERATED_COMMIT"
           echo "Reuse release: $REUSE_RELEASE"
+          echo "Release action: $RELEASE_ACTION"
 
           {
             echo "GENERATED_COMMIT=$GENERATED_COMMIT"
@@ -257,30 +254,67 @@ jobs:
             echo "REUSE_RELEASE=$REUSE_RELEASE"
           } >> "$GITHUB_ENV"
 
-      - name: Atomically publish generated branch and release tags
-        if: env.PUBLISH_RELEASE == 'true' && env.REUSE_RELEASE == 'false'
+      - name: Revalidate source and atomically publish release refs
+        if: env.RELEASE_ACTION != 'coalesced'
         run: |
           set -euo pipefail
-          git push --atomic origin \
-            "+$GENERATED_COMMIT:refs/heads/generated" \
-            "refs/tags/$NEW_TAG:refs/tags/$NEW_TAG" \
-            "refs/tags/$GO_MODULE_TAG:refs/tags/$GO_MODULE_TAG"
+
+          # Close the planning-to-publication window as far as the client can:
+          # refresh and compare main again immediately before the atomic push.
+          git fetch --force origin \
+            "+refs/heads/main:refs/remotes/origin/main"
+
+          PUBLICATION_GATE_FILE="$(mktemp)"
+          trap 'rm -f "$PUBLICATION_GATE_FILE"' EXIT
+          scripts/release-publication-gate.sh \
+            "$SOURCE_SHA" \
+            refs/remotes/origin/main \
+            "$SOURCE_STATUS_AT_PLAN" \
+            "$RELEASE_ACTION" > "$PUBLICATION_GATE_FILE"
+          # The publication gate emits constrained KEY=value fields only.
+          # shellcheck disable=SC1090
+          . "$PUBLICATION_GATE_FILE"
+
+          if [ "$PUBLISH_REFS" = "true" ]; then
+            git push --atomic origin \
+              "+$GENERATED_COMMIT:refs/heads/generated" \
+              "refs/tags/$NEW_TAG:refs/tags/$NEW_TAG" \
+              "refs/tags/$GO_MODULE_TAG:refs/tags/$GO_MODULE_TAG"
+          elif [ "$SOURCE_STATUS_AT_PLAN" = "current" ] && \
+               [ "$SOURCE_STATUS_AT_PUBLICATION" = "coalesced" ]; then
+            echo "Source $SOURCE_SHA became stale after planning; skipping ref and GitHub publication"
+          else
+            echo "Release action $RELEASE_ACTION performs no ref push"
+          fi
+
+          echo "PUBLISH_GITHUB_RELEASE=$PUBLISH_GITHUB_RELEASE" >> "$GITHUB_ENV"
 
       - name: Check GitHub release publication
-        if: env.PUBLISH_RELEASE == 'true'
+        id: github-release-status
+        if: env.PUBLISH_GITHUB_RELEASE == 'true'
         run: |
           set -euo pipefail
           DECISION="$(scripts/release-publication-status.sh \
             github "${{ github.repository }}" "$NEW_TAG")"
           echo "GitHub release $NEW_TAG: $DECISION"
+          echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create or update GitHub release
-        if: env.PUBLISH_RELEASE == 'true'
+      - name: Create GitHub release with generated notes
+        if: env.PUBLISH_GITHUB_RELEASE == 'true' && steps.github-release-status.outputs.decision == 'create'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NEW_TAG }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Recover existing GitHub release without generated notes
+        if: env.PUBLISH_GITHUB_RELEASE == 'true' && steps.github-release-status.outputs.decision == 'update'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.NEW_TAG }}
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

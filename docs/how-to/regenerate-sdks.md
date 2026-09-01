@@ -23,20 +23,22 @@ serializes that job with other release jobs:
 3. Sets up the nested Go module and constructs a local generated commit whose
    `Source-SHA` trailer records the triggering main commit.
 4. Under the serialized release lock, fetches `origin/main` and all tags
-   immediately before planning. If the source is no longer `origin/main`, the
-   job exits successfully as coalesced work without remote mutation.
+   immediately before planning, then inspects release history even for a stale
+   source.
 5. Searches all strict final root releases for the triggering source. A
-   complete root/module pair is reused even when newer releases exist; any
-   Source-SHA-associated partial or inconsistent pair fails closed. Otherwise,
-   only final root tags matching `vX.Y.Z` advance the version clock.
+   complete root/module pair is reused even when newer releases exist; a stale
+   source without a pair coalesces, and any Source-SHA-associated partial or
+   inconsistent pair fails closed. Otherwise, only final root tags matching
+   `vX.Y.Z` advance the version clock.
 6. Creates or reuses annotated root `vX.Y.Z` and `gen/go/vX.Y.Z` tags on the
    exact same generated commit and verifies the module path, derived `gen/go`
    prefix, peeled targets, and source identity.
-7. For a new release, performs one atomic push containing the forced
-   `generated` update and both create-only tags. Reuse performs no branch or
-   tag push, so an older release retry cannot rewind `generated`.
-8. From that same main-triggered job, creates or updates the one GitHub release
-   using the explicit root tag.
+7. Re-fetches and compares `origin/main` immediately before publication. A
+   source that became stale after planning publishes nothing. Otherwise a new
+   release performs one atomic push containing the forced `generated` update
+   and both create-only tags. Reuse performs no branch or tag push.
+8. From that same main-triggered job, creates or recovers the one GitHub release
+   using the explicit root tag; generated notes are added only on creation.
 
 There is no tag-triggered publication workflow. npm publication is unsupported
 pending rpg-api-protos#263; #261 performs no npm packaging or publication.
@@ -134,15 +136,18 @@ gets the latest.
 - **`make mocks` fails.** The CI installs `mockgen` first
   (`go install go.uber.org/mock/mockgen@latest`). Missing locally
   → install it.
-- **A release job is delayed behind newer main.** The under-lock source fence
-  coalesces it successfully before planning, with no remote mutation.
+- **A release job is delayed behind newer main.** The under-lock gate still
+  scans release history. A verified same-source pair may repair only its root
+  GitHub release; without a pair the job coalesces. A partial pair fails.
+- **Main advances after planning.** The immediate pre-publication fetch blocks
+  both ref and external publication for that newly stale source.
 - **A release rerun sees a source-associated partial or inconsistent pair.**
   CI fails closed even when the bad pair belongs to another source; it does not
   allocate or rewrite another version.
 - **GitHub release publication fails after the atomic ref push.** Rerun the
   same source. The planner reuses its complete pair even if newer releases
   exist, skips branch/tag publication, and retries only the root GitHub
-  release, so `generated` cannot rewind.
+  release without appending generated notes, so `generated` cannot rewind.
 - **npm is expected after merge.** npm publication is unsupported pending
   rpg-api-protos#263 and does not run in #261.
 

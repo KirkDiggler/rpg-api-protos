@@ -423,13 +423,14 @@ of which is canonical; the comment is the only signal.
   noting the override. See
   [breaking-change-workflow.md](how-to/breaking-change-workflow.md).
 - The serialized main-branch release job fetches and verifies `origin/main`
-  under the release lock immediately before planning; a superseded source
-  coalesces successfully without remote mutation. A new release is validated
-  locally, then atomically force-updates `generated` and creates root `vX.Y.Z`
-  plus nested-module `gen/go/vX.Y.Z` tags on the same generated commit. A
-  same-source rerun finds its complete pair even behind newer releases, skips
-  every ref push, and retries only the root GitHub release. Any Source-SHA-
-  associated partial or inconsistent pair fails closed. npm publication is
+  under the release lock immediately before planning, but still scans release
+  history for a stale source: a complete pair permits only root GitHub release
+  repair, no pair coalesces, and a partial pair fails. It re-fetches main
+  immediately before publication, blocking all ref and external publication if
+  the source became stale after planning. A new release is validated locally,
+  then atomically force-updates `generated` and creates root `vX.Y.Z` plus
+  nested-module `gen/go/vX.Y.Z` tags on the same generated commit. Release
+  recovery adds generated notes only on create. npm publication is
   unsupported pending rpg-api-protos#263. Root tags through `v0.1.147` predate
   the nested-module tag fix and require exact generated-commit pseudo-versions
   for Go. Worth knowing if someone tries to checkout `generated` for proto

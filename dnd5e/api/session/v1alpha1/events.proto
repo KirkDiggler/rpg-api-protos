@@ -140,14 +140,18 @@ enum EventKind {
   // further. A member's first knowledge of a door is never this kind; it is
   // DOOR_REVEALED, below.
   EVENT_KIND_DOOR = 14;
-  // A door entered THIS RECIPIENT'S knowledge — found by their own search,
-  // or opened in their presence. Recipient-scoped by design: a concealed,
-  // unknown door is ABSENT from a non-knower's wire (GetDoors, GetAtlas —
-  // absence, not a flag), so the beat that introduces it carries everything
-  // the client needs to patch its cached view — the load-once,
-  // beat-refreshed law (rpg-project#264). This is rpg-toolkit#1020's shelf
-  // coming due for doors, per the standing ruling that detection beats are
-  // per-player from birth.
+  // A door entered THIS RECIPIENT'S knowledge — by their own search, by an
+  // open in their presence, or by perceiving the opened door as present
+  // state on arriving later. THE CAUSES ARE EXAMPLES OF KNOWLEDGE
+  // ARRIVING, NOT A CLOSED SET (ruled on rpg-project#350); the full
+  // trigger set is owned where perception lives, with the sight-seam
+  // design round. Recipient-scoped by design: a concealed, unknown door is
+  // absent from a non-knower's door-lists and masked as an ordinary wall
+  // in their geometry (see GetAtlasResponse), so the beat that introduces
+  // it carries everything the client needs to patch its cached view — the
+  // load-once, beat-refreshed law (rpg-project#264). This is
+  // rpg-toolkit#1020's shelf coming due for doors, per the standing ruling
+  // that detection beats are per-player from birth.
   EVENT_KIND_DOOR_REVEALED = 15;
 
   // A beat the producing toolkit version does not recognise. See the enum
@@ -398,12 +402,14 @@ message DoorChanged {
 }
 
 // DoorRevealed: a door entered the recipient's knowledge
-// (EVENT_KIND_DOOR_REVEALED) — found by their own search, or opened in
-// their presence. The payload is BUILT for its recipient rather than
-// shared: a non-knower had no wire trace of this door, so the reveal
-// carries the door's identity, live state and its own geometry, and the
-// client patches its cached GetDoors and GetAtlas views in place — the
-// load-once, beat-refreshed shape (rpg-project#264).
+// (EVENT_KIND_DOOR_REVEALED) — by search, by presence at its opening, or
+// by any later way knowledge arrives (the kind's causes are exemplary).
+// The payload is BUILT for its recipient rather than shared: a non-knower
+// held no honest wire trace of this door — no list entry, a wall mask in
+// its geometry — so the reveal carries the door's identity, live state
+// and its own geometry, and the client patches its cached GetDoors and
+// GetAtlas views in place — the load-once, beat-refreshed shape
+// (rpg-project#264).
 //
 // DELIBERATELY NARROW — one door's own edges and nothing else — unlike the
 // repo-wide GeometryRevealed this repo removed in #197/#198. A wider
@@ -421,8 +427,13 @@ message DoorRevealed {
   // atlas until now. Every edge of a wide door arrives together
   // (rpg-toolkit#1123: a door is one state over a set of edges).
   repeated AtlasDoorway doorways = 2;
-  // The boundaries at the door's own edges as a knower's atlas holds them,
-  // replacing whatever this recipient's cached atlas held on those edges.
-  // Only the door's edges — see the message comment on narrowness.
+  // The truth at the door's own edges, REPLACING THE MASK: this
+  // recipient's cached atlas holds a synthetic ordinary wall boundary
+  // there (see GetAtlasResponse — a concealed door presents as a wall
+  // until found), and these are the boundaries a knower's atlas holds
+  // instead. Empty is the ordinary case and means the mask simply comes
+  // off — a door's edges carry no authored boundary, the doorways above
+  // are the truth. Only the door's own edges — see the message comment on
+  // narrowness.
   repeated AtlasBoundary boundaries = 3;
 }

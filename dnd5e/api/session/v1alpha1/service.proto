@@ -687,20 +687,36 @@ message GetAtlasRequest {
 // GetAtlasResponse mirrors session.Atlas.
 //
 // CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings —
-// WITH ONE CARVE-OUT: a concealed door this member has not found is ABSENT
-// (its doorways from `doorways`, its edges' boundaries from `boundaries`).
-// Not flagged, not masked — absent: presence in any list, even marked,
-// leaks the secret (rpg-api-protos#266; rpg-toolkit#1020's shelf coming
-// due for doors, per the standing ruling that detection beats are
-// per-player from birth). Everything else is identical for every member —
-// full data until v1.0.
+// WITH ONE CARVE-OUT: a concealed door this member has not found PRESENTS
+// AS AN ORDINARY WALL (ruled on rpg-project#350, review findings
+// ratified). The absence law has two halves:
+//
+//   - ABSENT FROM EVERY DOOR-LIST: its AtlasDoorway entries do not appear
+//     in `doorways`, nor its DoorInfo in GetDoors — presence in any list,
+//     even marked, leaks the secret.
+//   - MASKED AS WALL IN GEOMETRY: `boundaries` gains a synthetic ordinary
+//     boundary at the door's edges, indistinguishable from an authored
+//     wall — nothing marks it. Masked rather than omitted because a
+//     door's edges carry no authored boundary (a door cannot stand in a
+//     wall; the authored wall run has a gap there, filled by the doorway
+//     entry), so pure omission would render a HOLE in the wall run
+//     exactly where the secret is — the absence itself would leak. The
+//     fiction already says what belongs there: a concealed door IS a
+//     wall until found.
+//
+// That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
+// doors, per the standing ruling that detection beats are per-player from
+// birth. Everything else is identical for every member — full data until
+// v1.0.
 //
 // Still fetch once per encounter and cache it, never per frame — then
-// patch it from DOOR_REVEALED beats on the stream, which carry exactly the
-// entries this answer omitted (the load-once, beat-refreshed shape).
+// patch it from DOOR_REVEALED beats on the stream, which carry the
+// doorways this answer withheld and the boundaries that replace the mask
+// (the load-once, beat-refreshed shape).
 //
-// The builder's PutDungeon answers with this same message, unscoped: that
-// is the AUTHOR'S view, and an author already knows everything they drew.
+// The builder's PutDungeon answers with this same message as the AUTHOR'S
+// view — an all-knowing member's, since an author already knows
+// everything they drew.
 message GetAtlasResponse {
   // rooms = 1 held a repeated AtlasRoom — the per-room decomposition — until
   // session v0.10.0 flattened the Atlas into one map. `doorways` below keeps
@@ -765,27 +781,9 @@ message GetAtlasResponse {
 }
 
 // =============================================================================
-// Stream
+// Doors
 // =============================================================================
 
-// StreamEventsRequest subscribes to the events addressed to one member.
-//
-// `member` is the RECIPIENT IDENTITY, and the server delivers only events whose
-// Event.recipient is that member — verbatim, as the toolkit projected them.
-// rpg-api neither filters nor re-derives visibility (design rule 4): events
-// arrive from the SDK already projected per audience, so the wire only ever
-// carries what the recipient may see. A host that filtered would be
-// reimplementing perception, and its first mistake would leak fog of war.
-//
-// Unlike StreamLobby, the subscriber is a request field rather than purely the
-// authenticated identity: one authenticated player controls one member today,
-// but the recipient of a projection is an encounter member, and the two are not
-// the same vocabulary. Servers MUST still verify the caller is entitled to that
-// member's stream.
-//
-// No snapshot-then-deltas here, deliberately — this stream has no replay
-// obligation. A subscriber that needs to catch up reads GetStory, and one that
-// needs the static map reads GetAtlas.
 // GetDoorsRequest asks for every door's live state, as one member knows it.
 message GetDoorsRequest {
   string session = 1;
@@ -799,11 +797,12 @@ message GetDoorsRequest {
 //
 // THE LIVE HALF OF THE ATLAS'S DOORWAYS: GetAtlas says where a door's edges
 // are; this says what each door is doing now. A concealed door the member
-// has not found is ABSENT — the same absence, for the same reason, as its
-// geometry from GetAtlas (see GetAtlasResponse; this is rpg-toolkit#1020's
-// shelf coming due for doors, and it reaches no further than concealed
-// structure — every never-concealed door is here for everyone, full data
-// until v1.0). Fetch once, then update from DOOR events on the stream and
+// has not found is ABSENT from this list — the door-list half of the
+// absence law, whose geometry half masks the door as a wall (see
+// GetAtlasResponse; rpg-toolkit#1020's shelf coming due for doors, and it
+// reaches no further than concealed structure — every never-concealed
+// door is here for everyone, full data until v1.0). Fetch once, then
+// update from DOOR events on the stream and
 // ADD from DOOR_REVEALED beats, which carry exactly the DoorInfo this
 // answer omitted — the same load-once, beat-refreshed shape GetRoster set
 // (rpg-project#264).
@@ -812,6 +811,12 @@ message GetDoorsResponse {
 }
 
 // OpenDoorRequest pushes a shut door open.
+//
+// THE PROBE LAW (ruled on rpg-project#350): everywhere a door id is
+// spoken, a concealed door the caller has not found answers NOT_FOUND,
+// byte-identical to a door that does not exist — never the DC-naming
+// FAILED_PRECONDITION below, which would confirm existence to a guessed
+// id. Unlock keeps the same law.
 message OpenDoorRequest {
   string session = 1;
   // Who pushes it — the DOOR beat's actor. The caller must be seated as, or
@@ -834,6 +839,10 @@ message OpenDoorResponse {
 // modifier, the lock's authored approaches. The caller names no approach —
 // the resolver applies the character's best listed one (see CheckApproach;
 // approach choice is postponed by ruling, rpg-project#350).
+//
+// A concealed door the caller has not found answers NOT_FOUND, identical
+// to a door that does not exist — the probe law, stated on
+// OpenDoorRequest.
 message UnlockRequest {
   string session = 1;
   string member = 2;
@@ -896,6 +905,28 @@ message SearchResponse {
   DeliveryReport delivery = 2;
 }
 
+// =============================================================================
+// Stream
+// =============================================================================
+
+// StreamEventsRequest subscribes to the events addressed to one member.
+//
+// `member` is the RECIPIENT IDENTITY, and the server delivers only events whose
+// Event.recipient is that member — verbatim, as the toolkit projected them.
+// rpg-api neither filters nor re-derives visibility (design rule 4): events
+// arrive from the SDK already projected per audience, so the wire only ever
+// carries what the recipient may see. A host that filtered would be
+// reimplementing perception, and its first mistake would leak fog of war.
+//
+// Unlike StreamLobby, the subscriber is a request field rather than purely the
+// authenticated identity: one authenticated player controls one member today,
+// but the recipient of a projection is an encounter member, and the two are not
+// the same vocabulary. Servers MUST still verify the caller is entitled to that
+// member's stream.
+//
+// No snapshot-then-deltas here, deliberately — this stream has no replay
+// obligation. A subscriber that needs to catch up reads GetStory, and one that
+// needs the static map reads GetAtlas.
 message StreamEventsRequest {
   string session = 1;
   string member = 2;

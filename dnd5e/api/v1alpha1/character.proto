@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha1;
 
+import "dnd5e/api/customization/v1alpha1/types.proto";
 import "dnd5e/api/v1alpha1/choices.proto";
 import "dnd5e/api/v1alpha1/common.proto";
 import "dnd5e/api/v1alpha1/enums.proto";
@@ -229,21 +230,12 @@ message Character {
   Appearance appearance = 29;
 }
 
-// Character appearance customization for visual rendering
-// Colors are stored as hex strings (e.g., "#D5A88C") for maximum flexibility
-// The web client controls color palettes; backend accepts any valid hex value
+// Character appearance customization for visual rendering.
 message Appearance {
-  // Skin tone color (replaces white marker in shader)
-  string skin_tone = 1;
+  reserved 1 to 4;
+  reserved "skin_tone", "primary_color", "secondary_color", "eye_color";
 
-  // Primary armor/clothing color (replaces magenta marker in shader)
-  string primary_color = 2;
-
-  // Secondary accent/trim color (replaces yellow marker in shader)
-  string secondary_color = 3;
-
-  // Eye iris color (used for eye mesh primary color)
-  string eye_color = 4;
+  dnd5e.api.customization.v1alpha1.HairCustomization hair = 5;
 }
 
 // Ability modifiers calculated from scores

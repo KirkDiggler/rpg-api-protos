@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-08-25
+updated: 2026-09-01
 confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
@@ -55,6 +55,30 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   by decode, since `intel.Report` carries no channel of its own
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
+
+## Public roster customization
+
+`PublicMemberInfo.customization = 7` remains the public identity shelf and now
+projects `Customization.hair = 1` with the same neutral
+`dnd5e.api.customization.v1alpha1.HairCustomization` used by character
+creation. This hair field is an API-side presentation addition approved by
+rpg-api-protos#262, rpg-project#347, and Journey rpg-project#346; it is not a
+field from the toolkit session SDK. Customization belongs beside public
+name/body identity: peers may render the hair a member chose, while hit points,
+ability scores, inventory, features, conditions, resources, and all other
+sheet/rules data remain behind the character service's owner gate.
+
+The nested presence contract is preserved across this projection: absent
+`hair`, absent scalp/facial-hair selection messages, absent `color_srgb`, and
+absent `roughness` each request provider defaults. A present `style_ref` is
+opaque and never an asset path; `none` explicitly requests no style. A present
+`StyleSelection` with no oneof arm is invalid input and must be rejected by the
+API; it does not request a provider default. Present color is packed sRGB
+`0xRRGGBB`, and present roughness is finite `[0,1]`. Metalness is intentionally
+absent and remains provider-owned.
+
+This is a schema contract for later API and web consumers. It does not claim
+that runtime persistence or roster projection has landed.
 
 ## One map — the ruling arrived
 

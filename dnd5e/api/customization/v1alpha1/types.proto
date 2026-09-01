@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package dnd5e.api.customization.v1alpha1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/customization/v1alpha1;customizationv1alpha1";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.dnd5e.customization.v1alpha1";
+
+// Selects either a provider-owned style or explicitly no style. An absent
+// StyleSelection message on a containing field means use the provider default.
+// A present StyleSelection with no selection arm is invalid input and must be
+// rejected by the API; it does not mean provider default.
+message StyleSelection {
+  oneof selection {
+    // Opaque provider-owned reference. This is never a filesystem or asset path.
+    string style_ref = 1;
+    // Explicitly selects no style; distinct from an absent StyleSelection.
+    google.protobuf.Empty none = 2;
+  }
+}
+
+// Describes provider-neutral hair rendering intent. Field absence uses provider
+// defaults; the provider owns style resolution and material interpretation.
+// Metalness is intentionally absent from this contract and remains
+// provider-owned.
+message HairCustomization {
+  // Scalp-hair selection. An absent selection message uses the provider default.
+  StyleSelection scalp = 1;
+  // Facial-hair selection. An absent selection message uses the provider default.
+  StyleSelection facial_hair = 2;
+  // Packed sRGB color in 0xRRGGBB form. Absence uses the provider default.
+  optional uint32 color_srgb = 3;
+  // Material roughness. When present, this must be finite and in [0,1];
+  // absence uses the provider default.
+  optional float roughness = 4;
+}

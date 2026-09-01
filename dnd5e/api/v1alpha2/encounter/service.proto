@@ -58,6 +58,7 @@ message InteractResponse {
   // World changes flow as events. This response carries only follow-ups
   // private to the caller (skill check prompts, dialogue choices).
   optional InputRequired input_required = 1;
+  optional InteractionResult result = 2;
 }
 
 message TakeActionRequest {

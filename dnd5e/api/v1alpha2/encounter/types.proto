@@ -513,6 +513,32 @@ message PropData {
 message NpcData {
   Ref npc_ref = 1;
   bool hostile = 2; // can flip during encounter (e.g. betrayal)
+  optional VendorView vendor = 3; // present when this NPC has vendor display inventory
+}
+
+// VendorStockMode describes whether a vendor's stock row is a fixed count or always available.
+enum VendorStockMode {
+  VENDOR_STOCK_MODE_UNSPECIFIED = 0;
+  VENDOR_STOCK_MODE_LIMITED = 1;
+  VENDOR_STOCK_MODE_UNLIMITED = 2;
+}
+
+// VendorInventoryRow is one item a vendor displays for sale. No equip-slot or kind
+// data here — a vendor has no equip slots, so Item's slot/kind fields (which exist
+// solely to drive equip-slot compatibility) don't apply. `quantity` is meaningful
+// only when stock_mode is LIMITED.
+message VendorInventoryRow {
+  Ref item_ref = 1;
+  string display_name = 2;
+  VendorStockMode stock_mode = 3;
+  optional int32 quantity = 4;
+}
+
+// VendorView is UI-ready display data for a vendor NPC's shop panel.
+message VendorView {
+  Ref npc_ref = 1;
+  string display_name = 2;
+  repeated VendorInventoryRow inventory = 3;
 }
 
 // =============================================================================
@@ -661,4 +687,20 @@ message ReactionPrompt {
   // Optional human-readable description for the reactor's UI.
   // Server may pre-format ("Goblin attacks you. Cast Shield (+5 AC, 1st-level slot)?").
   string display_text = 5;
+}
+
+// InteractionResult is the caller-private outcome payload returned in InteractResponse
+// when Interact produced a result to display, as opposed to InputRequired's "the server
+// needs more from you before this resolves." Distinct oneof because these are outputs,
+// not prompts.
+message InteractionResult {
+  oneof kind {
+    VendorInventoryOpened vendor_inventory_opened = 1;
+  }
+}
+
+// VendorInventoryOpened tells the caller their Interact opened a vendor's shop panel.
+message VendorInventoryOpened {
+  string vendor_entity_id = 1;
+  VendorView vendor = 2;
 }

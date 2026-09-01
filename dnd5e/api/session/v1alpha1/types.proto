@@ -1152,22 +1152,54 @@ enum DoorState {
   DOOR_STATE_LOCKED = 3;
 }
 
+// CheckApproach is one accepted route through an authored check: an ability
+// or skill, maybe a tool, and the DC that route must beat.
+//
+// A CHECK IS A LIST OF THESE, NOT ONE ABILITY AND ONE DC (ruled on
+// rpg-project#350): a locked door is forced with Strength or picked with
+// Dexterity and tools; a concealed door is spotted with Perception or
+// reasoned out with Investigation. Success by any listed approach, and the
+// author prices each route separately. No approach choice is pushed to the
+// player in this slice — the resolver applies the attempting character's
+// best listed approach; a sheet-driven choice is its own later design
+// round, and this shape already carries the vocabulary that round would
+// read.
+message CheckApproach {
+  // Opaque rulebook ref for the ability or skill this approach rolls, e.g.
+  // "str", "dex", "perception", "investigation". Carried, not interpreted —
+  // what the ref means is the rulebook's, exactly as the single-approach
+  // lock held its `ability` opaquely.
+  string ability = 1;
+  // Opaque item ref for a named tool, e.g. "dnd5e:item:thieves-tools".
+  // Empty when the approach names none — the reference tomb's lock does not.
+  string tool = 2;
+  // What this route must beat. Per approach, not per check: forcing the
+  // door and picking its lock need not cost the same.
+  int32 dc = 3;
+}
+
 // DoorLock is an authored lock, carried not interpreted.
 //
-// The DC is public knowledge down to the number — full data until v1.0
+// The DCs are public knowledge down to the number — full data until v1.0
 // (rpg-project#269 §0), and so is an attempt's rolled total (UnlockResponse,
 // DoorChanged). The told-not-compared law is about a different boundary: the
 // session rolls the check and the toolkit COMPOSITION learns only the
 // verdict, never the total — what the composition may know and what the wire
 // shows are separate questions, and this paragraph answers only the first.
+//
+// 1..3 were dc/ability/tool — one approach, flat on the message — until the
+// multi-approach ruling (rpg-project#350, this repo's #266) made a check a
+// list of accepted approaches. An in-place break, consumers moved in the
+// same wave, per the proto-versioning trigger (few consumers, one sitting).
 message DoorLock {
-  // Authored difficulty.
-  int32 dc = 1;
-  // Opaque rulebook ref for the ability the check uses, e.g. "dex".
-  string ability = 2;
-  // Opaque item ref for a named tool, e.g. "dnd5e:item:thieves-tools".
-  // Empty when the lock names none — the reference tomb's does not.
-  string tool = 3;
+  reserved 1, 2, 3;
+  reserved "dc", "ability", "tool";
+
+  // The accepted ways through, each with its own DC. An authored lock lists
+  // at least one; an attempt resolves through exactly one of them (the
+  // character's best — see CheckApproach), which is the approach whose DC
+  // UnlockResponse and DoorChanged report.
+  repeated CheckApproach approaches = 4;
 }
 
 // DoorInfo is one door's identity and live state.

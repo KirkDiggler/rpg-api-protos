@@ -671,15 +671,74 @@ message GetRosterResponse {
   repeated PublicMemberInfo members = 1;
 }
 
-// GetAtlasRequest asks for a session's static world map.
+// GetAtlasRequest asks for a session's static world map, as one member
+// knows it.
 message GetAtlasRequest {
   string session = 1;
+  // The viewer. Bound to the authenticated caller by the host — the same
+  // law Afford and GetWhere keep — because concealed structure makes this a
+  // member-scoped answer: a client-supplied ID wired through unchecked
+  // would read another member's secrets. Added with rpg-api-protos#266;
+  // scoping reaches exactly as far as concealed structure requires
+  // (below) and no further.
+  string member = 2;
 }
 
 // GetAtlasResponse mirrors session.Atlas.
 //
-// CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings. Fetch it
-// once per encounter and cache it; never per frame.
+// CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings —
+// WITH ONE CARVE-OUT: concealed structure this member has not had
+// revealed is not in their answer (ruled on rpg-project#350 and #351,
+// review findings ratified). The absence law:
+//
+//   - ABSENT FROM EVERY DOOR-LIST: a concealed unfound door's
+//     AtlasDoorway entries do not appear in `doorways`, nor its DoorInfo
+//     in GetDoors — presence in any list, even marked, leaks the secret.
+//   - MASKED AS WALL IN GEOMETRY, IN ONE CASE ONLY: for a concealed
+//     door between two spaces the member can see, `boundaries` gains a
+//     synthetic ordinary boundary at the door's edges, indistinguishable
+//     from an authored wall — nothing marks it. Masked rather than
+//     omitted because a door's edges carry no authored boundary (a door
+//     cannot stand in a wall; the authored wall run has a gap there,
+//     filled by the doorway entry), so pure omission would render a HOLE
+//     in a visible run exactly where the secret is — the absence itself
+//     would leak. The fiction already says what belongs there: a
+//     concealed door IS a wall until found. At a concealed region's
+//     border NO mask applies — see the third half.
+//   - THE ROOM HIDES WITH ITS DOOR, BY THE NEVER-AUTHORED YARDSTICK
+//     (ruled on rpg-project#351, refined in review round 3: client fog
+//     does not hide unexplored space, so the map itself must keep the
+//     secret). A non-knower's answer is BYTE-IDENTICAL to an atlas in
+//     which the concealed region was never authored: its cells withheld
+//     from `cells`, its AtlasRegion from `regions`, its props from
+//     `props`, and EVERY boundary touching its cells from `boundaries` —
+//     border walls included. Withholding only interior boundaries was
+//     the leak the refinement closed: a border wall left behind would
+//     touch no visible floor, an impossible signature in an honest
+//     atlas, certifying hidden space at a named coordinate. With the
+//     whole border withheld, the space reads as solid mass exactly like
+//     anywhere beyond the map's edge — and no mask applies at the
+//     region's border: its door's edge already reads as solid mass like
+//     the rest of it, and a synthetic wall touching void would carry the
+//     same self-marking signature. Every entrance of a concealed region
+//     is itself a concealed door (authoring refuses anything else), each
+//     absent from the door-lists per the first half; the mask stays the
+//     second half's own.
+//
+// That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
+// doors, per the standing ruling that detection beats are per-player from
+// birth. Everything else is identical for every member — full data until
+// v1.0.
+//
+// Still fetch once per encounter and cache it, never per frame — then
+// patch it from the reveal beats on the stream: DOOR_REVEALED carries the
+// doorways this answer withheld and the boundaries that replace the mask;
+// REGION_REVEALED carries a hidden room's whole slice (the load-once,
+// beat-refreshed shape).
+//
+// The builder's PutDungeon answers with this same message as the AUTHOR'S
+// view — an all-knowing member's, since an author already knows
+// everything they drew.
 message GetAtlasResponse {
   // rooms = 1 held a repeated AtlasRoom — the per-room decomposition — until
   // session v0.10.0 flattened the Atlas into one map. `doorways` below keeps
@@ -744,6 +803,131 @@ message GetAtlasResponse {
 }
 
 // =============================================================================
+// Doors
+// =============================================================================
+
+// GetDoorsRequest asks for every door's live state, as one member knows it.
+message GetDoorsRequest {
+  string session = 1;
+  // The viewer. Bound to the authenticated caller by the host — the same
+  // law GetAtlasRequest.member states, for the same reason, added by the
+  // same change (rpg-api-protos#266).
+  string member = 2;
+}
+
+// GetDoorsResponse carries one DoorInfo per door THIS MEMBER KNOWS.
+//
+// THE LIVE HALF OF THE ATLAS'S DOORWAYS: GetAtlas says where a door's edges
+// are; this says what each door is doing now. A concealed door the member
+// has not found is ABSENT from this list — the door-list half of the
+// absence law, whose geometry half masks the door as a wall (see
+// GetAtlasResponse; rpg-toolkit#1020's shelf coming due for doors, and it
+// reaches no further than concealed structure — every never-concealed
+// door is here for everyone, full data until v1.0). Fetch once, then
+// update from DOOR events on the stream and
+// ADD from DOOR_REVEALED beats, which carry exactly the DoorInfo this
+// answer omitted — the same load-once, beat-refreshed shape GetRoster set
+// (rpg-project#264).
+message GetDoorsResponse {
+  repeated DoorInfo doors = 1;
+}
+
+// OpenDoorRequest pushes a shut door open.
+//
+// THE PROBE LAW (ruled on rpg-project#350): everywhere a door id is
+// spoken, a concealed door the caller has not found answers NOT_FOUND,
+// byte-identical to a door that does not exist — never the DC-naming
+// FAILED_PRECONDITION below, which would confirm existence to a guessed
+// id. Unlock keeps the same law.
+message OpenDoorRequest {
+  string session = 1;
+  // Who pushes it — the DOOR beat's actor. The caller must be seated as, or
+  // hosting, this member (the same acting-as gate every verb has).
+  string member = 2;
+  string door = 3;
+}
+
+// OpenDoorResponse reports the door as it now stands.
+//
+// A locked door refuses with FAILED_PRECONDITION naming the DC — that refusal
+// is a fiction beat, not a defect (rpg-toolkit#1135). Opening a door refreshes
+// sight and can start a fight; both arrive where they always arrive — on the
+// stream — not in this response.
+message OpenDoorResponse {
+  DoorInfo door = 1;
+}
+
+// UnlockRequest tries a lock: the member's hands, the member's ability
+// modifier, the lock's authored approaches. The caller names no approach —
+// the resolver applies the character's best listed one (see CheckApproach;
+// approach choice is postponed by ruling, rpg-project#350).
+//
+// A concealed door the caller has not found answers NOT_FOUND, identical
+// to a door that does not exist — the probe law, stated on
+// OpenDoorRequest.
+message UnlockRequest {
+  string session = 1;
+  string member = 2;
+  string door = 3;
+}
+
+// UnlockResponse is the attempt, in the open. The roll is public — full data
+// until v1.0 — and the beat every member hears carries the same numbers.
+message UnlockResponse {
+  // Whether the check beat the DC. The session rolled it; the toolkit
+  // composition was told this verdict and nothing else — the total below is
+  // wire data for players, not something the composition ever learned.
+  bool beaten = 1;
+  // What the check totalled.
+  int32 total = 2;
+  // What it had to reach — the DC of the one approach the resolver applied,
+  // not of the whole lock, which prices each route separately.
+  int32 dc = 3;
+  // The door as it now stands: OPEN when beaten — a beaten lock opens the
+  // door, it does not merely unlock it — unchanged and retryable when not.
+  DoorInfo door = 4;
+}
+
+// SearchRequest declares a search of a room — the player's verb for finding
+// what a place hides.
+//
+// THE TARGET IS A REGION, NEVER A DOOR: a player cannot target structure
+// they do not know exists, so the verb names a place to sweep and the world
+// decides what that place holds (rpg-project#350). Universally attemptable
+// — no prerequisites, no class gate. In v1 the named region must be the one
+// the searcher stands in — presence is the host's truth, and any other
+// region is refused FAILED_PRECONDITION.
+message SearchRequest {
+  string session = 1;
+  // Who searches. Bound to the authenticated caller by the host, the same
+  // law Afford and GetWhere keep.
+  string member = 2;
+  // The AtlasRegion id to sweep — where the searcher stands, in v1.
+  string region = 3;
+}
+
+// SearchResponse acknowledges that the search happened, and deliberately
+// nothing more.
+//
+// THE ANSWER NEVER LEAKS THE QUESTION. An empty room and a failed check
+// answer with these same bytes — a response that said anything about
+// outcome would tell a failed searcher whether there had been something to
+// find, which is the one thing a failed search must not learn. So there is
+// no found list, no roll, no count, and no seq: nothing here varies with
+// what the room holds. A find reaches the searcher the way all world
+// change reaches anybody — as a beat (design rule 2): DOOR_REVEALED on
+// their own stream, audience = the searcher alone.
+//
+// saved and delivery are S6's law, kept by every mutating verb at this
+// seam: a successful search writes a fact and publishes a beat, either can
+// half-fail, and a partial save is an error carrying a populated report,
+// never a silent shrug (ActivateResponse's shape, for the same reasons).
+message SearchResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
+// =============================================================================
 // Stream
 // =============================================================================
 
@@ -765,66 +949,6 @@ message GetAtlasResponse {
 // No snapshot-then-deltas here, deliberately — this stream has no replay
 // obligation. A subscriber that needs to catch up reads GetStory, and one that
 // needs the static map reads GetAtlas.
-// GetDoorsRequest asks for every door's live state.
-message GetDoorsRequest {
-  string session = 1;
-}
-
-// GetDoorsResponse carries one DoorInfo per authored door.
-//
-// THE LIVE HALF OF THE ATLAS'S DOORWAYS: GetAtlas says where a door's edges
-// are and never changes; this says what each door is doing now. Fetch once,
-// then update from DOOR events on the stream — the same load-once,
-// beat-refreshed shape GetRoster set (rpg-project#264). Every member hears
-// every door today (full data until v1.0; audience-scoped door knowledge is
-// rpg-toolkit#1020's).
-message GetDoorsResponse {
-  repeated DoorInfo doors = 1;
-}
-
-// OpenDoorRequest pushes a shut door open.
-message OpenDoorRequest {
-  string session = 1;
-  // Who pushes it — the DOOR beat's actor. The caller must be seated as, or
-  // hosting, this member (the same acting-as gate every verb has).
-  string member = 2;
-  string door = 3;
-}
-
-// OpenDoorResponse reports the door as it now stands.
-//
-// A locked door refuses with FAILED_PRECONDITION naming the DC — that refusal
-// is a fiction beat, not a defect (rpg-toolkit#1135). Opening a door refreshes
-// sight and can start a fight; both arrive where they always arrive — on the
-// stream — not in this response.
-message OpenDoorResponse {
-  DoorInfo door = 1;
-}
-
-// UnlockRequest tries a lock: the member's hands, the member's ability
-// modifier, the lock's authored DC.
-message UnlockRequest {
-  string session = 1;
-  string member = 2;
-  string door = 3;
-}
-
-// UnlockResponse is the attempt, in the open. The roll is public — full data
-// until v1.0 — and the beat every member hears carries the same numbers.
-message UnlockResponse {
-  // Whether the check beat the DC. The session rolled it; the toolkit
-  // composition was told this verdict and nothing else — the total below is
-  // wire data for players, not something the composition ever learned.
-  bool beaten = 1;
-  // What the check totalled.
-  int32 total = 2;
-  // What it had to reach.
-  int32 dc = 3;
-  // The door as it now stands: OPEN when beaten — a beaten lock opens the
-  // door, it does not merely unlock it — unchanged and retryable when not.
-  DoorInfo door = 4;
-}
-
 message StreamEventsRequest {
   string session = 1;
   string member = 2;
@@ -863,6 +987,12 @@ service SessionService {
   // authored DC and reports the attempt; a beaten lock leaves the door OPEN.
   // Failure changes nothing and is retryable.
   rpc Unlock(UnlockRequest) returns (UnlockResponse);
+
+  // Search declares a search of the region `member` stands in. The response
+  // acknowledges the attempt and never says what, if anything, was there —
+  // an empty room and a failed check answer identically. A find arrives as
+  // a DOOR_REVEALED beat on the searcher's own stream.
+  rpc Search(SearchRequest) returns (SearchResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.
@@ -906,8 +1036,10 @@ service SessionService {
   // the cells of members the client has never perceived.
   rpc GetWhere(GetWhereRequest) returns (GetWhereResponse);
 
-  // GetAtlas returns the static world map. Construction truth; cache per
-  // encounter.
+  // GetAtlas returns the static world map as `member` knows it — concealed
+  // structure the member has not had revealed is absent or masked.
+  // Construction truth otherwise; cache per encounter, patch from
+  // DOOR_REVEALED and REGION_REVEALED beats.
   rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
 
   // GetRoster reports the public half of every member — identity (name, kind,
@@ -915,8 +1047,9 @@ service SessionService {
   // fetch once, re-pull on a joined event, reference at render.
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
 
-  // GetDoors reports every door's live state — the dynamic half of GetAtlas's
-  // doorways. Fetch once, update from DOOR events.
+  // GetDoors reports the live state of every door `member` knows — the
+  // dynamic half of GetAtlas's doorways. Fetch once, update from DOOR
+  // events, add from DOOR_REVEALED beats.
   rpc GetDoors(GetDoorsRequest) returns (GetDoorsResponse);
 
   // StreamEvents delivers the events addressed to one member. Everything a

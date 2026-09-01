@@ -86,10 +86,12 @@ message PutDungeonResponse {
   // endpoints are not adjacent — not one complaint per round trip.
   repeated FieldError errors = 1;
   // THE SAME MESSAGE THE GAME PLAYS FROM. The builder draws what PutDungeon
-  // returns, and what PutDungeon returns is what GetAtlas will return once a
-  // session starts on this file — one message type, one producer, one
-  // geometry. The first AuthoringService answered with its own `FloorPlan`,
-  // a builder-shaped second projection of the world that had to be kept in
+  // returns, and what PutDungeon returns is the AUTHOR'S view — what
+  // GetAtlas would answer an all-knowing member once a session starts on
+  // this file (GetAtlas is member-scoped for concealed structure; an
+  // author already knows everything they drew) — one message type, one
+  // producer, one geometry. The first AuthoringService answered with its
+  // own `FloorPlan`, a builder-shaped second projection of the world that had to be kept in
   // step with the atlas by hand; the moment the two disagreed the builder
   // was lying. Returning the atlas itself leaves the builder nothing to keep
   // in step.

@@ -21,8 +21,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and the Where read
 // added no beat and removed none), then v0.18.0 both dropped TRAVERSED and
 // added DOWNED — see each below for why. The set has grown since (DOOR,
-// rpg-project#269; DOOR_REVEALED, rpg-api-protos#266) and will again, so a
-// client pinned to an older set must be re-read rather than counted.
+// rpg-project#269; DOOR_REVEALED and REGION_REVEALED, rpg-api-protos#266)
+// and will again, so a client pinned to an older set must be re-read rather
+// than counted.
 //
 // Removing a kind is the compatible half of that pair only because nothing can
 // produce it: TRAVERSED's number and name are RESERVED here, so no future beat
@@ -153,6 +154,15 @@ enum EventKind {
   // rpg-toolkit#1020's shelf coming due for doors, per the standing ruling
   // that detection beats are per-player from birth.
   EVENT_KIND_DOOR_REVEALED = 15;
+  // A concealed region entered THIS RECIPIENT'S knowledge: they perceived
+  // its concealed door OPEN — present at the opening, or walking up later
+  // (present state; the same exemplary-causes law as DOOR_REVEALED).
+  // NEVER on merely finding the door — two knowledge moments, deliberately
+  // distinct (ruled on rpg-project#351): knowing where a door is is not
+  // seeing what is behind it, so DOOR_REVEALED carries the door alone and
+  // this beat carries the room. Recipient-scoped like DOOR_REVEALED, for
+  // the same reasons, patching the same cached atlas.
+  EVENT_KIND_REGION_REVEALED = 16;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -232,6 +242,7 @@ message Event {
     Ended ended = 19;
     DoorChanged door = 20;
     DoorRevealed door_revealed = 21;
+    RegionRevealed region_revealed = 22;
   }
 }
 
@@ -418,6 +429,10 @@ message DoorChanged {
 //
 // A knower who already holds the door gets DoorChanged, never a second
 // reveal: DOOR_REVEALED is about knowledge, DOOR is about state.
+//
+// THE DOOR ALONE. What lies behind it stays hidden until RegionRevealed —
+// knowing where a door is is not seeing what is behind it (two knowledge
+// moments, ruled on rpg-project#351).
 message DoorRevealed {
   // The door's identity and live state, exactly as this recipient's
   // GetDoors would now list it.
@@ -435,5 +450,39 @@ message DoorRevealed {
   // off — a door's edges carry no authored boundary, the doorways above
   // are the truth. Only the door's own edges — see the message comment on
   // narrowness.
+  repeated AtlasBoundary boundaries = 3;
+}
+
+// RegionRevealed: a concealed region entered the recipient's knowledge
+// (EVENT_KIND_REGION_REVEALED) — they perceived its concealed door open,
+// at the opening or arriving later (causes exemplary, as DoorRevealed's
+// are). Never fired on merely finding the door: the door reveal and the
+// room reveal are two knowledge moments, deliberately distinct (ruled on
+// rpg-project#351 — the room hides with its door, since client fog does
+// not hide unexplored space and the map itself must keep the secret).
+//
+// The payload is the region's own atlas slice — everything this
+// recipient's GetAtlas withheld under that ruling — and the client
+// patches its cached atlas in place: the load-once, beat-refreshed shape
+// (rpg-project#264). STILL DELIBERATELY NARROW: one room's own slice,
+// not a sweep — the repo-wide GeometryRevealed this repo removed in
+// #197/#198 stays dead, and a wider reveal (a scried map, a lit floor)
+// is rpg-toolkit#1020's own design round.
+//
+// There is no doorways field, on purpose: every entrance of a concealed
+// region is itself a concealed door (authoring refuses anything else),
+// and doors keep their own law — DoorRevealed, the masquerade wall, the
+// probe law. A door never rides a room's reveal.
+message RegionRevealed {
+  // The AtlasRegion entry the recipient's `regions` was missing. Its own
+  // `cells` list IS the patch for the cached `cells` — same absolute
+  // frame, same comparator (see AtlasRegion.cells) — so this message
+  // carries no second cell list free to disagree with it.
+  AtlasRegion region = 1;
+  // The props standing in the region, exactly as GetAtlasResponse.props
+  // would carry them.
+  repeated AtlasProp props = 2;
+  // The region's interior boundaries, exactly as
+  // GetAtlasResponse.boundaries would carry them.
   repeated AtlasBoundary boundaries = 3;
 }

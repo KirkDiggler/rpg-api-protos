@@ -687,13 +687,13 @@ message GetAtlasRequest {
 // GetAtlasResponse mirrors session.Atlas.
 //
 // CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings —
-// WITH ONE CARVE-OUT: a concealed door this member has not found PRESENTS
-// AS AN ORDINARY WALL (ruled on rpg-project#350, review findings
-// ratified). The absence law has two halves:
+// WITH ONE CARVE-OUT: concealed structure this member has not had
+// revealed is not in their answer (ruled on rpg-project#350 and #351,
+// review findings ratified). The absence law:
 //
-//   - ABSENT FROM EVERY DOOR-LIST: its AtlasDoorway entries do not appear
-//     in `doorways`, nor its DoorInfo in GetDoors — presence in any list,
-//     even marked, leaks the secret.
+//   - ABSENT FROM EVERY DOOR-LIST: a concealed unfound door's
+//     AtlasDoorway entries do not appear in `doorways`, nor its DoorInfo
+//     in GetDoors — presence in any list, even marked, leaks the secret.
 //   - MASKED AS WALL IN GEOMETRY: `boundaries` gains a synthetic ordinary
 //     boundary at the door's edges, indistinguishable from an authored
 //     wall — nothing marks it. Masked rather than omitted because a
@@ -703,6 +703,16 @@ message GetAtlasRequest {
 //     exactly where the secret is — the absence itself would leak. The
 //     fiction already says what belongs there: a concealed door IS a
 //     wall until found.
+//   - THE ROOM HIDES WITH ITS DOOR (ruled on rpg-project#351: client fog
+//     does not hide unexplored space, so the map itself must keep the
+//     secret). A concealed region a member has not had revealed is
+//     absent ENTIRELY — its cells from `cells`, its AtlasRegion from
+//     `regions`, its props from `props`, its interior boundaries from
+//     `boundaries` — so the space reads as solid mass exactly like
+//     anywhere beyond the map's edge, with the masquerade wall covering
+//     the one gap its door would leave. Every entrance of a concealed
+//     region is itself a concealed door (authoring refuses anything
+//     else), each keeping the two door halves above.
 //
 // That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
 // doors, per the standing ruling that detection beats are per-player from
@@ -710,9 +720,10 @@ message GetAtlasRequest {
 // v1.0.
 //
 // Still fetch once per encounter and cache it, never per frame — then
-// patch it from DOOR_REVEALED beats on the stream, which carry the
-// doorways this answer withheld and the boundaries that replace the mask
-// (the load-once, beat-refreshed shape).
+// patch it from the reveal beats on the stream: DOOR_REVEALED carries the
+// doorways this answer withheld and the boundaries that replace the mask;
+// REGION_REVEALED carries a hidden room's whole slice (the load-once,
+// beat-refreshed shape).
 //
 // The builder's PutDungeon answers with this same message as the AUTHOR'S
 // view — an all-knowing member's, since an author already knows
@@ -1015,8 +1026,9 @@ service SessionService {
   rpc GetWhere(GetWhereRequest) returns (GetWhereResponse);
 
   // GetAtlas returns the static world map as `member` knows it — concealed
-  // structure the member has not found is absent. Construction truth
-  // otherwise; cache per encounter, patch from DOOR_REVEALED beats.
+  // structure the member has not had revealed is absent or masked.
+  // Construction truth otherwise; cache per encounter, patch from
+  // DOOR_REVEALED and REGION_REVEALED beats.
   rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
 
   // GetRoster reports the public half of every member — identity (name, kind,

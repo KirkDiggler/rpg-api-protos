@@ -21,8 +21,8 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and the Where read
 // added no beat and removed none), then v0.18.0 both dropped TRAVERSED and
 // added DOWNED — see each below for why. The set has grown since (DOOR,
-// rpg-project#269) and will again, so a client pinned to an older set must be
-// re-read rather than counted.
+// rpg-project#269; DOOR_REVEALED, rpg-api-protos#266) and will again, so a
+// client pinned to an older set must be re-read rather than counted.
 //
 // Removing a kind is the compatible half of that pair only because nothing can
 // produce it: TRAVERSED's number and name are RESERVED here, so no future beat
@@ -133,10 +133,22 @@ enum EventKind {
   EVENT_KIND_DOWNED = 13;
   // A door changed — opened, closed, or an unlock attempt, beaten or not. A
   // failed attempt is as much fiction as a beaten one, and the composition
-  // writes both through one path. Every member of the encounter hears it
-  // (full data until v1.0; audience-scoped door knowledge is
-  // rpg-toolkit#1020's).
+  // writes both through one path. Every member WHO KNOWS THE DOOR hears it:
+  // for a door that was never concealed that is every member (full data
+  // until v1.0), and for a concealed one it is exactly the members it has
+  // been revealed to — scoped as far as concealed structure requires and no
+  // further. A member's first knowledge of a door is never this kind; it is
+  // DOOR_REVEALED, below.
   EVENT_KIND_DOOR = 14;
+  // A door entered THIS RECIPIENT'S knowledge — found by their own search,
+  // or opened in their presence. Recipient-scoped by design: a concealed,
+  // unknown door is ABSENT from a non-knower's wire (GetDoors, GetAtlas —
+  // absence, not a flag), so the beat that introduces it carries everything
+  // the client needs to patch its cached view — the load-once,
+  // beat-refreshed law (rpg-project#264). This is rpg-toolkit#1020's shelf
+  // coming due for doors, per the standing ruling that detection beats are
+  // per-player from birth.
+  EVENT_KIND_DOOR_REVEALED = 15;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -215,6 +227,7 @@ message Event {
     Exited exited = 18;
     Ended ended = 19;
     DoorChanged door = 20;
+    DoorRevealed door_revealed = 21;
   }
 }
 
@@ -366,7 +379,9 @@ message Ended {
 }
 
 // DoorChanged: a door changed (EVENT_KIND_DOOR) — opened, closed, or an
-// unlock attempt.
+// unlock attempt. Delivered only to members who know the door — see the
+// kind; a member learning of the door for the first time gets DoorRevealed
+// instead, on the same underlying beat.
 message DoorChanged {
   string door = 1;
   DoorState state = 2;
@@ -374,8 +389,40 @@ message DoorChanged {
   string actor = 3;
   // dc, total and beaten are set only on unlock-attempt beats — the
   // composition's door beat carries them on those and nothing on a plain
-  // open or close. A beat with dc = 0 is a plain open/close.
+  // open or close. A beat with dc = 0 is a plain open/close. On a
+  // multi-approach lock, dc is the DC of the approach the resolver applied
+  // (see CheckApproach) — an attempt resolves through exactly one route.
   int32 dc = 4;
   int32 total = 5;
   bool beaten = 6;
+}
+
+// DoorRevealed: a door entered the recipient's knowledge
+// (EVENT_KIND_DOOR_REVEALED) — found by their own search, or opened in
+// their presence. The payload is BUILT for its recipient rather than
+// shared: a non-knower had no wire trace of this door, so the reveal
+// carries the door's identity, live state and its own geometry, and the
+// client patches its cached GetDoors and GetAtlas views in place — the
+// load-once, beat-refreshed shape (rpg-project#264).
+//
+// DELIBERATELY NARROW — one door's own edges and nothing else — unlike the
+// repo-wide GeometryRevealed this repo removed in #197/#198. A wider
+// reveal (a lit room, a scried map) is not this beat grown fatter; it is
+// rpg-toolkit#1020's own design round.
+//
+// A knower who already holds the door gets DoorChanged, never a second
+// reveal: DOOR_REVEALED is about knowledge, DOOR is about state.
+message DoorRevealed {
+  // The door's identity and live state, exactly as this recipient's
+  // GetDoors would now list it.
+  DoorInfo door = 1;
+  // The door's own crossable cell pairs — the AtlasDoorway entries a
+  // knower's GetAtlas carries for it, absent from this recipient's cached
+  // atlas until now. Every edge of a wide door arrives together
+  // (rpg-toolkit#1123: a door is one state over a set of edges).
+  repeated AtlasDoorway doorways = 2;
+  // The boundaries at the door's own edges as a knower's atlas holds them,
+  // replacing whatever this recipient's cached atlas held on those edges.
+  // Only the door's edges — see the message comment on narrowness.
+  repeated AtlasBoundary boundaries = 3;
 }

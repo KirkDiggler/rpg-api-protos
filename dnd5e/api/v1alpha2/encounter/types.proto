@@ -463,6 +463,9 @@ message Item {
   string icon_key = 4; // reference key into the asset-owned manifest — keys, not enums
   string kind = 5; // "weapon" | "shield" | "armor" | "gear" — open vocabulary, not an enum
   repeated string slot_keys = 6; // slot keys this item may occupy, e.g. ["main_hand", "off_hand"]
+  // Authenticated-owner projection: total copies owned; updated owner producers send > 0.
+  // Foreign projections MUST leave 0; 0 also marks a legacy producer, never zero owned.
+  int32 quantity = 7;
 }
 
 // SlotDef is one equip socket a character exposes. Server-owned data, not a client enum —

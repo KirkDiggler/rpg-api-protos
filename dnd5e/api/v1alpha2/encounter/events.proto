@@ -9,6 +9,27 @@ option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1al
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 
+// THIS FILE IS THE RETIRED HALF OF THIS PACKAGE, WITH service.proto.
+//
+// Judged on the same test types.proto is judged on — is anything outside the
+// retired service borrowing this as a vocabulary? — the answer here is no, and
+// structurally so. This file's only importer anywhere in the tree is
+// service.proto, and the one RPC that can produce an EncounterEvent is
+// EncounterService.StreamEncounter, which no server implements. Nothing speaks
+// these payloads the way character/service.proto speaks types.proto's
+// CharacterData.
+//
+// So events.proto tracks service.proto: it is the one file here safe to treat
+// as a unit with the service, sharing whatever answer rpg-api-protos#268
+// reaches. Note that generated clients that decode these messages still exist
+// (rpg-dnd5e-web holds a good deal of such code, aimed at the unserved
+// stream). That is a client-side migration question; it is not a live
+// producer, and it does not move this file into the live half.
+//
+// The current encounter event stream is
+// `dnd5e.api.session.v1alpha1.SessionService.StreamEvents`, carrying
+// `session.v1alpha1.Event`.
+
 // EncounterEvent is the unit of state delivery on the stream.
 // Decision rule for adding events: events are unique because each one's payload is unique.
 // Same payload → same event with a wider type, not a new event.

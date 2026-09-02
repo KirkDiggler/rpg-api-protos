@@ -9,6 +9,31 @@ option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1al
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 
+// THIS IS THE PRE-SESSION-SDK ENCOUNTER WIRE, AND NO SERVER IMPLEMENTS IT.
+// The door into the current encounter system is
+// `dnd5e.api.session.v1alpha1.SessionService`, in
+// dnd5e/api/session/v1alpha1/service.proto. A new encounter feature belongs
+// there. Building against the RPCs below produces a client that compiles,
+// calls, and is answered by nothing.
+//
+// rpg-api's encounter stack was removed in KirkDiggler/rpg-api#801, and `dev`
+// has run on the session SDK alone since. Measured on rpg-api@origin/dev, it
+// registers SessionService, SessionPresentationService, CharacterService,
+// DiceService, LobbyService and AuthoringService — no encounter service of any
+// kind, no EncounterServiceServer implementation, and no `Interact` handler
+// anywhere in the tree.
+//
+// Nothing here is marked `deprecated`, deliberately: rpg-api-protos#268 asks
+// whether EncounterService is stood back up and that question is still open.
+// This comment orients a reader; it does not settle that decision.
+//
+// THE PACKAGE IS RETIRED PER FILE, NOT AS A WHOLE — the distinction matters
+// because getting it wrong in either direction costs something:
+//   - service.proto (this file) and events.proto are the retired half.
+//   - types.proto is NOT. Its messages are still borrowed as a live vocabulary
+//     by dnd5e.api.v1alpha2.character.CharacterService, which IS served. Read
+//     that file's header before deleting anything in it.
+
 // =============================================================================
 // RPC request / response messages
 // =============================================================================
@@ -166,6 +191,15 @@ message ActivateFeatureResponse {
 // Service
 // =============================================================================
 
+// EncounterService is the pre-session-SDK encounter seam. NO SERVER IMPLEMENTS
+// IT. Build against `dnd5e.api.session.v1alpha1.SessionService` instead — that
+// is the door into the current encounter system. The header of
+// dnd5e/api/v1alpha2/encounter/service.proto carries the measurement and the
+// per-file split of what in this package is retired and what is still live.
+//
+// The RPC comments below are kept as the record of what this seam meant while
+// it was served. Read them as history, not as a contract anything currently
+// honors: every one of the nine RPCs here is a shape without a server.
 service EncounterService {
   // Lifecycle
   //

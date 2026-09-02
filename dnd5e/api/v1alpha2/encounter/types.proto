@@ -8,6 +8,25 @@ option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1al
 option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.encounter";
 
+// THIS FILE IS THE LIVE HALF OF A HALF-RETIRED PACKAGE. DO NOT DELETE IT WITH
+// THE SERVICE STANDING BESIDE IT.
+//
+// EncounterService (service.proto) is the pre-session-SDK wire and no server
+// implements it; events.proto goes with it. These messages are a different
+// matter, and the difference is not a judgment call — it is an import edge.
+// `dnd5e.api.v1alpha2.character.CharacterService`, which rpg-api does register
+// and serve, imports THIS file: `CharacterData` is the payload of
+// EquipItemResponse, UnequipItemResponse and GetCharacterDataResponse, and
+// `Ref` names the item in EquipItemRequest. rpg-api's character v2 handler
+// builds those from the messages below — `CharacterData`, `Ref`, `Item`,
+// `SlotDef`, `ResourceView`, `FeatureView`, `ConditionView`, `HitPoints`,
+// `ArmorClassDisplay`.
+//
+// The vocabulary outlived the service that first defined it, which is why the
+// retirement is per file rather than per package. Anyone tidying this package
+// must MOVE these types somewhere live, not delete them alongside the service:
+// deleting them breaks a served RPC in a different package.
+
 // =============================================================================
 // Common primitives
 // =============================================================================

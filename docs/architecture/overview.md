@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos architecture overview
 description: Contract layer rules, repo layout, generation pipeline, and current rule violations
-updated: 2026-08-27
+updated: 2026-09-03
 confidence: high — verified by reading every .proto file, buf.yaml, .github/workflows/ci.yml, and grepping consumer references in rpg-api / rpg-dnd5e-web
 ---
 
@@ -20,6 +20,8 @@ the consequences of changing that shape.
 
 ```
 rpg-api-protos/
+  dnd5e/api/customization/v1alpha1/  # shared provider-neutral customization intent
+    types.proto                     # StyleSelection, HairCustomization, OutfitCustomization
   api/v1alpha1/
     dice.proto                  # DiceService — live, consumed by rpg-api
     room_common.proto           # generic Position, Wall, Door, Room, Entity

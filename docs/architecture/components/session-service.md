@@ -72,8 +72,9 @@ character service's owner gate.
 The toolkit owns semantic validation and public projection for both Hair and
 Outfit. The API performs pure protobuf/toolkit conversion and delegates without
 interpreting customization values. The nested presence contract is preserved
-across that projection: absent messages and absent optional channels preserve
-the provider-authored channel; present `style_ref` and packed sRGB values are
+across that projection: absent Hair messages, selections, color, and roughness
+use provider defaults; absent Outfit messages and optional channels preserve the
+provider-authored channel. Present `style_ref` and packed sRGB values are
 carried as intent. `none` explicitly requests no style. A present
 `StyleSelection` with no oneof arm is semantically invalid; toolkit validation
 owns that refusal and the API passes the shape through for delegation.

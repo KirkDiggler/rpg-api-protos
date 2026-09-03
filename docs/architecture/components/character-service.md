@@ -1,7 +1,7 @@
 ---
 name: CharacterService
 description: D&D 5e character creation, draft lifecycle, equipment management, and reference data
-updated: 2026-09-01
+updated: 2026-09-03
 confidence: high — verified by reading dnd5e/api/v1alpha1/character.proto end-to-end
 ---
 
@@ -163,10 +163,10 @@ Presence is intentional:
 
 | Field | Absent | Present |
 |---|---|---|
-| `Appearance.hair` | Preserve provider-authored hair state | Read the nested hair intent |
-| `HairCustomization.scalp` / `.facial_hair` | Preserve that provider-authored channel | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it; a missing oneof arm is semantically invalid |
-| `HairCustomization.color_srgb` | Preserve the provider-authored hair color | Packed sRGB `0xRRGGBB` |
-| `HairCustomization.roughness` | Preserve the provider-authored roughness | Finite value in `[0,1]` |
+| `Appearance.hair` | Use all provider hair defaults | Read the nested hair intent |
+| `HairCustomization.scalp` / `.facial_hair` | Use that provider default | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it; a missing oneof arm is semantically invalid |
+| `HairCustomization.color_srgb` | Use provider color | Packed sRGB `0xRRGGBB` |
+| `HairCustomization.roughness` | Use provider roughness | Finite value in `[0,1]` |
 | `Appearance.outfit` | Preserve both provider-authored outfit channels | Read the nested outfit intent |
 | `OutfitCustomization.primary_color_srgb` | Preserve the provider-authored primary channel | Packed sRGB `0xRRGGBB` |
 | `OutfitCustomization.secondary_color_srgb` | Preserve the provider-authored secondary channel | Packed sRGB `0xRRGGBB` |

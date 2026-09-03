@@ -1,7 +1,7 @@
 ---
 name: Shared types (customization, common, enums, choices, equipment_types)
 description: D&D 5e cross-service types — visual customization, ability scores, validation, choices, conditions, enums, equipment data
-updated: 2026-09-01
+updated: 2026-09-03
 confidence: high — shared PlacementOffset verified by schema and generated Go/TypeScript compilation; remaining inventory last audited 2026-05-02
 ---
 
@@ -9,26 +9,29 @@ confidence: high — shared PlacementOffset verified by schema and generated Go/
 
 These files don't define their own services; they hold reusable types shared
 across character, session, and encounter contracts. Together they're roughly
-2,400 lines of contract:
+1,500 lines of contract:
 
 | File | Lines | Contents |
 |---|---|---|
-| `dnd5e/api/customization/v1alpha1/types.proto` | ~30 | Provider-neutral style and hair customization intent |
+| `dnd5e/api/customization/v1alpha1/types.proto` | 51 | Provider-neutral style, hair, and outfit customization intent |
 | `dnd5e/api/v1alpha1/enums.proto` | 896 | All dnd5e enums |
 | `dnd5e/api/v1alpha1/common.proto` | 210 | AbilityScores, PlacementOffset, validation types, Modifier, Resource, Condition, SourceRef |
-| `dnd5e/api/v1alpha1/choices.proto` | 262 | Choice, ChoiceSubmission, ChoiceData, options, selections |
+| `dnd5e/api/v1alpha1/choices.proto` | 263 | Choice, ChoiceSubmission, ChoiceData, options, selections |
 | `dnd5e/api/v1alpha1/equipment_types.proto` | 66 | Equipment, WeaponData, ArmorData, GearData, Cost, Weight |
 
 ## `customization/v1alpha1/types.proto` — neutral visual intent
 
 This package is neutral rather than nested under CharacterService or
 SessionService because both character creation and public roster projection
-must carry the same customization semantics. It defines:
+must carry the same customization semantics. It defines the shared neutral
+messages used by both surfaces:
 
 - `StyleSelection`: a oneof between opaque `style_ref` and explicit `none`;
-  a present message with no arm is invalid input.
+  an empty present message reaches toolkit validation and is refused there.
 - `HairCustomization`: scalp and facial-hair selections plus optional packed
   sRGB color and material roughness.
+- `OutfitCustomization`: independently optional packed sRGB primary and
+  secondary color channels for the fixed class outfit.
 
 A `style_ref` is provider-owned opaque identity, never a filesystem or asset
 path. The package deliberately carries no catalog/profile paths and no
@@ -39,29 +42,34 @@ race-, class-, or asset-pack-specific vocabulary.
 | Location | Absent | Present |
 |---|---|---|
 | containing `HairCustomization` message | Use all provider defaults | Read per-field intent |
-| `scalp` or `facial_hair` selection message | Use that provider default | `style_ref` selects a style; `none` explicitly requests no style; no oneof arm is invalid and must be rejected by the API |
+| `scalp` or `facial_hair` selection message | Use that provider default | `style_ref` selects a style; `none` explicitly requests no style; no oneof arm is semantically invalid |
 | `color_srgb` | Use provider color | Unsigned packed sRGB `0xRRGGBB` |
 | `roughness` | Use provider roughness | Finite value in `[0,1]` |
+| containing `OutfitCustomization` message | Preserve both provider-authored outfit channels | Read per-channel intent |
+| `primary_color_srgb` | Preserve the provider-authored primary channel | Packed sRGB `0xRRGGBB` |
+| `secondary_color_srgb` | Preserve the provider-authored secondary channel | Packed sRGB `0xRRGGBB` |
 
-The distinction between an absent selection message and a present `none` arm is
-load-bearing: absence delegates to the provider, while `none` is explicit user
-intent. A present `StyleSelection` with no oneof arm is invalid input, not
-another spelling of absence, and the API implementation must reject it.
+The distinction between absent Hair selections/scalars and explicit Hair intent is
+load-bearing: absence uses the provider default, while `none` is explicit user
+intent. A present `StyleSelection` with no oneof arm is semantically invalid;
+toolkit validation owns that refusal and the API only converts and delegates the
+shape. Outfit channel absence independently preserves the provider-authored
+channel, while explicit zero remains a real black override.
 
-### API and provider ownership
+### Toolkit and provider ownership
 
-The future API consumer owns storing this neutral intent, validating generic
-numeric invariants, and projecting it verbatim into character and public roster
-contracts. It must not parse style refs or derive asset paths. The provider owns
-catalog membership, defaults, resolving refs to renderable pieces, and material
-implementation. Metalness is intentionally absent from the contract and
-remains provider-owned. The proto establishes the seam; it does not claim those
-runtime consumers have landed.
+The toolkit owns semantic validation and public projection of this neutral intent.
+The API only converts and delegates it; it does not inspect customization values,
+parse style refs, or derive asset paths. The provider owns catalog membership,
+defaults, resolving refs to renderable pieces, and material implementation.
+Metalness is intentionally absent from the contract and remains provider-owned.
+The proto establishes the seam; it does not claim those runtime consumers have
+landed.
 
-The legacy `Appearance` tags 1–4 and names `skin_tone`, `primary_color`,
-`secondary_color`, and `eye_color` are reserved. Those shader-specific fields
-were removed, and reserving both identities prevents future fields from reusing
-those identities or silently reinterpreting retained data.
+The legacy `Appearance` fields at tags 1–4 — `skin_tone`, `primary_color`,
+`secondary_color`, and `eye_color` — remain deprecated and inert for source and
+wire compatibility. They are not reserved and are not an authority to reactivate
+the old color behavior.
 
 ## `enums.proto` — every dnd5e enum
 

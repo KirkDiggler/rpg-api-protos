@@ -62,26 +62,25 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
 ## Public roster customization
 
 `PublicMemberInfo.customization = 7` remains the public identity shelf and now
-projects `Customization.hair = 1` with the same neutral
-`dnd5e.api.customization.v1alpha1.HairCustomization` used by character
-creation. This hair field is an API-side presentation addition approved by
-rpg-api-protos#262, rpg-project#347, and Journey rpg-project#346; it is not a
-field from the toolkit session SDK. Customization belongs beside public
-name/body identity: peers may render the hair a member chose, while hit points,
-ability scores, inventory, features, conditions, resources, and all other
-sheet/rules data remain behind the character service's owner gate.
+projects `Customization.hair = 1` and `Customization.outfit = 2` with the same
+neutral customization messages used by character creation. Customization
+belongs beside public name/body identity: peers may render the hair and outfit
+intent a member chose, while hit points, ability scores, inventory, features,
+conditions, resources, and all other sheet/rules data remain behind the
+character service's owner gate.
 
-The nested presence contract is preserved across this projection: absent
-`hair`, absent scalp/facial-hair selection messages, absent `color_srgb`, and
-absent `roughness` each request provider defaults. A present `style_ref` is
-opaque and never an asset path; `none` explicitly requests no style. A present
-`StyleSelection` with no oneof arm is invalid input and must be rejected by the
-API; it does not request a provider default. Present color is packed sRGB
-`0xRRGGBB`, and present roughness is finite `[0,1]`. Metalness is intentionally
-absent and remains provider-owned.
+The toolkit owns semantic validation and public projection for both Hair and
+Outfit. The API performs pure protobuf/toolkit conversion and delegates without
+interpreting customization values. The nested presence contract is preserved
+across that projection: absent Hair messages, selections, color, and roughness
+use provider defaults; absent Outfit messages and optional channels preserve the
+provider-authored channel. Present `style_ref` and packed sRGB values are
+carried as intent. `none` explicitly requests no style. A present
+`StyleSelection` with no oneof arm is semantically invalid; toolkit validation
+owns that refusal and the API passes the shape through for delegation.
 
-This is a schema contract for later API and web consumers. It does not claim
-that runtime persistence or roster projection has landed.
+This is a schema contract for the toolkit and later API/web consumers. It does
+not claim that runtime persistence or roster projection has landed.
 
 ## One map — the ruling arrived
 

@@ -28,16 +28,17 @@ The surviving owner-gated read/equipment surface is
 `dnd5e.api.v1alpha2.encounter.CharacterData`. The namespace is historical, but
 this is one general owner-private character projection, **not an
 equipment-only payload** and not a consumer-specific `CharacterHud` wrapper.
-The host populates fields 9–14 only after binding the requested character to
+The host populates fields 9–16 only after binding the requested character to
 its authenticated owner. Although the historical message type also appears in
 the legacy encounter `Entity.character` union, every foreign-viewer projection
-withholds fields 9–14; message reuse never authorizes another player's exact
-level, HP, speed, features, conditions, or resources. Peers receive only the
+withholds fields 9–16; message reuse never authorizes another player's exact
+level, HP, speed, features, conditions, resources, life state, or Death Save
+progress. Peers receive only the
 separately approved public encounter/sight projection. Missing and foreign
 character IDs remain indistinguishable at the owner gate.
 
-The production combat experience adds these fields directly after existing
-fields 1–8:
+The production combat experience and explicit Death Save contract add these
+fields directly after existing fields 1–8:
 
 | Tag | Field | Type / semantics |
 |---|---|---|
@@ -47,6 +48,17 @@ fields 1–8:
 | 12 | `features` | `repeated FeatureView { ref, name, detail, optional resource_key }` |
 | 13 | `conditions` | `repeated ConditionView { ref, name, detail, optional source_member }` |
 | 14 | `resources` | `repeated ResourceView { key, name, current, maximum }` |
+| 15 | `life_state` | always-explicit `dnd5e.api.session.v1alpha1.LifeState`; provider-derived, never inferred from HP or progress presence |
+| 16 | `death_saves` | optional `dnd5e.api.session.v1alpha1.DeathSaveProgress`; provider-owned totals, remaining counts, and terminal flags |
+
+The owner projection reuses the session-owned `LifeState` and
+`DeathSaveProgress` wire types rather than defining a parallel vocabulary or a
+second persistence model. `life_state` is always explicit. `death_saves` is
+present when the provider reports applicable Dying/Stabilized/Dead progress and
+absent when not applicable; its remaining counts are provider-derived, and the
+client never compares totals to a threshold. These fields remain owner-private
+here even though the same facts are whole-party-visible through Session
+`Participant`/Death Save events by the approved tabletop ruling.
 
 Feature and condition detail is server/toolkit-composed display text, never raw
 persistence JSON. Resource keys are opaque and may authoritatively link a

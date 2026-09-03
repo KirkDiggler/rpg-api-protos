@@ -10,7 +10,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
 // `rulebooks/dnd5e/session` package (read from session/v0.18.0; v0.21.2 added
-// Seen on Sighting/Report — ADR-0041; combat-turn contract, rpg-project#249;
+// Seen on Sighting/Report — ADR-0041; v0.54.0 introduced explicit Death Saves,
+// with the current contract verified against v0.54.1;
+// combat-turn contract, rpg-project#249;
 // SDK fields land with the toolkit issues named inline). Every message here
 // mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and a
 // field with no SDK counterpart is a design change that goes through
@@ -151,30 +153,82 @@ enum MemberKind {
   MEMBER_KIND_WORLD = 3;
 }
 
-// Standing says whether a member is still on their feet. Lands with
-// rpg-toolkit#1137 as session.Standing ("up" / "downed").
+// Standing says whether a member is still on their feet. Mirrors
+// session.Standing ("up" / "downed").
 //
-// A READ, NOT A REPLAY DEPENDENCY. EVENT_KIND_DOWNED fires once on the stream
-// and, through session/v0.21.x, nothing readable carried the state afterwards
-// — a client that reconnected mid-fight drew the whole party on its feet.
-// The composition has known the answer all along (it asks the rulebook who is
-// standing at every sight refresh, rpg-toolkit#1077); this enum is that
-// answer projected onto Participant and Seen, the same treatment GetWhere gave
-// position.
+// A READ, NOT A REPLAY DEPENDENCY. EVENT_KIND_DOWNED fires once on the stream;
+// Participant and Seen keep its binary compatibility projection readable.
+// LifeState below is the richer provider-derived scheduling/presentation fact:
+// consumers never infer it from Standing.
 //
-// TWO VALUES, AND NOT "DOWN". Downed is at zero hit points: Attack and Move
-// are blocked, but the member remains in initiative and End Turn still follows
-// only the clock/turn gate. A bare "down" also reads as PRONE, a posture
-// condition on a member still acting (Kirk's ruling, rpg-toolkit#1084). Death
-// saves, stable and revived are not here because nothing in v1 produces them —
-// a value arrives the day the SDK can say it.
+// TWO VALUES, AND NOT "DOWN". A bare "down" also reads as PRONE, a posture
+// condition on a member still acting (Kirk's ruling, rpg-toolkit#1084).
 enum Standing {
   STANDING_UNSPECIFIED = 0;
-  // On their feet, in the fight.
+  // On their feet.
   STANDING_UP = 1;
-  // At zero hit points; Attack and Move blocked, still in initiative so End
-  // Turn remains governed solely by clock/turn, and still on map and roster.
+  // At zero hit points. LifeState and provider declarations decide what the
+  // member may do and whether they retain an initiative slot.
   STANDING_DOWNED = 2;
+}
+
+// LifeState is the session-owned projection of the D&D provider's derived
+// combat life state. Mirrors session.LifeState from session/v0.54.1.
+//
+// This is always explicit wherever projected, even when DeathSaveProgress is
+// absent. It is a read of canonical HP/progress/monster facts, not a second
+// persisted life-state ledger, and consumers must never infer it from HP,
+// Standing, or progress presence.
+enum LifeState {
+  LIFE_STATE_UNSPECIFIED = 0;
+  LIFE_STATE_CONSCIOUS = 1;
+  LIFE_STATE_DYING = 2;
+  LIFE_STATE_STABILIZED = 3;
+  LIFE_STATE_DEAD = 4;
+  LIFE_STATE_DEFEATED = 5;
+}
+
+// DeathSaveOutcome classifies one authoritative provider-owned Death Save
+// result. Consumers render this value; they never classify the d20 themselves.
+enum DeathSaveOutcome {
+  DEATH_SAVE_OUTCOME_UNSPECIFIED = 0;
+  DEATH_SAVE_OUTCOME_SUCCESS = 1;
+  DEATH_SAVE_OUTCOME_FAILURE = 2;
+  DEATH_SAVE_OUTCOME_CRITICAL_FAILURE = 3;
+  DEATH_SAVE_OUTCOME_STABILIZED = 4;
+  DEATH_SAVE_OUTCOME_DEAD = 5;
+  DEATH_SAVE_OUTCOME_RECOVERED = 6;
+}
+
+// DeathSaveContinuation is the provider's instruction for what follows dice
+// settlement. It is never derived from roll or progress by a client.
+enum DeathSaveContinuation {
+  DEATH_SAVE_CONTINUATION_UNSPECIFIED = 0;
+  // Invoke the current End Turn declaration after an in-bounds settlement.
+  DEATH_SAVE_CONTINUATION_END_TURN = 1;
+  // Refresh owner/turn/afford state and leave the recovered actor active.
+  DEATH_SAVE_CONTINUATION_KEEP_TURN = 2;
+  // Refresh authority only; a terminal transition already advanced or closed
+  // the clock, so the client sends no second mutation.
+  DEATH_SAVE_CONTINUATION_ALREADY_ADVANCED = 3;
+}
+
+// DeathSaveProgress is the provider-owned current progress projected to the
+// whole party and to the authenticated owner. Remaining counts are provider
+// answers: clients do not compare totals with a threshold or derive how many
+// successes or failures remain.
+//
+// Presence does not define LifeState. Participant uses it for Dying/Stabilized
+// progress; authenticated-owner CharacterData also uses it for Dead progress.
+// It is absent when progress is not applicable, while LifeState remains
+// explicit in every projection.
+message DeathSaveProgress {
+  int32 successes = 1;
+  int32 failures = 2;
+  int32 successes_needed = 3;
+  int32 failures_remaining = 4;
+  bool stabilized = 5;
+  bool dead = 6;
 }
 
 // DamageType names the kind of damage an attack deals. Lands with
@@ -277,7 +331,7 @@ enum Currency {
 }
 
 // Verb names a seam action Afford can gate. Mirrors session.Verb
-// ("attack" / "move" / "end_turn" / "activate").
+// ("attack" / "move" / "end_turn" / "activate" / "death_save").
 //
 // A closed set owned by the session package rather than a reuse of the
 // rulebook's own action vocabulary: a declaration is a question about what THIS
@@ -306,6 +360,9 @@ enum Verb {
   // Attack sits on the action one. Slot lives on the declaration, so they
   // cannot share a row. See Declaration's own note.
   VERB_ACTIVATE = 4;
+  // Death Save — the active Dying character's explicit tabletop saving throw.
+  // It spends its provider-owned once-per-turn capacity, not an action slot.
+  VERB_DEATH_SAVE = 5;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -676,14 +733,21 @@ message Participant {
   // every member it can list.
   string name = 2;
   MemberKind kind = 3;
-  // On their feet or downed. A downed participant stays in the order; Attack
-  // and Move are blocked, while End Turn remains governed solely by its
-  // clock/turn gate.
+  // Binary compatibility projection: on their feet or downed. Read life_state
+  // for Dying/Stabilized/Dead/Defeated scheduling and presentation semantics.
   Standing standing = 4;
   // Whether it is this member's turn. EXACTLY ONE TRUE on the turn clock —
   // the same member TurnResponse.active names — so a client marks the active
   // row without a lookup.
   bool active = 5;
+  // Always-explicit provider-derived state. Never infer it from standing,
+  // optional death_saves, or hit points. These facts are visible to the whole
+  // party because the physical Death Save and its pips are table-visible.
+  LifeState life_state = 6;
+  // Provider-owned progress, present for applicable Dying/Stabilized character
+  // progress and absent when not applicable. The remaining counts are already
+  // derived by the provider; clients never apply a three-save threshold.
+  DeathSaveProgress death_saves = 7;
 }
 
 // =============================================================================
@@ -708,7 +772,8 @@ message TargetCandidate {
 // Declaration is one server-compiled action/cost variant. Declarations, not
 // remaining currencies (ADR-0042): the client renders availability, identity,
 // target kind, and candidates verbatim and never derives game rules. Attack,
-// Move, End Turn and Activate regenerate the selected offer before execution.
+// Move, End Turn, Activate and Death Save regenerate the selected offer before
+// execution.
 //
 // # One row per OFFER, not one row per verb
 //
@@ -741,7 +806,8 @@ message Declaration {
   reserved "shortfall", "target";
   // Provider-authored display/context for how much movement remains, in feet
   // (rpg-toolkit#1169). Present only for VERB_MOVE declarations; absent for
-  // every VERB_ATTACK and VERB_END_TURN declaration.
+  // every VERB_ATTACK, VERB_END_TURN, VERB_ACTIVATE, and VERB_DEATH_SAVE
+  // declaration.
   //
   // A NUMBER, NOT A PATH PRICE, because Move has no fixed cost until a path is
   // chosen. Clients may display this value verbatim but must not convert it to
@@ -764,16 +830,17 @@ message Declaration {
   // its candidate rows.
   Shortfall why = 7;
   // Opaque deterministic selector for this current compiled offer. Non-empty
-  // on every compiled Attack, turn-clock Move, and End Turn declaration; empty
-  // on an early per-verb blocker. The client echoes it and never parses it.
+  // on every compiled Attack, turn-clock Move, End Turn, and Death Save
+  // declaration; empty on an early per-verb blocker. The client echoes it and
+  // never parses it.
   string id = 8;
   // The sole public Attack identity. Present on every compiled Attack,
   // including compiled offers disabled by budget or target gates; absent for
-  // Move, End Turn, and early per-verb blockers.
+  // Move, End Turn, Death Save, and early per-verb blockers.
   AttackRef attack = 9;
   // Fixed for every compiled or blocked declaration: Attack -> MEMBER,
-  // Move -> PATH, End Turn -> NONE, Activate -> MEMBER for Help and NONE for
-  // the rest. UNSPECIFIED is a producer defect.
+  // Move -> PATH, End Turn -> NONE, Death Save -> NONE, Activate -> MEMBER for
+  // Help and NONE for the rest. UNSPECIFIED is a producer defect.
   //
   // Activate is the first verb whose kind varies by WHICH offer it is rather
   // than by which verb it is: Help prompts for an ally, and the other six
@@ -784,12 +851,13 @@ message Declaration {
   TargetKind target_kind = 10;
   // Every member in the ruled candidate universe exactly once, including
   // unavailable targets and their server-authored reasons. NO_TARGET_IN_REACH
-  // does not remove these rows. Empty for Move, End Turn, and early blockers.
+  // does not remove these rows. Empty for Move, End Turn, Death Save, and early
+  // blockers.
   repeated TargetCandidate candidates = 11;
   // The sole public activation identity. Present on every compiled Activate
   // declaration, including one disabled by a budget, charge or feature gate;
-  // absent for Attack, Move, End Turn, and early per-verb blockers. The same
-  // presence law `attack` keeps, for the same reason.
+  // absent for Attack, Move, End Turn, Death Save, and early per-verb blockers.
+  // The same presence law `attack` keeps, for the same reason.
   //
   // A SIBLING OF `attack` RATHER THAN A ONEOF WITH IT. A oneof would make it a
   // wire-level error for one declaration to carry both — and the monk's
@@ -800,6 +868,9 @@ message Declaration {
   // in advance. If it turns out one declaration never needs both, a oneof can
   // be adopted later; a oneof adopted now cannot be undone without a break.
   AbilityRef ability = 12;
+  // The provider-authored Death Save identity. Present only on a compiled
+  // VERB_DEATH_SAVE declaration; absent for every other verb and blocker.
+  DeathSaveRef death_save = 13;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -859,6 +930,13 @@ message AttackRef {
   string name = 2;
   // The kind of damage it deals. Closed set, enum — see DamageType.
   DamageType damage_type = 3;
+}
+
+// DeathSaveRef identifies the explicit tabletop roll without overloading an
+// AttackRef or AbilityRef. It mirrors session.DeathSaveRef.
+message DeathSaveRef {
+  // Provider-authored display name, rendered verbatim.
+  string name = 1;
 }
 
 // AbilityRef identifies WHAT is being activated — the combat ability or

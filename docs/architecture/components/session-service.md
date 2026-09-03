@@ -2,7 +2,7 @@
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
 updated: 2026-09-03
-confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
+confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
 # SessionService
@@ -24,8 +24,10 @@ contract** (rpg-project#249, design `rpg-project/ideas/combat-turn/design.md`
 §3), which is the one part of this package that merged *ahead* of its SDK
 (see "The combat turn" below), and most recently extended with **`Interact`
 and `MEMBER_KIND_WORLD`** against **rulebooks/dnd5e/v0.131.0**
-(rpg-toolkit#1404/#1434, design `rpg-toolkit/docs/ideas/world-npcs/`) — the
-state this doc describes. See "World NPCs" below.
+(rpg-toolkit#1404/#1434, design `rpg-toolkit/docs/ideas/world-npcs/`), and now
+adds the explicit Death Save surface from **rulebooks/dnd5e/session v0.54.1**
+(rpg-api-protos#277) — the state this doc describes. See "Death Saves" and
+"World NPCs" below.
 
 ## What makes this service different from every other one here
 
@@ -116,7 +118,7 @@ Consequences for this contract, all live:
 
 ## RPCs
 
-Fifteen, mirroring the SDK verbs one-for-one.
+Twenty-three, mirroring the exposed SDK verbs one-for-one plus the stream.
 
 | RPC | SDK verb | Request:Response | Notes |
 |---|---|---|---|
@@ -124,6 +126,7 @@ Fifteen, mirroring the SDK verbs one-for-one.
 | `Exit` | `Exit` | `ExitRequest:ExitResponse` | Returns the knowledge that leaves with the member (`carry`); last member out auto-closes the encounter (`closed`) |
 | `Move` | `Move` | `MoveRequest:MoveResponse` | A **path**, not a destination; crosses doorways as ordinary steps. Fewer `steps` than requested `path` is an answer, not an error. **On the turn clock it spends** (rpg-toolkit#1169): only the active member walks (`ErrNotYourTurn`), and the whole path is priced at 5 ft/cell and paid before the first step (`ErrCannotAfford`, "movement: N ft needed, M ft left"). Both `FAILED_PRECONDITION`. The old blanket in-a-fight refusal (`ErrInBubble`) is gone from this verb |
 | `Attack` | `Attack` | `AttackRequest:AttackResponse` | Character attackers only in v1. **It spends now** — a second swing can be refused with `ErrCannotAfford`. `Afford` announces not-your-turn, DOWNED, unreadable dependency, no-target-in-reach, and action-budget blockers first. DOWNED blocks Attack and Move, not End Turn. An empty hand is **not** a refusal — it swings `dnd5e:weapons:unarmed-strike` (rpg-toolkit#1168). Response carries the same full-ref `AttackRef` selected from the declaration and recorded by Struck/Missed |
+| `DeathSave` | `DeathSave` | `DeathSaveRequest:DeathSaveResponse` | Requires the current non-empty Death Save declaration ID. The response carries the authoritative d20, typed provider outcome/continuation, provider-derived progress/remaining counts, actor-local `seq`, and one opaque generated `presentation_id` shared with every witness event |
 | `Turn` | `Turn` | `TurnRequest:TurnResponse` | Asked of a **member**, never of the session. See below. Carries `participants[]` beside `order[]` — name, kind, standing, active per member (rpg-toolkit#1137) |
 | `Afford` | `Afford` | `AffordRequest:AffordResponse` | Nested compiled offers, not a flat target list and not remaining currencies. A compiled Attack carries non-empty `id`, the sole `AttackRef`, `target_kind = MEMBER`, and every current live-sight member except the actor exactly once. Move uses `PATH` and display/context-only `remaining`; End Turn uses `NONE`. Early per-verb blockers remain rows with empty ID/detail and authoritative `why`. `available` is the full per-verb gate. Empty on the world clock is the answer |
 | `EndTurn` | `EndTurn` | `EndTurnRequest:EndTurnResponse` | No "end the current turn" form, for the same reason `Turn` takes a member |
@@ -140,6 +143,41 @@ Fifteen, mirroring the SDK verbs one-for-one.
 **No `StartSession`, no `Spawn`, and no `PlaceNPC`**, though the SDK exposes
 all three. Creation is the lobby's: `LobbyService.StartEncounter` calls them
 in-process (design rule 5). There is no creation RPC here, in v1 or after.
+
+## Death Saves
+
+Session v0.54.0 introduced `VERB_DEATH_SAVE`; the current v0.54.1 contract has
+one `DeathSaveRef` on its compiled
+`Declaration`, and the dedicated `DeathSave` RPC. The request is only
+`session`, authenticated `member`, and required opaque `declaration_id`: no die,
+target, state, threshold, or proposed outcome crosses into the provider. Empty,
+stale, mismatched, spent, and no-longer-eligible selectors are refused before
+entropy or mutation.
+
+`LifeState` is always explicit on each turn `Participant`; optional
+`DeathSaveProgress` does not define it. Both are session-owned projections of
+provider facts, not another persistence ledger. Progress and its
+`successes_needed` / `failures_remaining` values are table-visible, provider-
+derived answers. Clients never inspect HP, compare counts to three, or infer
+Dying/Stabilized/Dead. The authenticated-owner `CharacterData` reuses these
+same two wire types at tags 15/16 so owner and public turn views cannot invent
+parallel life-state vocabularies; foreign legacy encounter projections still
+withhold all owner-only fields.
+
+`DeathSaveResponse` and the whole-party
+`EVENT_KIND_DEATH_SAVE_ROLLED`/`DeathSaveRolled` body expose the same
+authoritative roll, typed outcome/continuation, progress facts, and identical
+opaque generated `presentation_id`. The token contains no Story/global sequence
+and is never parsed. Presentation retries keep that token and the same
+already-authoritative result, increment only the presentation attempt, and do
+not issue a second game RPC. The presentation service's numeric `authority_seq`
+is supplied separately from the actor's recipient-local response `seq` and
+each witness's local `Event.seq`; none is encoded in the token.
+
+Continuation is provider instruction after in-bounds settlement:
+`END_TURN` invokes the current End Turn declaration, `KEEP_TURN` refreshes
+CharacterData/Turn/Afford and leaves the recovered actor active, and
+`ALREADY_ADVANCED` refreshes authority without a second mutation.
 
 ## World NPCs
 
@@ -317,10 +355,10 @@ Three properties worth holding onto:
   snapshot-then-deltas pattern here — the shape `StreamEncounter` and
   `StreamLobby` both use.
 
-`EventKind` is a proto enum with 13 named values plus `UNSPECIFIED`. The
-vocabulary held **unchanged from v0.9.0 through v0.13.0**, then v0.18.0 both
-removed one and added one: still thirteen, but **not the same thirteen**, so a
-client pinned to the older set must be re-read rather than counted.
+`EventKind` now has 19 named values plus `UNSPECIFIED`, with the retired
+`TRAVERSED` number/name reserved. The vocabulary held unchanged from v0.9.0
+through v0.13.0, then grew additively as typed session beats landed; clients
+must match names rather than counts.
 
 It is **open to growth by construction**: proto3 preserves an unrecognised enum
 number rather than dropping it, so a kind added later (rpg-toolkit#959) reaches
@@ -449,7 +487,7 @@ Rulings carried into the shape (design §6):
   other. Where a participant stands is still `GetView`'s, gated by sight.
 
 Deliberately not in this proto: monster behavior, ranged weapons and cover,
-reactions/opportunity attacks, death saves, a session-level equip verb, magic,
+reactions/opportunity attacks, a session-level equip verb, magic,
 spells, spell slots, concentration, magical resources, or future target kinds.
 
 ## Contract edge cases (decided by the SDK, transcribed rather than re-decided)
@@ -577,11 +615,15 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
 
 ## Relationship to the v1alpha2 encounter service
 
-**None, deliberately.** Design rule 9: no path between `SessionService` and the
-old encounter stack — the two never call, import, or share state. That is why
-this package mints its own `Position` rather than importing
-`dnd5e.api.v1alpha2.encounter.Position`, which would have created exactly such
-a path into a package the cutover deletes.
+**No runtime service/state path.** `SessionService` still never imports or calls
+the old encounter stack, which is why this package mints its own `Position`
+rather than importing `dnd5e.api.v1alpha2.encounter.Position`. The one contract-
+type edge points the other way: the surviving authenticated-owner
+`v1alpha2.encounter.CharacterData` imports the session-owned `LifeState` and
+`DeathSaveProgress` definitions so owner and turn projections use identical
+vocabulary instead of duplicating life-state semantics. That historical
+message's legacy encounter use remains owner-gated and shares no runtime state
+with SessionService.
 
 The two stacks coexist until cutover, with server configuration selecting which
 one `StartEncounter` creates on — exactly one, never both. At cutover the

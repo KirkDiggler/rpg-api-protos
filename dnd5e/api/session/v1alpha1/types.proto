@@ -217,9 +217,10 @@ enum DeathSaveContinuation {
 // answers: clients do not compare totals with a threshold or derive how many
 // successes or failures remain.
 //
-// Presence does not define LifeState. It is present when the provider reports
-// applicable Dying/Stabilized progress and absent when progress is not
-// applicable; LifeState remains explicit in either case.
+// Presence does not define LifeState. Participant uses it for Dying/Stabilized
+// progress; authenticated-owner CharacterData also uses it for Dead progress.
+// It is absent when progress is not applicable, while LifeState remains
+// explicit in every projection.
 message DeathSaveProgress {
   int32 successes = 1;
   int32 failures = 2;

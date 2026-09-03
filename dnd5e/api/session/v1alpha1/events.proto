@@ -352,16 +352,20 @@ message DiceReroll {
 }
 
 // DiceTrace is one homogeneous physical dice group AS ACTUALLY ROLLED — the
-// physical faces, not a rule's printed pool: a critical keeps the domain's
-// printed notation while the trace carries the doubled dice really rolled, and
-// an advantaged d20 carries two physical faces plus the one kept.
+// physical faces AND the notation of that physical pool, not a rule's printed
+// pool: a critical whose printed domain dice are 2d6 records 4d6 here, the
+// printed 2d6 remaining a separate domain fact beside the trace, and an
+// advantaged d20 carries two physical faces plus the one kept.
 //
 // The face fields are one ordered story over the same stable die indices:
 // original_rolls is what each index first showed; rerolls rewrite individual
 // indices in application order; final_rolls is what every index shows once all
 // rerolls have applied; kept_indices selects which final faces count.
 message DiceTrace {
-  // The physical dice expression this group rolled ("2d6").
+  // The physical dice expression this group ACTUALLY rolled — the notation of
+  // the physical pool, doubled pool included: "4d6" when a critical doubled a
+  // printed 2d6, never the printed "2d6" alongside the doubled faces. The
+  // domain's printed expression stays a separate domain fact.
   string notation = 1;
   // The size of every die in the group.
   int32 die_size = 2;
@@ -426,17 +430,23 @@ message RollCalculation {
 // component, not a whole calculation — when the producing rulebook authored a
 // trace. New events populate only `roll`.
 message DamageComponent {
+  // The CATEGORY of the damage source — a coarse kind like "weapon" or
+  // "monster_trait", NOT identity. Identity lives in the roll-trace source,
+  // and in the deprecated source_ref below for pre-trace records.
   string source = 1;
-  // LEGACY ONLY. The pre-trace source ref ("dnd5e:conditions:sneak_attack").
+  // LEGACY ONLY. The pre-trace source IDENTITY ref
+  // ("dnd5e:conditions:sneak_attack") — succeeded by roll.source.ref.
   // Old-record conversion populates this and never `roll`; new events never
   // set it.
   string source_ref = 2 [deprecated = true];
-  // LEGACY ONLY. The pre-trace dice expression. See source_ref.
+  // LEGACY ONLY. The pre-trace aggregate dice expression — succeeded by
+  // roll.dice.notation. See source_ref.
   string dice = 3 [deprecated = true];
-  // LEGACY ONLY. The aggregate final faces, with no reroll history. See
-  // source_ref.
+  // LEGACY ONLY. The pre-trace aggregate final faces, with no reroll history
+  // — succeeded by roll.dice.final_rolls. See source_ref.
   repeated int32 final_rolls = 4 [deprecated = true];
-  // LEGACY ONLY. The aggregate flat bonus. See source_ref.
+  // LEGACY ONLY. The pre-trace aggregate flat bonus — succeeded by
+  // roll.modifier. See source_ref.
   int32 flat_bonus = 5 [deprecated = true];
   DamageType damage_type = 6;
   // Presence distinguishes an additive component from immunity's real zero.
@@ -445,11 +455,12 @@ message DamageComponent {
   // who contributed (source), the physical dice they rolled — original faces,
   // ordered rerolls, final faces, kept faces, asserted subtotal (dice) — and
   // their sourced additive modifier, present-zero included (modifier). The
-  // dice, when present, describe the dice actually rolled — a critical
-  // carries the doubled pool here under the domain's printed notation. A
-  // multiplier-only trait component carries a sourced `roll` with neither
-  // dice nor modifier. Set on new events instead of the deprecated scalars
-  // above; never beside them.
+  // dice, when present, carry the pool ACTUALLY rolled, notation included: a
+  // critical whose printed domain dice are 2d6 records 4d6 and its doubled
+  // faces here, the printed 2d6 staying a separate domain fact beside the
+  // trace. A multiplier-only trait component carries a sourced `roll` with
+  // neither dice nor modifier. Set on new events instead of the deprecated
+  // scalars above; never beside them.
   RollComponent roll = 8;
 }
 

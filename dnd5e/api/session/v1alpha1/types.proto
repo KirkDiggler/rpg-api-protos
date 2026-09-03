@@ -1127,10 +1127,15 @@ message AtlasSegment {
   // The wall's height MULTIPLIER of the standard rendered wall height — the
   // same authored number AtlasBoundary.height carries, read the same way: 0
   // means NOT AUTHORED and renders exactly as 1.0, and no reader ever
-  // multiplies by the raw field. Typed `double` where AtlasBoundary spends a
-  // `float`; the design names the type, and every float value widens to
-  // double exactly.
-  double height = 3;
+  // multiplies by the raw field.
+  //
+  // `float`, THE SAME WIDTH AS AtlasBoundary.height, on purpose. One authored
+  // number reaching a client in two widths would not compare equal to itself:
+  // a client deriving a door's gap holds the boundary's float32-rounded 0.7
+  // beside this one's float64 0.7 and finds them different. `from` and `to`
+  // above stay double because they carry fractional positions, where the
+  // precision is the point.
+  float height = 3;
 }
 
 // AtlasDoorway is one crossable cell pair. Mirrors session.AtlasDoorway.

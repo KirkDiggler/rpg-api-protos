@@ -156,7 +156,8 @@ features, proficiencies, hit points, etc.
 legacy color fields at tags 1–4 and adding provider-neutral customization:
 `HairCustomization hair = 5` and `OutfitCustomization outfit = 6`. The legacy
 fields keep their original names and wire numbers, but are deprecated and inert;
-they are not reserved or an authority to reactivate the old color behavior.
+they remain deprecated rather than reserved for compatibility, and must not be
+used to reactivate the old color behavior.
 
 Presence is intentional:
 

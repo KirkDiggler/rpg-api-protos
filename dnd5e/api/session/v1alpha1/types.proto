@@ -1015,13 +1015,27 @@ message AtlasProp {
   // vocabularies do not interconvert.
   string facing = 5;
 
-  // offset_x and offset_y are an authored within-cell visual nudge, each a
-  // fraction of the cell size and each MUST be in [-0.5, 0.5]. Zero (the
+  // offset_x and offset_y are an authored within-cell visual nudge, in
+  // BOUNDING-BOX FRACTIONS OF THE CELL: x in cell widths toward east, y in
+  // cell heights toward south, each MUST be in [-0.5, 0.5]. Zero (the
   // default for both) means centered — indistinguishable on the wire from
   // "not authored," which is fine: both render identically, at cell center.
   //
+  // The unit is now NAMED rather than left as "a fraction of the cell size,"
+  // because a hex has two of those: its bounding box is wider than it is tall
+  // under one orientation and taller than it is wide under the other, so one
+  // fraction is not the other. ONE OFFSET UNIT serves prop offsets, wall ends
+  // and door positions alike (rpg-project#360 §1.11); props move to it from
+  // circumradius units in the same wave, and the content that would have
+  // needed converting is being recreated rather than converted. Comment only:
+  // the fields, their tags, their types and their bounds do not move.
+  //
   // VISUAL ONLY. The prop still occupies its whole cell for movement and
-  // line of sight; nothing that computes rules may read these fields.
+  // line of sight; nothing that computes rules may read these fields. A WALL
+  // end in the authored file wears this same unit and IS mechanical — same
+  // shape, different law — but no wall offset reaches this contract: walls
+  // arrive here already resolved, as AtlasBoundary pairs and AtlasSegment
+  // lines.
   float offset_x = 6;
   float offset_y = 7;
 
@@ -1059,6 +1073,69 @@ message AtlasBoundary {
   // never touches Sight or movement — a wall cannot be seen past at ANY
   // height — and no wall may be authored below standard.
   float height = 5;
+}
+
+// AxialPoint is one point in the atlas's axial frame, FRACTIONAL.
+//
+// Position names a CELL; this names a POINT. Wall ends sit on side midpoints
+// and cell centres, which land halfway between whole coordinates as often as
+// on them, so a pair that only ever holds a cell's own coordinate cannot say
+// where a wall begins. Same frame, same origin, same orientation as every
+// Position on this seam — a client's axial-to-world formula already accepts
+// fractions, so no unit and no second basis crosses the wire.
+//
+// Minted rather than reusing Position, which is the same two doubles, because
+// the type is the sentence "this is not a cell": a reader holding a Position
+// may look it up in GetAtlasResponse.cells, and every point here would fail
+// that lookup.
+message AxialPoint {
+  double q = 1;
+  double r = 2;
+}
+
+// AtlasSegment is one wall AS THE AUTHOR DREW IT: a straight line between two
+// points, with the wall's height. Lands AHEAD of its SDK, like Lighting and
+// AtlasRegion before it — the toolkit's counterpart arrives with slice 2 of
+// rpg-project#360 (wall-geometry design §5.2) and this message is re-verified
+// field-for-field when it tags.
+//
+// PRESENTATION ONLY, AND NO MECHANIC MOVES WITH IT. AtlasBoundary stays the
+// whole answer to what a member cannot walk through or see past, and
+// AtlasDoorway stays the whole answer to what may be crossed. This list is
+// what a client DRAWS.
+//
+// It exists because the author's line cannot be recovered from the mechanics.
+// A client drawing walls today fits a chain through the cell-crossing pairs in
+// `boundaries`, and on a hex grid every corner of such a chain turns 60°
+// whatever the author actually drew — so the fitted run reports the grid's
+// shape, not the wall's (rpg-project#169). A line that cannot be derived has
+// to be sent.
+//
+// A DOOR DRAWS AS A GAP, derived client-side and marked by nothing on the
+// wire: the doorway says which crossing opens, the segment says the line it
+// opens in, and the gap is where the two meet. That is also how the absence
+// law on GetAtlasResponse keeps working — a concealed door a member has not
+// found contributes no doorway, so its wall draws as one unbroken segment,
+// the same masquerade `boundaries` already performs.
+message AtlasSegment {
+  // Where the author's line starts.
+  AxialPoint from = 1;
+  // Where it ends. `from` and `to` are the WHOLE of a wall's geometry: the
+  // cells it passes through, the crossings it blocks and the cells it seals
+  // are all derived from these two points, and none of them is sent twice.
+  AxialPoint to = 2;
+  // The wall's height MULTIPLIER of the standard rendered wall height — the
+  // same authored number AtlasBoundary.height carries, read the same way: 0
+  // means NOT AUTHORED and renders exactly as 1.0, and no reader ever
+  // multiplies by the raw field.
+  //
+  // `float`, THE SAME WIDTH AS AtlasBoundary.height, on purpose. One authored
+  // number reaching a client in two widths would not compare equal to itself:
+  // a client deriving a door's gap holds the boundary's float32-rounded 0.7
+  // beside this one's float64 0.7 and finds them different. `from` and `to`
+  // above stay double because they carry fractional positions, where the
+  // precision is the point.
+  float height = 3;
 }
 
 // AtlasDoorway is one crossable cell pair. Mirrors session.AtlasDoorway.
@@ -1112,10 +1189,11 @@ message Lighting {
 //
 // REGIONS REPLACE ROOMS (rpg-project PR #255). Nothing past the authored file
 // has a room: no origin, no room-local frame, no chain. A region is only a
-// name over a set of cells that already exist in `cells` above, and every
-// floor cell appears in exactly one region. Walls are declared, not implied
-// by regions — see GetAtlasResponse.boundaries; two regions side by side are
-// one open space until somebody draws the seam.
+// name over a set of cells that already exist in `cells` above, and no cell
+// belongs to two regions — a floor cell in none of them is SCENERY, see
+// GetAtlasResponse.regions. Walls are declared, not implied by regions — see
+// GetAtlasResponse.boundaries; two regions side by side are one open space
+// until somebody draws the seam.
 //
 // Regions are on the atlas because lighting is a WORLD FACT, not a render
 // hint. A client that cannot read "this hall is dark" off the wire

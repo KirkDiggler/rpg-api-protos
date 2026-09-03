@@ -957,6 +957,90 @@ message SearchResponse {
 }
 
 // =============================================================================
+// World NPCs
+// =============================================================================
+
+// InteractRequest reaches for a placed, non-combatant world NPC (rpg-toolkit
+// #1404) — a vendor, or any other MEMBER_KIND_WORLD content — to learn what
+// it is.
+message InteractRequest {
+  string session = 1;
+  // The reaching player. Bound to the authenticated caller by the host, the
+  // same acting-as law every verb keeps.
+  string actor = 2;
+  // The MEMBER_KIND_WORLD member being reached for.
+  string target = 3;
+  // The maximum distance, in cells, target may stand from actor. Zero (the
+  // default) means adjacent — one cell.
+  int32 range = 4;
+}
+
+// InteractResponse is what the target IS, assembled from the session's own
+// placed-NPC record. Encounter itself answers only reach — identity,
+// adjacency, visibility — and holds no NPC content of its own.
+message InteractResponse {
+  WorldNPCDescriptor descriptor = 1;
+  uint64 seq = 2;
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
+}
+
+// WorldNPCDescriptor is what a player sees after reaching a placed world
+// NPC. Mirrors session.WorldNPCDescriptor field-for-field.
+message WorldNPCDescriptor {
+  // Echoes the confirmed target member id, so a caller need not trust its
+  // own input back.
+  string target_id = 1;
+  // The placed NPC content's reference, as core.Ref.String() — never a
+  // structured Ref (S2: no inner-package type crosses this seam). Empty if
+  // the stored content carried no ref.
+  string ref = 2;
+  // Player-facing name.
+  string display_name = 3;
+  // The NPC's opaque interaction-capability labels — e.g. "vendor". Open
+  // vocabulary, deliberately not an enum: the toolkit's own npc.Capability
+  // is a plain extensible string with no fixed catalog, and this seam
+  // mirrors that rather than inventing a closed set ahead of it.
+  repeated string capabilities = 4;
+  // Authored combat participation policy. The MVP has exactly one legal
+  // value, "non_combatant" — carried as a plain string for the same reason
+  // as capabilities: the toolkit's own npc.CombatPolicy is a string type
+  // expected to grow, and this seam does not pre-enumerate values ahead of
+  // it.
+  string combat_policy = 5;
+  // Resolved vendor stock, in display-ready form. Empty for any NPC that
+  // isn't a vendor — the normal case for most world NPCs, not an error.
+  repeated VendorStockEntry inventory = 6;
+}
+
+// VendorStockMode mirrors the toolkit's npcs.StockMode: whether a vendor's
+// stock row is a fixed count or always available. A closed, stable
+// two-value set — unlike capabilities/combat_policy above, an enum fits
+// here.
+enum VendorStockMode {
+  VENDOR_STOCK_MODE_UNSPECIFIED = 0;
+  VENDOR_STOCK_MODE_LIMITED = 1;
+  VENDOR_STOCK_MODE_UNLIMITED = 2;
+}
+
+// VendorStockEntry mirrors the toolkit's npcs.StockEntryView: one resolved
+// item a vendor has for sale.
+message VendorStockEntry {
+  // The equipment's coarse family — "weapon", "armor", "tool", "pack",
+  // "item", "ammunition". Open vocabulary, deliberately not an enum: the
+  // toolkit's own shared.EquipmentType is a plain string for the same
+  // reason, and the values don't cleanly nest into any of this repo's
+  // existing equipment-classification enums (checked against v1alpha1's
+  // EquipmentType/EquipmentCategory — neither matches this vocabulary).
+  string equipment_type = 1;
+  string equipment_id = 2;
+  string display_name = 3;
+  VendorStockMode stock_mode = 4;
+  // Meaningful only when stock_mode is LIMITED.
+  optional int32 quantity = 5;
+}
+
+// =============================================================================
 // Stream
 // =============================================================================
 
@@ -1022,6 +1106,13 @@ service SessionService {
   // an empty room and a failed check answer identically. A find arrives as
   // a DOOR_REVEALED beat on the searcher's own stream.
   rpc Search(SearchRequest) returns (SearchResponse);
+
+  // Interact reaches for a placed world NPC and reports what it is — identity,
+  // capabilities, and resolved vendor stock if it has any. Placement itself
+  // (PlaceNPC) is not a client RPC: it happens server-side, the same way
+  // monster Spawn does, driven by authored dungeon content rather than a
+  // caller.
+  rpc Interact(InteractRequest) returns (InteractResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.

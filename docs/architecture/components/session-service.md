@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-01
+updated: 2026-09-03
 confidence: high for everything with an SDK tag behind it — verified by scripted field-for-field comparison against rulebooks/dnd5e/session v0.18.0 read from the tag, plus the v0.20.0 `Atlas.Layout` delta read from rpg-toolkit#1147 and the v0.21.2 `Seen` delta read from rpg-toolkit#1157/ADR-0041; medium for the combat-turn contract (rpg-project#249), which merged AHEAD of its SDK by ruling and is re-verified field-for-field when rpg-toolkit#1010/#1137/#866/#941/#1168 tag; first live consumer is rpg-dnd5e-web's Concepts Lab (rpg-dnd5e-web#759)
 ---
 
@@ -19,10 +19,13 @@ session/v0.9.0, re-transcribed by #226 (issue #225) against
 **session/v0.13.0**, caught up to **session/v0.18.0** by the delta below,
 extended to **session/v0.20.0** with `GetAtlasResponse.layout`
 (rpg-toolkit#1140), extended to **session/v0.21.2** with `Seen` on
-`Sighting`/`Report` (ADR-0041, rpg-toolkit#1157), and then — the state this
-doc describes — carrying **the combat-turn contract** (rpg-project#249,
-design `rpg-project/ideas/combat-turn/design.md` §3), which is the one part
-of this package that merged *ahead* of its SDK. See "The combat turn" below.
+`Sighting`/`Report` (ADR-0041, rpg-toolkit#1157), carrying **the combat-turn
+contract** (rpg-project#249, design `rpg-project/ideas/combat-turn/design.md`
+§3), which is the one part of this package that merged *ahead* of its SDK
+(see "The combat turn" below), and most recently extended with **`Interact`
+and `MEMBER_KIND_WORLD`** against **rulebooks/dnd5e/v0.131.0**
+(rpg-toolkit#1404/#1434, design `rpg-toolkit/docs/ideas/world-npcs/`) — the
+state this doc describes. See "World NPCs" below.
 
 ## What makes this service different from every other one here
 
@@ -132,11 +135,43 @@ Fifteen, mirroring the SDK verbs one-for-one.
 | `GetView` | `View` | `GetViewRequest:GetViewResponse` | Sightings — what this member perceives of *others*. Skips self by design; `GetWhere` answers self |
 | `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | The caller's own cell, answerable cold. Deliberately singular — no roster read exists |
 | `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Static; cache per encounter, never per frame |
+| `Interact` | `Interact` | `InteractRequest:InteractResponse` | Reaches a placed `MEMBER_KIND_WORLD` member and reports identity plus resolved vendor stock, if any. See "World NPCs" below |
 | `StreamEvents` | `EventStream` | `StreamEventsRequest:stream Event` | Per-recipient projections |
 
-**No `StartSession` and no `Spawn`**, though the SDK exposes both. Creation is
-the lobby's: `LobbyService.StartEncounter` calls them in-process (design rule
-5). There is no creation RPC here, in v1 or after.
+**No `StartSession`, no `Spawn`, and no `PlaceNPC`**, though the SDK exposes
+all three. Creation is the lobby's: `LobbyService.StartEncounter` calls them
+in-process (design rule 5). There is no creation RPC here, in v1 or after.
+
+## World NPCs
+
+`rpg-toolkit#1404`/`#1434` (rulebooks/dnd5e/v0.131.0) added placed,
+non-combatant world NPCs to the SDK — a vendor today, any other
+`npc.Capability`-tagged content later. This seam's slice of it:
+
+- **`MemberKind` gained `MEMBER_KIND_WORLD`.** A placed NPC shows up in the
+  roster like any other member, structurally excluded from combat — never a
+  side in a fight, never on the turn clock.
+- **`Interact`, not a generic verb reused from the old encounter stack.** The
+  earlier `dnd5e.api.v1alpha2.encounter.Interact` (see "Relationship to the
+  v1alpha2 encounter service" below) is a different, dead RPC on a different,
+  dead service — this one is a fresh transcription of `session.Interact`,
+  field-for-field, sharing nothing but a name.
+- **`WorldNPCDescriptor.capabilities` and `.combat_policy` are plain
+  strings, deliberately not enums.** The toolkit's own `npc.Capability` and
+  `npc.CombatPolicy` are open, extensible string types with no fixed catalog
+  (today's only capability value is `"vendor"`) — this seam mirrors that
+  rather than inventing a closed set ahead of the SDK committing to one.
+- **`VendorStockEntry.equipment_type` is also a plain string**, mirroring
+  the toolkit's `shared.EquipmentType`. Checked against this repo's existing
+  `dnd5e.api.v1alpha1.EquipmentType`/`EquipmentCategory` enums first — neither
+  matches the toolkit's coarse vocabulary (weapon/armor/tool/pack/item/
+  ammunition), and forcing a fit would mean deriving categorization this
+  seam has no business deriving.
+- **No `PlaceNPC` RPC.** Placing a vendor into a session is authored dungeon
+  content (a `place:` entry keyed by an `npcs:`-namespaced ref, the same
+  mechanism monster placement already uses), resolved server-side into a
+  `PlaceNPC` call the same way a `monsters:` ref becomes `Spawn` — never a
+  caller-facing RPC. See "Known gaps" for what's still open.
 
 ## Movement, and the trap in it
 
@@ -529,6 +564,17 @@ rule 4 exists to prevent. Where somebody *else* is, is `GetView`'s answer, and
   `ErrLocked` exists in the SDK for a door verb this seam does not expose, and a
   walk into a locked door still returns `ErrBadPosition` (rpg-toolkit#1135), so
   a fiction beat and a client bug are currently the same sentinel.
+- **No `PlaceNPC` on the wire, and none planned.** Same shape of absence as
+  `Spawn`: a placed world NPC (vendor or otherwise) is authored dungeon
+  content, seated server-side the same loop `Spawn` already uses, never a
+  caller-driven RPC. See "World NPCs" below.
+- **`Interact` cannot yet drive a purchase.** `WorldNPCDescriptor.inventory`
+  is read-only — display data, no prices, no buy/sell/quote RPC. That's
+  rpg-toolkit#1275, still open on the toolkit side.
+- **No hostile or disposition-bearing world NPCs.** Every `MEMBER_KIND_WORLD`
+  member is structurally non-combatant — excluded from the toolkit's own
+  fight-detection code, not merely defaulted that way. rpg-toolkit's own
+  design docs note this is deliberately unresolved, not just unbuilt.
 
 ## Relationship to the v1alpha2 encounter service
 

@@ -138,13 +138,17 @@ enum HexLayout {
 }
 
 // MemberKind categorises a member. Mirrors session.MemberKind
-// ("player" / "monster").
+// ("player" / "monster" / "world").
 enum MemberKind {
   MEMBER_KIND_UNSPECIFIED = 0;
   // A player-controlled member.
   MEMBER_KIND_PLAYER = 1;
   // A member driven by the game rather than a person.
   MEMBER_KIND_MONSTER = 2;
+  // A placed, non-combatant world NPC (rpg-toolkit#1404) — a vendor, or any
+  // other content a player can Interact with. Structurally excluded from
+  // combat: never a side in a fight, never on the turn clock.
+  MEMBER_KIND_WORLD = 3;
 }
 
 // Standing says whether a member is still on their feet. Lands with

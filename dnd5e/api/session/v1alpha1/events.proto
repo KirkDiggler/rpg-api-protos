@@ -422,8 +422,9 @@ message RollCalculation {
 // modifier — resistance's half and immunity's zero are damage arithmetic facts
 // and stay here, beside the component. The component's roll facts arrive in
 // exactly one of the two representations below: the deprecated scalar fields
-// when converted from a pre-trace record, or `roll` when the producing
-// rulebook authored a trace. New events populate only `roll`.
+// when converted from a pre-trace record, or `roll` — ONE sourced roll
+// component, not a whole calculation — when the producing rulebook authored a
+// trace. New events populate only `roll`.
 message DamageComponent {
   string source = 1;
   // LEGACY ONLY. The pre-trace source ref ("dnd5e:conditions:sneak_attack").
@@ -440,14 +441,16 @@ message DamageComponent {
   DamageType damage_type = 6;
   // Presence distinguishes an additive component from immunity's real zero.
   optional double multiplier = 7;
-  // The component's authoritative roll trace: sourced dice (original faces,
-  // ordered rerolls, final faces, kept faces, asserted subtotal) plus its own
-  // sourced additive modifier, present-zero included. The trace describes the
-  // dice actually rolled — a critical carries the doubled pool here under the
-  // domain's printed notation. A multiplier-only trait component carries a
-  // sourced `roll` with neither dice nor modifier. Set on new events instead
-  // of the deprecated scalars above; never beside them.
-  RollCalculation roll = 8;
+  // The component's authoritative roll facts as ONE sourced roll component:
+  // who contributed (source), the physical dice they rolled — original faces,
+  // ordered rerolls, final faces, kept faces, asserted subtotal (dice) — and
+  // their sourced additive modifier, present-zero included (modifier). The
+  // dice, when present, describe the dice actually rolled — a critical
+  // carries the doubled pool here under the domain's printed notation. A
+  // multiplier-only trait component carries a sourced `roll` with neither
+  // dice nor modifier. Set on new events instead of the deprecated scalars
+  // above; never beside them.
+  RollComponent roll = 8;
 }
 
 // AttackModifierSource identifies one source of advantage or disadvantage.

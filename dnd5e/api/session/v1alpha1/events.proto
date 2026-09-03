@@ -165,9 +165,11 @@ enum EventKind {
   // the same reasons, patching the same cached atlas.
   EVENT_KIND_REGION_REVEALED = 16;
   // A member successfully used an authored ability. This precedes every
-  // ACTIVATION_RESULT produced by that activation.
+  // ACTIVATION_RESULT produced by that activation. From rpg-toolkit#1433,
+  // Session v0.48.0, via rpg-api-protos#275.
   EVENT_KIND_ACTIVATED = 17;
-  // One ordered rulebook effect produced by a successful activation.
+  // One ordered rulebook effect produced by a successful activation. From
+  // rpg-toolkit#1433, Session v0.48.0, via rpg-api-protos#275.
   EVENT_KIND_ACTIVATION_RESULT = 18;
 
   // A beat the producing toolkit version does not recognise. See the enum

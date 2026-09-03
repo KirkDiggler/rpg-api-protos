@@ -820,15 +820,44 @@ message GetAtlasResponse {
   // permission.
   repeated AtlasDoorway doorways = 2;
   // Every named area of the map, each listing its own cells in the same
-  // absolute frame as `cells`. EVERY FLOOR CELL APPEARS IN EXACTLY ONE
-  // REGION — no cell unowned, no cell shared — so a client asking "which
-  // region is this cell in" always has one answer. Regions are construction
-  // truth like the rest of the atlas: fetched once with it, cached with it,
-  // unchanged by anything that happens in the session. Lighting rides here
-  // because it is a world fact, not a render hint: a client that cannot read
-  // "this hall is dark" off the wire re-derives it by experiment. See
-  // AtlasRegion for why regions are not rooms, and the law on archetype.
+  // absolute frame as `cells`. NO FLOOR CELL APPEARS IN TWO REGIONS, and a
+  // floor cell may belong to NONE: an unowned cell in `cells` is SCENERY —
+  // floor that belongs to no room, drawn and lit like the floor beside it and
+  // visible to everyone (rpg-project#360 §1.1, §5.1). So a client asking
+  // "which region is this cell in" has one answer or none, never two, and a
+  // client that treats "in no region" as "not floor" will punch holes in the
+  // map. Regions are construction truth like the rest of the atlas: fetched
+  // once with it, cached with it, unchanged by anything that happens in the
+  // session. Lighting rides here because it is a world fact, not a render
+  // hint: a client that cannot read "this hall is dark" off the wire
+  // re-derives it by experiment. See AtlasRegion for why regions are not
+  // rooms, and the law on archetype.
   repeated AtlasRegion regions = 9;
+  // Every wall AS THE AUTHOR DREW IT — the line, not the cell-crossings it
+  // implies. Presentation only: `boundaries` above stays the mechanical truth
+  // and nothing here changes what a member may do. A client draws these
+  // instead of fitting a chain through `boundaries`, which cannot recover the
+  // author's line at all — see AtlasSegment for why, and for how a door's gap
+  // is derived. Empty from a producer that has not adopted segments: a client
+  // that finds none draws walls the way it did before, and one that finds
+  // some draws exactly these and fits nothing.
+  repeated AtlasSegment segments = 10;
+  // Every cell of THIS RECIPIENT'S atlas that nobody can stand on: scenery,
+  // and the cells a wall runs through the middle of.
+  //
+  // A SEALED CELL KEEPS ITS REGION, so membership no longer implies
+  // standable, and that is the whole reason this field exists. One cell used
+  // to answer both questions at once — in `cells` and in a region meant floor
+  // you could walk to. Now the region decides visibility and meaning, and
+  // this list decides feet. A client that places anything by region
+  // membership alone will stand it inside a wall.
+  //
+  // Same absolute frame and the same comparator as `cells`, and every entry
+  // appears in `cells` as well: sealed floor is still floor. It is drawn and
+  // it is lit; what sight does at it is the wall's business, not this list's.
+  // The engine refuses the step either way — this is so a client need not ask
+  // to find out.
+  repeated Position sealed = 11;
 }
 
 // =============================================================================

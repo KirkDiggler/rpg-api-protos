@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-08-27
+updated: 2026-09-03
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,23 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **World NPCs on the session wire (rpg-toolkit#1404/#1434, 2026-09-03)** —
+  additive: `MemberKind` gained `MEMBER_KIND_WORLD`, and a new `Interact` RPC
+  on `SessionService` reaches a placed non-combatant world NPC (a vendor,
+  today) and reports identity plus resolved vendor stock
+  (`VendorStockEntry`, mirroring the toolkit's `npcs.StockEntryView`).
+  Deliberately narrow: no `PlaceNPC` RPC (placement is authored dungeon
+  content, resolved server-side the same way monster `Spawn` already is —
+  see `docs/architecture/components/session-service.md`), no prices, no
+  buy/sell (`rpg-toolkit#1275`, open), no hostile/disposition NPCs (a hard
+  toolkit-side architectural exclusion, not a policy default). Landed only
+  after two rounds of catching wrong assumptions: an earlier attempt
+  (rpg-api-protos#268, closed) built the same feature against the dead
+  `v1alpha2.encounter.Interact` before `EncounterService`'s retirement was
+  documented (see rpg-api-protos#272), and this pass's own draft initially
+  assumed a `PlaceNPC` RPC was needed before checking how monster `Spawn`
+  actually reaches a session (it doesn't — it's server-internal).
 
 - **Shared dice presentation contract (rpg-api-protos#256,
   rpg-project#289 / #303, 2026-08-27)** — additive new subpackage

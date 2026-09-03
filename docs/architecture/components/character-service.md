@@ -1,7 +1,7 @@
 ---
 name: CharacterService
 description: D&D 5e character creation, draft lifecycle, equipment management, and reference data
-updated: 2026-09-04
+updated: 2026-09-03
 confidence: high — verified by reading dnd5e/api/v1alpha1/character.proto end-to-end
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-04
+updated: 2026-09-03
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -17,7 +17,7 @@ shape and consumer drift, it shows up here as a "rough edge."
 ## Active work
 
 - **Explicit Death Saves on the session wire (rpg-api-protos#277,
-  session/v0.54.0, 2026-09-04)** — additive transcription of the released SDK:
+  session/v0.54.1, 2026-09-03)** — additive transcription of the released SDK:
   `VERB_DEATH_SAVE`, compiled `DeathSaveRef`, dedicated request/response RPC,
   session-owned `LifeState`, `DeathSaveProgress`, typed outcome/continuation,
   and whole-party `EVENT_KIND_DEATH_SAVE_ROLLED` body. `Participant.life_state`
@@ -481,7 +481,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 2 RPCs, answers with the session atlas itself; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
-| `dnd5e.session.SessionService` | High (contract) / consumer adoption pending — current explicit Death Save surface is transcribed from released session/v0.54.0; earlier core came from #222/#226 and `GetWhere` from #228. Proto lint/breaking/generation are the contract evidence; API/web runtime acceptance remains follow-on work |
+| `dnd5e.session.SessionService` | High (contract) / consumer adoption pending — current explicit Death Save surface is transcribed from released session/v0.54.1; earlier core came from #222/#226 and `GetWhere` from #228. Proto lint/breaking/generation are the contract evidence; API/web runtime acceptance remains follow-on work |
 | `dnd5e.session.presentation.SessionPresentationService` | High (contract) / no consumer yet — new (rpg-api-protos#256, 2026-08-27). Presentation-only live-session dice throw plans: `PublishDiceThrow` + `StreamDiceThrows`, group-shaped bodies/contacts/terminals, server-bound `roller`, intended live/no-replay Redis-backed host in rpg-api. Both consumer issues are already assigned (`rpg-api#852`, `rpg-dnd5e-web#837`), so this is consumer-pending rather than speculative unused proto |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |

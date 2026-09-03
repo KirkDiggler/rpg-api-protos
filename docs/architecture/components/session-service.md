@@ -1,8 +1,8 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-04
-confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.0; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
+updated: 2026-09-03
+confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
 # SessionService
@@ -25,7 +25,7 @@ contract** (rpg-project#249, design `rpg-project/ideas/combat-turn/design.md`
 (see "The combat turn" below), and most recently extended with **`Interact`
 and `MEMBER_KIND_WORLD`** against **rulebooks/dnd5e/v0.131.0**
 (rpg-toolkit#1404/#1434, design `rpg-toolkit/docs/ideas/world-npcs/`), and now
-adds the explicit Death Save surface from **rulebooks/dnd5e/session v0.54.0**
+adds the explicit Death Save surface from **rulebooks/dnd5e/session v0.54.1**
 (rpg-api-protos#277) — the state this doc describes. See "Death Saves" and
 "World NPCs" below.
 
@@ -146,7 +146,8 @@ in-process (design rule 5). There is no creation RPC here, in v1 or after.
 
 ## Death Saves
 
-Session v0.54.0 adds `VERB_DEATH_SAVE`, one `DeathSaveRef` on its compiled
+Session v0.54.0 introduced `VERB_DEATH_SAVE`; the current v0.54.1 contract has
+one `DeathSaveRef` on its compiled
 `Declaration`, and the dedicated `DeathSave` RPC. The request is only
 `session`, authenticated `member`, and required opaque `declaration_id`: no die,
 target, state, threshold, or proposed outcome crosses into the provider. Empty,

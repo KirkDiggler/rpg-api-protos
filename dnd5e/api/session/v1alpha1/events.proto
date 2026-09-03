@@ -9,7 +9,8 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // Read from session/v0.18.0; typed event bodies from the combat-turn contract
-// (rpg-project#249) and explicit Death Saves from session/v0.54.0.
+// (rpg-project#249) and the current explicit Death Save contract from
+// session/v0.54.1.
 
 // EventKind names what an event reports. Mirrors session.EventKind.
 //
@@ -173,7 +174,7 @@ enum EventKind {
   EVENT_KIND_ACTIVATION_RESULT = 18;
   // One explicit authoritative Death Save result. Visible to the whole party:
   // the physical d20 and progress pips are table-visible by ruling. Mirrors
-  // session.EventDeathSave from Session v0.54.0.
+  // session.EventDeathSave from Session v0.54.1.
   EVENT_KIND_DEATH_SAVE_ROLLED = 19;
 
   // A beat the producing toolkit version does not recognise. See the enum

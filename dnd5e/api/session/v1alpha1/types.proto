@@ -10,7 +10,8 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // This package transcribes the exported surface of the toolkit's
 // `rulebooks/dnd5e/session` package (read from session/v0.18.0; v0.21.2 added
-// Seen on Sighting/Report — ADR-0041; v0.54.0 added explicit Death Saves;
+// Seen on Sighting/Report — ADR-0041; v0.54.0 introduced explicit Death Saves,
+// with the current contract verified against v0.54.1;
 // combat-turn contract, rpg-project#249;
 // SDK fields land with the toolkit issues named inline). Every message here
 // mirrors an SDK type field-for-field: rpg-api invents no vocabulary, and a
@@ -172,7 +173,7 @@ enum Standing {
 }
 
 // LifeState is the session-owned projection of the D&D provider's derived
-// combat life state. Mirrors session.LifeState from session/v0.54.0.
+// combat life state. Mirrors session.LifeState from session/v0.54.1.
 //
 // This is always explicit wherever projected, even when DeathSaveProgress is
 // absent. It is a read of canonical HP/progress/monster facts, not a second

@@ -11,7 +11,7 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
 // package — one verb surface, transcribed (shapes read from session/v0.18.0;
-// Death Save contract from session/v0.54.0; Afford from session/v0.21.3;
+// current Death Save contract from session/v0.54.1; Afford from session/v0.21.3;
 // VERB_MOVE, Declaration.remaining and Move's
 // turn-clock refusals from the tag that closes rpg-toolkit#1169; combat-turn
 // contract, rpg-project#249 — SDK fields land with the toolkit issues named
@@ -312,7 +312,7 @@ message DeathSaveRequest {
   string declaration_id = 3;
 }
 
-// DeathSaveResponse mirrors session.DeathSaveOutput from session/v0.54.0.
+// DeathSaveResponse mirrors session.DeathSaveOutput from session/v0.54.1.
 // Every game fact is authoritative provider output. The corresponding
 // whole-party DeathSaveRolled event carries the same roll, outcome,
 // continuation, progress facts, and presentation_id.

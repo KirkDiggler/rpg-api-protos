@@ -305,16 +305,163 @@ message Downed {
   string member = 1;
 }
 
+// -----------------------------------------------------------------------------
+// Roll trace primitives — the dice and sourced additive modifiers any roll
+// domain carries. From Session v0.51.0 (rpg-toolkit#1479), via
+// rpg-api-protos#283.
+// -----------------------------------------------------------------------------
+//
+// These five messages describe dice and sourced additive modifiers the way the
+// producing rulebook asserts them, and nothing else: damage type, critical
+// state, multipliers, AC, DC, requested/applied amounts and HP stay on the
+// domain bodies that carry them. A receiver maps these fields through to
+// presentation and performs NO arithmetic — every subtotal and total below is
+// asserted by the producer, not derived here, and a ref is never parsed, mapped
+// to a rule, or turned into a label by anything downstream.
+
+// RollSource names one provider-authored source of a roll, a reroll, or a
+// modifier. Ref is the canonical catalog identity when the source has one
+// ("dnd5e:features:second_wind"); name is the provider's display name for it
+// ("Second Wind"); label is the provider's term for this specific contribution
+// when it is narrower than the whole source ("Fighter level" for the
+// class-level modifier on a Second Wind heal). Receivers print these; they do
+// not interpret them.
+message RollSource {
+  // Canonical ref when the source has catalog identity; empty otherwise.
+  string ref = 1;
+  // Provider-authored display name.
+  string name = 2;
+  // Provider-authored term for this contribution, when more specific than
+  // name.
+  string label = 3;
+}
+
+// DiceReroll is one reroll applied to one die of a DiceTrace, in the order it
+// happened.
+message DiceReroll {
+  // The stable index of the rerolled die — the same index space
+  // DiceTrace.original_rolls and final_rolls number.
+  int32 die_index = 1;
+  // The face the die showed before this reroll — the value current at
+  // die_index at this point in the ordered history.
+  int32 before = 2;
+  // The face the die shows from this reroll on.
+  int32 after = 3;
+  // Who ordered the reroll (e.g. Great Weapon Fighting).
+  RollSource source = 4;
+}
+
+// DiceTrace is one homogeneous physical dice group AS ACTUALLY ROLLED — the
+// physical faces AND the notation of that physical pool, not a rule's printed
+// pool: a critical whose printed domain dice are 2d6 records 4d6 here, the
+// printed 2d6 remaining a separate domain fact beside the trace, and an
+// advantaged d20 carries two physical faces plus the one kept.
+//
+// The face fields are one ordered story over the same stable die indices:
+// original_rolls is what each index first showed; rerolls rewrite individual
+// indices in application order; final_rolls is what every index shows once all
+// rerolls have applied; kept_indices selects which final faces count.
+message DiceTrace {
+  // The physical dice expression this group ACTUALLY rolled — the notation of
+  // the physical pool, doubled pool included: "4d6" when a critical doubled a
+  // printed 2d6, never the printed "2d6" alongside the doubled faces. The
+  // domain's printed expression stays a separate domain fact.
+  string notation = 1;
+  // The size of every die in the group.
+  int32 die_size = 2;
+  // What each die first showed, in index order, before any reroll —
+  // including faces later rerolled away.
+  repeated int32 original_rolls = 3;
+  // Every reroll applied to the group, IN THE ORDER APPLIED. Each entry's
+  // before is the value current at its die_index at that moment, and its
+  // after is the value from then on. Empty when nothing rerolled.
+  repeated DiceReroll rerolls = 4;
+  // What each die shows after all rerolls, in the same index order and
+  // cardinality as original_rolls.
+  repeated int32 final_rolls = 5;
+  // Which final faces participate — indices into original_rolls/final_rolls,
+  // after advantage, disadvantage, or another keep/drop rule. Empty means
+  // every final face is kept.
+  repeated int32 kept_indices = 6;
+  // The authoritative sum of the kept final faces, as the producing rulebook
+  // asserts it. Receivers must not recompute it from the faces.
+  int32 subtotal = 7;
+}
+
+// RollComponent is one sourced input to a domain's roll calculation: who
+// contributed (source), the physical dice they rolled (dice), and the flat
+// additive modifier they added (modifier).
+message RollComponent {
+  // Who contributed.
+  RollSource source = 1;
+  // The physical dice this component rolled. Absent on a modifier-only
+  // component.
+  DiceTrace dice = 2;
+  // The flat additive modifier this component contributed, signed — including
+  // zero when a zero modifier actually participated.
+  //
+  // PRESENCE IS THE FACT. Unset (nil in Go, undefined in TS) means this
+  // component carried no additive modifier at all; present with the value 0
+  // means a modifier participated and its amount was zero. These are
+  // different facts and the wire preserves the difference.
+  optional int32 modifier = 3;
+}
+
+// RollCalculation is one domain's ordered roll inputs and the total the
+// producing rulebook asserts for them.
+message RollCalculation {
+  // The ordered sourced components, in producer order. A multiplier such as
+  // resistance or immunity is NOT one of these — multipliers remain damage
+  // facts beside the calculation, never additive modifiers within it.
+  repeated RollComponent components = 1;
+  // The authoritative total of every component's dice and additive modifiers,
+  // as the producing rulebook asserts it. Receivers must not recompute it
+  // from the components.
+  int32 total = 2;
+}
+
 // DamageComponent is one ordered source-attributed input to resolved damage.
+//
+// DAMAGE REMAINS A DOMAIN COMPOSITION: the multiplier below is not a roll-trace
+// modifier — resistance's half and immunity's zero are damage arithmetic facts
+// and stay here, beside the component. The component's roll facts arrive in
+// exactly one of the two representations below: the deprecated scalar fields
+// when converted from a pre-trace record, or `roll` — ONE sourced roll
+// component, not a whole calculation — when the producing rulebook authored a
+// trace. New events populate only `roll`.
 message DamageComponent {
+  // The CATEGORY of the damage source — a coarse kind like "weapon" or
+  // "monster_trait", NOT identity. Identity lives in the roll-trace source,
+  // and in the deprecated source_ref below for pre-trace records.
   string source = 1;
-  string source_ref = 2;
-  string dice = 3;
-  repeated int32 final_rolls = 4;
-  int32 flat_bonus = 5;
+  // LEGACY ONLY. The pre-trace source IDENTITY ref
+  // ("dnd5e:conditions:sneak_attack") — succeeded by roll.source.ref.
+  // Old-record conversion populates this and never `roll`; new events never
+  // set it.
+  string source_ref = 2 [deprecated = true];
+  // LEGACY ONLY. The pre-trace aggregate dice expression — succeeded by
+  // roll.dice.notation. See source_ref.
+  string dice = 3 [deprecated = true];
+  // LEGACY ONLY. The pre-trace aggregate final faces, with no reroll history
+  // — succeeded by roll.dice.final_rolls. See source_ref.
+  repeated int32 final_rolls = 4 [deprecated = true];
+  // LEGACY ONLY. The pre-trace aggregate flat bonus — succeeded by
+  // roll.modifier. See source_ref.
+  int32 flat_bonus = 5 [deprecated = true];
   DamageType damage_type = 6;
   // Presence distinguishes an additive component from immunity's real zero.
   optional double multiplier = 7;
+  // The component's authoritative roll facts as ONE sourced roll component:
+  // who contributed (source), the physical dice they rolled — original faces,
+  // ordered rerolls, final faces, kept faces, asserted subtotal (dice) — and
+  // their sourced additive modifier, present-zero included (modifier). The
+  // dice, when present, carry the pool ACTUALLY rolled, notation included: a
+  // critical whose printed domain dice are 2d6 records 4d6 and its doubled
+  // faces here, the printed 2d6 staying a separate domain fact beside the
+  // trace. A multiplier-only trait component carries a sourced `roll` with
+  // neither dice nor modifier. Set on new events instead of the deprecated
+  // scalars above; never beside them.
+  RollComponent roll = 8;
 }
 
 // AttackModifierSource identifies one source of advantage or disadvantage.
@@ -392,16 +539,32 @@ message ActivationResult {
 
 // HealingApplied carries authoritative post-clamp healing facts, including
 // both the amount applied and the amount requested by the rulebook.
+//
+// The requested roll arrives in exactly one of two representations: the
+// deprecated scalar fields when this beat was converted from a pre-trace
+// record, or `calculation` when the producing rulebook authored the full
+// sourced calculation. New events populate only `calculation`.
 message HealingApplied {
   string target = 1;
   int32 amount = 2;
-  int32 roll = 3;
-  int32 modifier = 4;
+  // LEGACY ONLY. The pre-trace die total behind the requested healing. See
+  // calculation.
+  int32 roll = 3 [deprecated = true];
+  // LEGACY ONLY. The pre-trace flat modifier behind the requested healing.
+  // See calculation.
+  int32 modifier = 4 [deprecated = true];
   string source_ref = 5;
   string source_name = 6;
   int32 hp_before = 7;
   int32 hp_after = 8;
   int32 requested = 9;
+  // The authoritative calculation behind the requested healing: ordered
+  // sourced components (dice traces, additive modifiers, present-zero
+  // included) and the producing rulebook's asserted total, never recomputed
+  // by receivers. When set, its total equals requested; amount stays the
+  // post-clamp fact. Set on new events instead of the deprecated scalars
+  // above; never beside them.
+  RollCalculation calculation = 10;
 }
 
 // ConditionApplied identifies a condition attached to a target.

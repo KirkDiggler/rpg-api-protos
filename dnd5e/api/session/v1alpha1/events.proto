@@ -164,6 +164,13 @@ enum EventKind {
   // this beat carries the room. Recipient-scoped like DOOR_REVEALED, for
   // the same reasons, patching the same cached atlas.
   EVENT_KIND_REGION_REVEALED = 16;
+  // A member successfully used an authored ability. This precedes every
+  // ACTIVATION_RESULT produced by that activation. From rpg-toolkit#1433,
+  // Session v0.48.0, via rpg-api-protos#275.
+  EVENT_KIND_ACTIVATED = 17;
+  // One ordered rulebook effect produced by a successful activation. From
+  // rpg-toolkit#1433, Session v0.48.0, via rpg-api-protos#275.
+  EVENT_KIND_ACTIVATION_RESULT = 18;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -262,6 +269,8 @@ message Event {
     DoorChanged door = 20;
     DoorRevealed door_revealed = 21;
     RegionRevealed region_revealed = 22;
+    Activated activated = 23;
+    ActivationResult activation_result = 24;
   }
 }
 
@@ -357,6 +366,65 @@ message Missed {
   // Struck.reaction. A missed opportunity attack is still worth naming: the
   // reactor spent their reaction on it.
   ReactionRef reaction = 7;
+}
+
+// Activated: a member successfully used an authored ability
+// (EVENT_KIND_ACTIVATED). Ability is copied from the server-authored
+// declaration; its name is not derived from its ref. Target is empty for an
+// ability that selects nobody.
+message Activated {
+  string actor = 1;
+  AbilityRef ability = 2;
+  string target = 3;
+}
+
+// ActivationResult: one ordered rulebook effect produced by a successful
+// activation (EVENT_KIND_ACTIVATION_RESULT). Exactly one result is set.
+message ActivationResult {
+  string actor = 1;
+  oneof result {
+    HealingApplied healing_applied = 2;
+    ConditionApplied condition_applied = 3;
+    ConditionRemoved condition_removed = 4;
+    CapacityGranted capacity_granted = 5;
+  }
+}
+
+// HealingApplied carries authoritative post-clamp healing facts, including
+// both the amount applied and the amount requested by the rulebook.
+message HealingApplied {
+  string target = 1;
+  int32 amount = 2;
+  int32 roll = 3;
+  int32 modifier = 4;
+  string source_ref = 5;
+  string source_name = 6;
+  int32 hp_before = 7;
+  int32 hp_after = 8;
+  int32 requested = 9;
+}
+
+// ConditionApplied identifies a condition attached to a target.
+message ConditionApplied {
+  string target = 1;
+  string ref = 2;
+  string name = 3;
+}
+
+// ConditionRemoved identifies a condition removed from a target and the
+// provider-authored reason it ended.
+message ConditionRemoved {
+  string target = 1;
+  string ref = 2;
+  string name = 3;
+  string reason = 4;
+}
+
+// CapacityGranted carries the member and provider-authored description of
+// capacity an activation banked.
+message CapacityGranted {
+  string member = 1;
+  string description = 2;
 }
 
 // FightStarted: two sides came into contact and a fight began

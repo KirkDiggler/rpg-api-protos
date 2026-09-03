@@ -11,7 +11,8 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
 // package — one verb surface, transcribed (shapes read from session/v0.18.0;
-// Afford from session/v0.21.3; VERB_MOVE, Declaration.remaining and Move's
+// Death Save contract from session/v0.54.0; Afford from session/v0.21.3;
+// VERB_MOVE, Declaration.remaining and Move's
 // turn-clock refusals from the tag that closes rpg-toolkit#1169; combat-turn
 // contract, rpg-project#249 — SDK fields land with the toolkit issues named
 // inline: reach #1010, standing and names #1137, weapon identity #866).
@@ -294,6 +295,61 @@ message AttackResponse {
   // "6 slashing" and "with a longsword" come from here. Lands with
   // rpg-toolkit#866.
   AttackRef attack = 10;
+}
+
+// DeathSaveRequest executes the active Dying character's current explicit
+// Death Save declaration. The declaration_id is required: empty, unknown,
+// stale, mismatched, spent, or no-longer-eligible declarations are refused
+// before the provider generates a presentation ID or rolls.
+//
+// The request deliberately names no die result, threshold, progress, outcome,
+// or target. The client selects a provider declaration and never derives rules.
+message DeathSaveRequest {
+  string session = 1;
+  // Who is rolling. Bound to the authenticated caller by the host.
+  string member = 2;
+  // Required non-empty opaque selector echoed from Afford.
+  string declaration_id = 3;
+}
+
+// DeathSaveResponse mirrors session.DeathSaveOutput from session/v0.54.0.
+// Every game fact is authoritative provider output. The corresponding
+// whole-party DeathSaveRolled event carries the same roll, outcome,
+// continuation, progress facts, and presentation_id.
+message DeathSaveResponse {
+  // The one authoritative d20 result retained across presentation retries.
+  int32 roll = 1;
+  // Provider-classified outcome; never derived from roll by a client.
+  DeathSaveOutcome outcome = 2;
+  int32 successes_added = 3;
+  int32 failures_added = 4;
+  int32 successes = 5;
+  int32 failures = 6;
+  // Provider-derived remaining count; clients do not apply a threshold.
+  int32 successes_needed = 7;
+  // Provider-derived remaining count; clients do not apply a threshold.
+  int32 failures_remaining = 8;
+  bool stabilized = 9;
+  bool dead = 10;
+  bool recovered = 11;
+  int32 hp_restored = 12;
+  // END_TURN follows settlement, KEEP_TURN refreshes and retains the actor,
+  // and ALREADY_ADVANCED refreshes without another mutation.
+  DeathSaveContinuation continuation = 13;
+  // One opaque provider-generated token shared with every witness event. It
+  // contains no Story/global sequence and is never parsed. An off-table retry
+  // presents this same authoritative result with this same token and a new
+  // attempt; it never issues a second DeathSave RPC.
+  //
+  // The presentation service receives numeric authority_seq separately from
+  // this actor's recipient-local response seq; neither value is parsed from
+  // presentation_id.
+  string presentation_id = 14;
+  // The actor's own recipient-local event number, never a Story/global
+  // sequence and meaningless in another recipient's stream.
+  uint64 seq = 15;
+  SaveReport saved = 16;
+  DeliveryReport delivery = 17;
 }
 
 // TurnRequest asks what one member is waiting on.
@@ -1120,6 +1176,12 @@ service SessionService {
   // target is out of reach, or the action is spent — each of which Afford
   // announces first.
   rpc Attack(AttackRequest) returns (AttackResponse);
+
+  // DeathSave executes the active Dying character's required current
+  // declaration. The provider rolls and applies exactly once; off-table dice
+  // retries present the returned authoritative result again rather than
+  // repeating this mutation.
+  rpc DeathSave(DeathSaveRequest) returns (DeathSaveResponse);
 
   // OpenDoor pushes a shut door open, as `member`. A locked door refuses with
   // FAILED_PRECONDITION naming the DC (rpg-toolkit#1135: fiction, not defect).

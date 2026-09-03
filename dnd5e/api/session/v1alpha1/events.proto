@@ -9,7 +9,7 @@ option java_multiple_files = true;
 option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 
 // Read from session/v0.18.0; typed event bodies from the combat-turn contract
-// (rpg-project#249) — they land with rpg-toolkit#941.
+// (rpg-project#249) and explicit Death Saves from session/v0.54.0.
 
 // EventKind names what an event reports. Mirrors session.EventKind.
 //
@@ -125,9 +125,9 @@ enum EventKind {
   // at every sight refresh (rpg-toolkit#1077), so it arrives on whatever verb
   // happened to refresh sight, frequently NOT the verb that dealt the damage.
   //
-  // There is deliberately no kind for coming back up. Nothing in v1 can revive
-  // a downed member, so a kind for it would be vocabulary against a future
-  // nobody has built; it earns its own name when death saves arrive.
+  // There is deliberately no separate kind for coming back up. A natural-20
+  // Death Save carries RECOVERED in EVENT_KIND_DEATH_SAVE_ROLLED, so that typed
+  // result already names the transition without a second event vocabulary.
   //
   // Read this one alongside STRUCK and MISSED — same family, same audience, and
   // a client reads all three side by side while narrating one exchange.
@@ -171,6 +171,10 @@ enum EventKind {
   // One ordered rulebook effect produced by a successful activation. From
   // rpg-toolkit#1433, Session v0.48.0, via rpg-api-protos#275.
   EVENT_KIND_ACTIVATION_RESULT = 18;
+  // One explicit authoritative Death Save result. Visible to the whole party:
+  // the physical d20 and progress pips are table-visible by ruling. Mirrors
+  // session.EventDeathSave from Session v0.54.0.
+  EVENT_KIND_DEATH_SAVE_ROLLED = 19;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -271,6 +275,7 @@ message Event {
     RegionRevealed region_revealed = 22;
     Activated activated = 23;
     ActivationResult activation_result = 24;
+    DeathSaveRolled death_save_rolled = 25;
   }
 }
 
@@ -303,6 +308,44 @@ message TurnEnded {
 // nothing else — see the kind's own doc for why hit points are not here.
 message Downed {
   string member = 1;
+}
+
+// DeathSaveRolled is the whole-party typed body for one explicit authoritative
+// Death Save (EVENT_KIND_DEATH_SAVE_ROLLED). It exposes the same provider result
+// as DeathSaveResponse, excluding persistence/delivery and the recipient-local
+// response sequence. Every recipient receives its own Event.seq but the same
+// authoritative roll, outcome, continuation, progress facts, and opaque
+// presentation_id.
+message DeathSaveRolled {
+  string actor = 1;
+  // The one authoritative d20 result retained across presentation retries.
+  int32 roll = 2;
+  // Provider-classified outcome; never derived from roll by a client.
+  DeathSaveOutcome outcome = 3;
+  int32 successes_added = 4;
+  int32 failures_added = 5;
+  int32 successes = 6;
+  int32 failures = 7;
+  // Provider-derived remaining count; clients do not apply a threshold.
+  int32 successes_needed = 8;
+  // Provider-derived remaining count; clients do not apply a threshold.
+  int32 failures_remaining = 9;
+  bool stabilized = 10;
+  bool dead = 11;
+  bool recovered = 12;
+  int32 hp_restored = 13;
+  // END_TURN follows settlement, KEEP_TURN refreshes and retains the actor,
+  // and ALREADY_ADVANCED refreshes without another mutation.
+  DeathSaveContinuation continuation = 14;
+  // The same opaque provider-generated token returned by DeathSaveResponse. It
+  // contains no Story/global sequence and is never parsed. An off-table retry
+  // presents this same authoritative result with this same token and a new
+  // attempt; it never repeats the game mutation.
+  //
+  // The presentation service receives numeric authority_seq separately from
+  // the actor's recipient-local response seq and every witness's local
+  // Event.seq; none of those values is parsed from presentation_id.
+  string presentation_id = 15;
 }
 
 // -----------------------------------------------------------------------------

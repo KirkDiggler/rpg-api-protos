@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.v1alpha2.encounter;
 
+import "dnd5e/api/session/v1alpha1/types.proto";
 import "dnd5e/api/v1alpha1/common.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha2/encounter;encounterpb";
@@ -374,7 +375,7 @@ message Entity {
 // This message is reused by the authenticated-owner CharacterService and by the legacy
 // encounter Entity union, but reuse does not grant the same disclosure in both contexts.
 // GetCharacterData/EquipItem/UnequipItem return the hydrated owner projection only after
-// the host binds the character to the authenticated owner. Fields 9-14 are exact private
+// the host binds the character to the authenticated owner. Fields 9-16 are exact private
 // sheet/status facts and MUST be populated only for that owner; they MUST be withheld from
 // every foreign Entity.character projection. Peers receive only separately authorized
 // public encounter/sight facts, never another character's exact HP, features, conditions,
@@ -417,7 +418,7 @@ message CharacterData {
   // total available out-of-encounter, there's nowhere else to put it on that response.
   // In a legacy encounter Entity projection authorized to carry armor_class_detail, rpg-api
   // keeps the two in sync (armor_class_detail.total == Entity.armor_class). This does not
-  // authorize owner-private fields 9-14 for foreign viewers; Entity.armor_class stays the
+  // authorize owner-private fields 9-16 for foreign viewers; Entity.armor_class stays the
   // separately authorized flat cross-entity value other types use with no note at all.
   ArmorClassDisplay armor_class_detail = 7;
 
@@ -428,7 +429,7 @@ message CharacterData {
   // passes it through.
   string main_hand_damage = 8;
 
-  // Fields 9-14 are authenticated-owner-only. Encounter Entity.character projections for
+  // Fields 9-16 are authenticated-owner-only. Encounter Entity.character projections for
   // any foreign viewer MUST leave every one of them at its unpopulated/default shape.
   int32 level = 9;
   // temp remains zero until the toolkit character state owns temporary HP.
@@ -440,6 +441,16 @@ message CharacterData {
   // Non-magical feature/class resources only. SpellSlots and legacy ClassResources
   // are explicitly excluded.
   repeated ResourceView resources = 14;
+  // Always-explicit provider-derived state from the same session-owned enum
+  // Participant uses. It is a projection of canonical character facts, not a
+  // second persisted life-state ledger, and owners never infer it from hit
+  // points or optional death_saves.
+  dnd5e.api.session.v1alpha1.LifeState life_state = 15;
+  // Provider-owned progress from the same session-owned message Participant
+  // uses. Present when the provider reports applicable Dying/Stabilized/Dead
+  // progress and absent when not applicable. Remaining counts are provider
+  // answers; owners never derive a three-save threshold.
+  dnd5e.api.session.v1alpha1.DeathSaveProgress death_saves = 16;
 }
 
 // FeatureView is an owner-private, display-ready owned feature. detail is composed by

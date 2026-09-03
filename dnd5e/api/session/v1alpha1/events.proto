@@ -685,6 +685,14 @@ message DoorChanged {
 // THE DOOR ALONE. What lies behind it stays hidden until RegionRevealed —
 // knowing where a door is is not seeing what is behind it (two knowledge
 // moments, ruled on rpg-project#351).
+//
+// NO SEGMENT RIDES THIS BEAT, and none needs to. A concealed door in a wall
+// was already presented as that wall's WHOLE segment — the masquerade — so
+// the wall drew correctly before this beat and draws correctly after. What
+// changes is the GAP, and a gap is derived where the doorways below meet a
+// segment the recipient already holds. RegionRevealed carries segments
+// because a hidden ROOM's walls were withheld outright; a hidden DOOR's
+// never were.
 message DoorRevealed {
   // The door's identity and live state, exactly as this recipient's
   // GetDoors would now list it.
@@ -725,10 +733,11 @@ message DoorRevealed {
 // The payload is the region's own atlas slice — everything this
 // recipient's GetAtlas withheld under that ruling — and the client
 // patches its cached atlas in place: the load-once, beat-refreshed shape
-// (rpg-project#264). STILL DELIBERATELY NARROW: one room's own slice,
-// not a sweep — the repo-wide GeometryRevealed this repo removed in
-// #197/#198 stays dead, and a wider reveal (a scried map, a lit floor)
-// is rpg-toolkit#1020's own design round.
+// (rpg-project#264). On the two fields below, a patched atlas and a fresh
+// GetAtlas answer the same thing once this beat is applied. STILL
+// DELIBERATELY NARROW: one room's own slice, not a sweep — the repo-wide
+// GeometryRevealed this repo removed in #197/#198 stays dead, and a wider
+// reveal (a scried map, a lit floor) is rpg-toolkit#1020's own design round.
 //
 // There is no doorways field, on purpose: every entrance of a concealed
 // region is itself a concealed door (authoring refuses anything else),
@@ -749,4 +758,35 @@ message RegionRevealed {
   // carry them. Interior-only would leave the revealed room border-wall-
   // less in the recipient's patched atlas.
   repeated AtlasBoundary boundaries = 3;
+  // The region's walls AS THE AUTHOR DREW THEM — every segment this
+  // recipient's GetAtlas withheld under the same yardstick, exactly as
+  // GetAtlasResponse.segments would carry them now.
+  //
+  // Presentation only, like its GetAtlasResponse twin: `boundaries` above
+  // stays the mechanical truth and nothing here changes what a member may
+  // do. Without it a client that draws from segments patches in a revealed
+  // secret room with NO WALLS AT ALL — the boundaries arrive, but a client
+  // that draws segments is no longer fitting a chain out of them, so it has
+  // nothing to draw from. That is the one scenario a concealed region exists
+  // to produce.
+  //
+  // A door's gap is still derived client-side where its doorway meets its
+  // segment. No doorway rides this beat, on purpose (see the message
+  // comment), so a segment arriving here draws unbroken until the region's
+  // own concealed door reveals itself through DoorRevealed.
+  repeated AtlasSegment segments = 4;
+  // The revealed region's cells that NOBODY CAN STAND ON — the cells its
+  // walls run through the middle of. A subset of `region.cells` above, so
+  // this adds no cell the patch does not already carry and cannot disagree
+  // with it about what exists.
+  //
+  // A SEALED CELL KEEPS ITS REGION, so membership no longer implies
+  // standable — as true of a room arriving by reveal as of one fetched with
+  // the atlas. A client that patches these cells in and then places anything
+  // by region membership alone will stand it inside a wall.
+  //
+  // Same absolute frame and the same comparator as AtlasRegion.cells. Sealed
+  // floor is still floor: it is drawn and it is lit, and what sight does at
+  // it is the wall's business, not this list's.
+  repeated Position sealed = 5;
 }

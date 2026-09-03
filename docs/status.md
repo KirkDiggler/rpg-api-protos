@@ -48,6 +48,20 @@ shape and consumer drift, it shows up here as a "rough edge."
   damage, HP, target legality, or Story authority on the wire. Evidence here is
   buf/generation only; runtime confidence waits on the consumer legs.
 
+- **Provider-neutral class outfit color contract (rpg-api-protos#278,
+  rpg-project#362, 2026-09-03)** — additive contract-first surface for the
+  fixed Barbarian, Fighter, Monk, and Rogue outfits. Adds the reusable
+  `OutfitCustomization` message with independently optional packed sRGB primary
+  and secondary channels, `Appearance.outfit = 6`, and public session
+  `Customization.outfit = 2`. Channel absence preserves the provider-authored
+  channel; explicit zero remains a real black override. The four legacy
+  Appearance color fields remain at tags 1–4 with their original names,
+  deprecated and inert, and `hair = 5` is unchanged. Semantic validation and
+  public projection are toolkit-owned; the API converts and delegates. The
+  wire carries no provider paths, class/outfit vocabulary, defaults, or render
+  implementation facts. Proto-only here; generated publication and toolkit,
+  API, and web consumer work are separate follow-on slices.
+
 - **Session production combat experience (rpg-api-protos#252,
   rpg-project#270, 2026-08-25)** — contract-first, before toolkit/API/web.
   `Declaration` is intentionally reshaped in place from flat per-target rows to

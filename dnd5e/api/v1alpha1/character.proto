@@ -230,68 +230,32 @@ message Character {
   Appearance appearance = 29;
 }
 
-// Character appearance customization for visual rendering
-// Colors are stored as hex strings (e.g., "#D5A88C") for maximum flexibility
-// The web client controls color palettes; backend accepts any valid hex value
+// Character appearance customization for visual rendering.
 //
-// THE FOUR COLOUR FIELDS BELOW ARE DEPRECATED, AND THEY ARE ALREADY INERT.
-// Those are two separate facts and both matter. #262/#264 retired them with
-// `reserved`, which is the loudest possible instrument: every consumer reading
-// them stops compiling at once, and because consumers pin by tag the break was
-// silent until an unrelated lane bumped the pin (rpg-dnd5e-web#888 — 25
-// typecheck errors in five customization files, reaching someone who could not
-// act on them). They are restored here at their original numbers so that
-// detonation becomes a warning instead.
-//
-// Restoring the wire fields did NOT restore the behaviour behind them.
-// rpg-api does not persist these: its stored entity is
-// `Appearance{ Hair *HairCustomization }` (internal/entities/appearance.go),
-// no Go code there reads or writes the four colours, and `validateAppearance`
-// validates `hair` alone. A value set here is accepted by the wire and dropped
-// by the server. #262 removed them as *unused legacy*, and that is still what
-// they are — the deprecation marks a field that already does nothing, not one
-// being wound down from working order.
-//
-// The successor is the provider-neutral customization contract in
-// `dnd5e.api.customization.v1alpha1`, of which `hair` is the first slot on
-// this message: opaque provider style refs and packed sRGB colour, instead of
-// hex strings swapped into shader markers. Read that as replacing the
-// APPROACH, not these fields one for one — there is no skin, armour or eye
-// colour slot on this message today, and adding one belongs to
-// rpg-project#346. Making these four round-trip again is a larger change than
-// a wire edit (rpg-api's entity, converters and validation would all have to
-// come back) and would be its own issue; nothing here should be read as
-// planning it.
+// The legacy color fields at tags 1–4 are retained for source and wire
+// compatibility. They are deprecated and inert; clients must not use them.
+// Active customization is expressed through the provider-neutral messages
+// below. The toolkit owns semantic validation and public projection; the API
+// converts and delegates.
 message Appearance {
-  // Skin tone color (replaces white marker in shader)
-  //
-  // Deprecated: NOT PERSISTED — rpg-api drops any value set here. See the
-  // message comment; the successor approach is
-  // dnd5e.api.customization.v1alpha1.
+  // Deprecated and inert legacy color field; not part of active customization.
   string skin_tone = 1 [deprecated = true];
 
-  // Primary armor/clothing color (replaces magenta marker in shader)
-  //
-  // Deprecated: NOT PERSISTED — rpg-api drops any value set here. See the
-  // message comment; the successor approach is
-  // dnd5e.api.customization.v1alpha1.
+  // Deprecated and inert legacy color field; not part of active customization.
   string primary_color = 2 [deprecated = true];
 
-  // Secondary accent/trim color (replaces yellow marker in shader)
-  //
-  // Deprecated: NOT PERSISTED — rpg-api drops any value set here. See the
-  // message comment; the successor approach is
-  // dnd5e.api.customization.v1alpha1.
+  // Deprecated and inert legacy color field; not part of active customization.
   string secondary_color = 3 [deprecated = true];
 
-  // Eye iris color (used for eye mesh primary color)
-  //
-  // Deprecated: NOT PERSISTED — rpg-api drops any value set here. See the
-  // message comment; the successor approach is
-  // dnd5e.api.customization.v1alpha1.
+  // Deprecated and inert legacy color field; not part of active customization.
   string eye_color = 4 [deprecated = true];
 
+  // Existing provider-neutral hair customization; its semantics are unchanged.
   dnd5e.api.customization.v1alpha1.HairCustomization hair = 5;
+
+  // Provider-neutral class-outfit color intent. Absent channels preserve the
+  // provider's authored channel.
+  dnd5e.api.customization.v1alpha1.OutfitCustomization outfit = 6;
 }
 
 // Ability modifiers calculated from scores

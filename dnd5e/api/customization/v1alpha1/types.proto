@@ -10,8 +10,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.customization.v1alpha1";
 
 // Selects either a provider-owned style or explicitly no style. An absent
 // StyleSelection message on a containing field means use the provider default.
-// A present StyleSelection with no selection arm is invalid input and must be
-// rejected by the API; it does not mean provider default.
+// A present StyleSelection with no selection arm is invalid input; semantic
+// validation is toolkit-owned. It does not mean provider default. The API
+// converts and delegates this shape.
 message StyleSelection {
   oneof selection {
     // Opaque provider-owned reference. This is never a filesystem or asset path.
@@ -35,4 +36,16 @@ message HairCustomization {
   // Material roughness. When present, this must be finite and in [0,1];
   // absence uses the provider default.
   optional float roughness = 4;
+}
+
+// Describes provider-neutral color intent for the character's fixed class
+// outfit. Field absence preserves the provider's authored channel. A future
+// item cosmetic envelope may reuse this message without changing its meaning.
+// The toolkit owns semantic validation and public projection of this intent;
+// the API only converts and delegates without interpreting color values.
+message OutfitCustomization {
+  // Packed sRGB color in 0xRRGGBB form. Absence preserves provider primary.
+  optional uint32 primary_color_srgb = 1;
+  // Packed sRGB color in 0xRRGGBB form. Absence preserves provider secondary.
+  optional uint32 secondary_color_srgb = 2;
 }

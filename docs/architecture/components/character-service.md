@@ -80,7 +80,7 @@ draft so the client can re-render without a separate `Get`.
 | `UpdateBackground` | Background |
 | `UpdateAbilityScores` | AbilityScores |
 | `UpdateSkills` | Skill proficiencies |
-| `UpdateAppearance` | Appearance with neutral hair customization intent |
+| `UpdateAppearance` | Appearance with neutral hair and outfit customization intent |
 
 ### Validation and finalization (3 RPCs)
 
@@ -152,32 +152,34 @@ features, proficiencies, hit points, etc.
 
 ### `Appearance`
 
-`Appearance` keeps the established character/draft envelope and adds
-`dnd5e.api.customization.v1alpha1.HairCustomization hair = 5`. The former
-shader-specific fields are removed rather than repurposed: tags 1–4 and names
-`skin_tone`, `primary_color`, `secondary_color`, and `eye_color` are reserved.
-Reserving both wire numbers and source names prevents future fields from reusing
-those identities or silently reinterpreting retained color data.
+`Appearance` keeps the established character/draft envelope, retaining the four
+legacy color fields at tags 1–4 and adding provider-neutral customization:
+`HairCustomization hair = 5` and `OutfitCustomization outfit = 6`. The legacy
+fields keep their original names and wire numbers, but are deprecated and inert;
+they are not reserved or an authority to reactivate the old color behavior.
 
 Presence is intentional:
 
 | Field | Absent | Present |
 |---|---|---|
-| `Appearance.hair` | Use all provider hair defaults | Read the nested hair intent |
-| `HairCustomization.scalp` / `.facial_hair` | Use that provider default | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it; no oneof arm is invalid and must be rejected by the API |
-| `HairCustomization.color_srgb` | Use provider color | Packed sRGB `0xRRGGBB` |
-| `HairCustomization.roughness` | Use provider roughness | Finite value in `[0,1]` |
+| `Appearance.hair` | Preserve provider-authored hair state | Read the nested hair intent |
+| `HairCustomization.scalp` / `.facial_hair` | Preserve that provider-authored channel | `style_ref` selects an opaque provider-owned style; `none` explicitly removes it; a missing oneof arm is semantically invalid |
+| `HairCustomization.color_srgb` | Preserve the provider-authored hair color | Packed sRGB `0xRRGGBB` |
+| `HairCustomization.roughness` | Preserve the provider-authored roughness | Finite value in `[0,1]` |
+| `Appearance.outfit` | Preserve both provider-authored outfit channels | Read the nested outfit intent |
+| `OutfitCustomization.primary_color_srgb` | Preserve the provider-authored primary channel | Packed sRGB `0xRRGGBB` |
+| `OutfitCustomization.secondary_color_srgb` | Preserve the provider-authored secondary channel | Packed sRGB `0xRRGGBB` |
 
-A present `StyleSelection` with no oneof arm is invalid input, not another
-spelling of absence, and the API implementation must reject it.
+An empty present `OutfitCustomization` has the same rendering intent as an
+absent message. An explicit zero is black and remains distinct from absence.
+A present `StyleSelection` with no oneof arm is semantically invalid; toolkit
+validation owns that refusal.
 
-The contract is provider-neutral. The API implementation owns persistence,
-semantic numeric validation, and verbatim projection of this intent; it does
-not interpret `style_ref` or turn it into a path. The asset/render provider owns
-its style catalog, defaults, style resolution, and material realization.
-Metalness is intentionally absent from the contract and remains provider-owned.
-This repository change defines that contract only; it does not claim the API or
-web implementation has landed.
+The customization contract is provider-neutral. Semantic validation and public
+projection are toolkit-owned. The API converts complete protobuf shapes and
+delegates to the toolkit; it does not inspect customization values or derive
+provider behavior. This repository change defines the wire contract only; it
+does not claim the runtime consumer implementations have landed.
 
 ### `ValidationResult` (in common.proto:122)
 

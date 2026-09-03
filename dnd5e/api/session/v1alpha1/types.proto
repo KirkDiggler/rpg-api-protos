@@ -439,13 +439,17 @@ message PublicMemberInfo {
 }
 
 // Customization is public visual identity, not owner-private sheet or rules
-// data. Hair uses the neutral customization package so character creation and
+// data. It uses the neutral customization package so character creation and
 // roster projection speak the same semantics without exposing provider paths.
+// Semantic validation and public projection are toolkit-owned; the API
+// converts and delegates without interpreting customization values.
 message Customization {
-  // API-side presentation addition approved by rpg-api-protos#262,
-  // rpg-project#347, and Journey rpg-project#346. This is not a field from the
-  // toolkit session SDK.
+  // Existing provider-neutral hair customization; its semantics are unchanged.
   dnd5e.api.customization.v1alpha1.HairCustomization hair = 1;
+
+  // Provider-neutral class-outfit color intent. Absent channels preserve the
+  // provider's authored channel.
+  dnd5e.api.customization.v1alpha1.OutfitCustomization outfit = 2;
 }
 
 // MemberOutcome is where a member stood when something closed around them.

@@ -1152,13 +1152,19 @@ message AtlasProp {
   // Whether this prop can be picked up — the author's `holdable` flag,
   // verbatim.
   //
-  // STRUCTURE ON THE TRUTH GRAIN, which is why it is here rather than left
-  // for a client to discover by trying. A holdable thing LOOKS holdable: a
-  // reliquary on an altar reads differently from the altar, and every member
-  // who can see the cell sees the same thing, so this is not per-member
-  // knowledge and nothing about it is concealed. The client offers Hold only
-  // where this is true, and an author who wants a thing to be scenery simply
-  // does not set it.
+  // STRUCTURE ON THE TRUTH GRAIN (design rpg-project#368 §5, the wire
+  // paragraph), which is why it is here rather than left for a client to
+  // discover by trying. A holdable thing LOOKS holdable: a reliquary on an
+  // altar reads differently from the altar, and every member who can see the
+  // cell sees the same thing, so this is not per-member knowledge and nothing
+  // about it is concealed.
+  //
+  // THE CLIENT OFFERS HOLD ONLY WHERE THIS IS TRUE, AND NEVER GUESSES FROM
+  // AN ID. A prop carrying an `id` is not thereby holdable — ids exist for
+  // anything a scenario binds to, and inferring the verb from the presence of
+  // a name would put a Hold button on the altar as readily as on the
+  // reliquary. Two independent facts, asked separately. An author who wants a
+  // thing to stay scenery simply does not set this.
   //
   // FALSE IS THE DEFAULT AND IT IS THE TRUTH, not a missing answer: a thing
   // nobody declared holdable IS scenery. Plain bool for AtlasProp's own
@@ -1349,15 +1355,16 @@ message AtlasRegion {
 //
 // STRUCTURE, NOT SCENARIO. A dungeon has ways out whatever the party came
 // for, so exits sit in the atlas beside cells and regions rather than inside
-// whatever scenario happens to be bound (design rpg-project#368 §3.1). Same
-// shape as the file's `start`, and the same for every member: an exit is not
-// concealable and nothing here is per-member knowledge.
+// whatever scenario happens to be bound (design rpg-project#368 §3.1, and §5's
+// wire paragraph). Same shape as the file's `start`, and the same for every
+// member: an exit is not concealable and nothing here is per-member knowledge.
 //
 // FOR DRAWING THE WAY OUT, NOT FOR GATING IT. Leave is offered everywhere and
-// the SERVER decides what a departure means — a member may walk out from any
-// cell, and doing it at a bound exit while holding the artifact is what ends
-// the run (design R6, R7). So a client uses this list to show where the way
-// out is, and never to decide whether the button appears.
+// the SERVER decides what a departure means — R9 REQUIRES a departure from
+// the vault to be possible, because that is the departure that drops the
+// artifact where the carrier stood. A client that only offered Leave at these
+// cells would make R9 unreachable. So this list says where the way out IS;
+// when the member happens to stand on one, the button may say so.
 //
 // NOTHING IS DEFAULTED INTO IT. `start` is not implicitly an exit: a dungeon
 // whose entrance is also its exit says so, by authoring one here.

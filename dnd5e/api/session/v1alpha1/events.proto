@@ -186,14 +186,19 @@ enum EventKind {
   // carries it — DOOR_REVEALED for intel, exactly the beat a search
   // produces. Audience: everyone present.
   EVENT_KIND_LOOTED = 20;
-  // A member took a takeable prop off the map. The prop leaves the atlas for
-  // EVERYONE — physical state folds on the truth grain — and the taker holds
-  // it (design §4.3, §5). A client patches its cached GetAtlas by dropping
-  // the prop, the way DOOR_REVEALED patches it by adding one.
-  EVENT_KIND_TAKEN = 21;
+  // A member picked up a holdable prop. The prop leaves the atlas for
+  // EVERYONE — physical state folds on the truth grain — and the holder
+  // carries it (design §4.3, §5). A client patches its cached GetAtlas by
+  // dropping the prop, the way DOOR_REVEALED patches it by adding one.
+  //
+  // WAS EVENT_KIND_TAKEN, renamed by design R10 (2026-09-04) along with the
+  // verb: this beat records a run-scoped HOLDING, and `take` is reserved for
+  // the merchant lane's act of landing a thing in a character's inventory.
+  // The number does not move — it is the same beat under its right name.
+  EVENT_KIND_HELD = 21;
   // A carrier let go of a holding and it landed on the map: a member leaving
   // from anywhere but the scenario's bound exit drops what they carry where
-  // they stood (design R9, §6). The prop reappears as a takeable prop at
+  // they stood (design R9, §6). The prop reappears as a holdable prop at
   // that cell, so a client patches its cached GetAtlas by adding it back.
   // Never a player verb — there is no Drop RPC; this is a consequence of
   // departure, and the beat is how everyone learns of it.
@@ -300,7 +305,7 @@ message Event {
     ActivationResult activation_result = 24;
     DeathSaveRolled death_save_rolled = 25;
     Looted looted = 26;
-    Taken taken = 27;
+    Held held = 27;
     Dropped dropped = 28;
   }
 }
@@ -720,9 +725,9 @@ message Exited {
   // nothing at all, which is the point.
   //
   // Ids, not refs: a holding is one named placement from the dungeon file
-  // (`place[].id`), the same id AtlasProp.id and Taken.prop speak. A held
+  // (`place[].id`), the same id AtlasProp.id and Held.prop speak. A held
   // prop is ABSENT from the atlas, so a client cannot join this id against
-  // GetAtlas to learn what it is — it names the thing from the TAKEN beat
+  // GetAtlas to learn what it is — it names the thing from the HELD beat
   // that first told it who was carrying what.
   //
   // A departure from anywhere but a scenario's bound exit does not populate
@@ -922,23 +927,28 @@ message Looted {
   string body = 2;
 }
 
-// Taken: a member took a takeable prop off the map (EVENT_KIND_TAKEN).
+// Held: a member picked up a holdable prop (EVENT_KIND_HELD).
 //
 // PHYSICAL STATE FOLDS ON THE TRUTH GRAIN: an object leaving the floor is
 // not a secret, so this beat goes to everyone present and every recipient's
 // atlas loses the prop. A client patches its cached GetAtlas by removing the
 // prop with this id — the load-once, beat-refreshed law (rpg-project#264)
 // running in the subtractive direction, where DOOR_REVEALED runs it in the
-// additive one. GetAtlas itself omits taken props for everyone, so a refetch
+// additive one. GetAtlas itself omits held props for everyone, so a refetch
 // agrees with the patch.
 //
-// Who HOLDS it afterwards is this beat's `taker` and stays true until they
-// carry it out through a bound exit (Exited.holding) or drop it (Dropped).
-message Taken {
-  // Who took it.
-  string taker = 1;
-  // The placement id of the prop taken — the dungeon file's `place[].id`,
-  // the same id AtlasProp.id carries.
+// Who holds it afterwards is this beat's `holder`, and that stays true until
+// they carry it out through a bound exit (Exited.holding) or drop it
+// (Dropped).
+//
+// WAS `Taken{taker, prop}` — see EVENT_KIND_HELD for the ruling. Renamed,
+// not deprecated: `Taken` is being freed for the merchant lane, so nothing
+// here reserves the old name.
+message Held {
+  // Who picked it up.
+  string holder = 1;
+  // The placement id of the prop — the dungeon file's `place[].id`, the same
+  // id AtlasProp.id carries.
   string prop = 2;
 }
 
@@ -947,12 +957,12 @@ message Taken {
 // NOT A PLAYER VERB. There is no Drop RPC and this slice adds none: a drop
 // is what happens when a carrier leaves from anywhere but the scenario's
 // bound exit (design R9). Without it a carrier who walks out through the
-// lobby — or disconnects — takes the only win out of the run with them.
+// lobby — or disconnects — walks off with the only win in the run.
 //
-// The prop reappears as a takeable prop at `at` for everyone present, so a
+// The prop reappears as a holdable prop at `at` for everyone present, so a
 // client patches its cached GetAtlas by adding it back at that cell; GetAtlas
 // places dropped props there too, so a refetch agrees. The journal stays
-// append-only underneath — a drop is a new fact, not the erasure of the take.
+// append-only underneath — a drop is a new fact, not the erasure of the hold.
 message Dropped {
   // Who dropped it — the departing carrier.
   string member = 1;

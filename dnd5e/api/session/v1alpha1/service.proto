@@ -863,10 +863,10 @@ message GetAtlasResponse {
   // list of occluded coordinates; a host that wants that list back filters on
   // blocks_line_of_sight.
   //
-  // A prop a member has TAKEN (see Taken) is ABSENT here, for every member —
-  // not flagged — and one DROPPED afterwards stands at its drop cell rather
-  // than its authored one. This list is still construction truth: taking is
-  // the one thing that folds into it, and it folds for everyone at once
+  // A prop a member HOLDS (see Held) is ABSENT here, for every member — not
+  // flagged — and one DROPPED afterwards stands at its drop cell rather than
+  // its authored one. This list is still construction truth: picking a thing
+  // up is the one act that folds into it, and it folds for everyone at once
   // because an object leaving the floor is not a secret. See AtlasProp.id.
   repeated AtlasProp props = 7;
   // Every wall and barrier on the map, sorted by endpoint.
@@ -1132,26 +1132,34 @@ message VendorStockEntry {
 }
 
 // =============================================================================
-// Holdings — Loot and Take
+// Holdings — Loot and Hold
 // =============================================================================
 //
 // TWO VERBS, NOT ONE BUTTON (design rpg-project#368 R4). A verb is named by
-// what the record will say: "looted the captain" and "took the heirloom" are
+// what the record will say: "looted the captain" and "held the heirloom" are
 // statements, and the beat kind, the journal fact and the rule half all carry
 // that word. Interact is not a statement — it is a fine button and a poor
 // fact — so it stays what it is, the world-NPC verb, and names no rule half
-// here. If one button is ever wanted, Loot and Take become two declarations
+// here. If one button is ever wanted, Loot and Hold become two declarations
 // under one verb the way Unarmed Strike sits under Attack: a client menu or
 // an Afford declaration, never a merged rule.
 //
+// HOLD, NOT TAKE (design R10, ruled 2026-09-04). This verb was called Take
+// when it landed in #289, and the word is being given back: `take` belongs to
+// the merchant lane's act — paying for a thing and landing it in a
+// character's inventory, which outlives the run. What this verb creates is a
+// run-scoped HOLDING fact, and a verb must not claim a word for an act it
+// does not perform. The rename is the whole of that ruling; the shapes,
+// the tags and the rules are untouched.
+//
 // Both verbs move HOLDINGS — the one mechanism for "who has what" (design
-// P5). A monster holds the intel an author gave it; a member who took the
-// artifact holds the artifact; a fallen holder's body holds it still, and
-// Loot takes it back. Nothing on this wire ever says WHO HOLDS INTEL: that is
+// P5). A monster holds the intel an author gave it; a member who picked the
+// artifact up holds the artifact; a fallen holder's body holds it still, and
+// Loot moves it back. Nothing on this wire ever says WHO HOLDS INTEL: that is
 // engine-internal by design, and the only trace it leaves is the
 // DOOR_REVEALED a looter receives.
 
-// LootRequest takes what a downed body holds, as `member`.
+// LootRequest moves what a downed body holds to `member`.
 //
 // FREE — NO CHECK (design R1). The act is explicit and the transfer is
 // automatic; there is no roll here and no DC, so nothing about this verb can
@@ -1205,30 +1213,34 @@ message LootResponse {
   DeliveryReport delivery = 2;
 }
 
-// TakeRequest picks up a takeable prop, as `member`.
+// HoldRequest picks up a holdable prop, as `member`.
 //
-// THE ARTIFACT IS TAKEN (design R5), not reached, not stood on: an explicit
-// verb on an adjacent takeable placement. Reach-its-cell-and-leave was
-// rejected because a member who stood there and walked away would "have" it,
-// and zero values must tell the truth.
+// THE ARTIFACT IS PICKED UP (design R5), not reached, not stood on: an
+// explicit verb on an adjacent holdable placement. Reach-its-cell-and-leave
+// was rejected because a member who stood there and walked away would "have"
+// it, and zero values must tell the truth.
 //
-// The prop leaves the atlas FOR EVERYONE and the taker holds it, both
-// reported by the TAKEN beat to everyone present.
+// The prop leaves the atlas FOR EVERYONE and the holder carries it, both
+// reported by the HELD beat to everyone present.
 //
 // THE PROBE LAW APPLIES, and only here (design §4.3): a prop standing in
 // space the member cannot see answers NOT_FOUND identically whether it does
-// not exist, is not takeable, or is merely unseen — naming it would confirm
+// not exist, is not holdable, or is merely unseen — naming it would confirm
 // a guessed id. A prop the member can see refuses by name:
-// FAILED_PRECONDITION for not takeable, already taken, or out of range.
-message TakeRequest {
+// FAILED_PRECONDITION for not holdable, already held, or out of range.
+//
+// WAS `TakeRequest` — see the section comment for design R10. Renamed, not
+// deprecated, and nothing reserves the old name: `Take` is being freed for
+// the merchant lane rather than retired.
+message HoldRequest {
   string session = 1;
-  // Who takes it. Bound to the authenticated caller by the host.
+  // Who picks it up. Bound to the authenticated caller by the host.
   string member = 2;
   // The placement id of the prop — the dungeon file's `place[].id`, the same
   // id AtlasProp.id carries. Not a ref: a dungeon may place two reliquaries
   // and a verb that named the ref could not say which one.
   //
-  // Named `target` to mirror session.TakeInput.Target field-for-field, which
+  // Named `target` to mirror session.HoldInput.Target field-for-field, which
   // is rule 1 of this service, and to read the same as LootRequest.target
   // beside it — the two verbs differ in WHAT they target, not in how they
   // name it.
@@ -1238,15 +1250,15 @@ message TakeRequest {
   int32 range = 4;
 }
 
-// TakeResponse acknowledges the take: the seam's standard reports, and
+// HoldResponse acknowledges the hold: the seam's standard reports, and
 // nothing else.
 //
-// The world change everyone needs — the prop off the map, the taker holding
-// it — arrives as the TAKEN beat, which reaches the caller too (design rule
-// 2: a verb's response describes only the caller's own action, and everything
-// else is the stream's). saved and delivery are S6's law, kept here for
-// LootResponse's reasons.
-message TakeResponse {
+// The world change everyone needs — the prop off the map, the holder
+// carrying it — arrives as the HELD beat, which reaches the caller too
+// (design rule 2: a verb's response describes only the caller's own action,
+// and everything else is the stream's). saved and delivery are S6's law,
+// kept here for LootResponse's reasons.
+message HoldResponse {
   SaveReport saved = 1;
   DeliveryReport delivery = 2;
 }
@@ -1340,9 +1352,9 @@ service SessionService {
   // caller.
   rpc Interact(InteractRequest) returns (InteractResponse);
 
-  // Loot takes what a downed body holds, as `member`, for free — no check
+  // Loot moves what a downed body holds to `member`, for free — no check
   // (design rpg-project#368 R1). Offered on EVERY downed member, because an
-  // affordance that appeared only where there was something to take would
+  // affordance that appeared only where there was something to gain would
   // say which body carries intel. The response is an ack: what moved reaches
   // the looter as DOOR_REVEALED on their own stream, and everyone present
   // hears LOOTED, which names looter and body and nothing else. The response
@@ -1350,11 +1362,16 @@ service SessionService {
   // what moved.
   rpc Loot(LootRequest) returns (LootResponse);
 
-  // Take picks up the takeable prop named by `target`, as `member`. The prop
-  // leaves the atlas for everyone and the taker holds it; both arrive as the
-  // TAKEN beat. A prop the member cannot see refuses identically to one that
-  // does not exist — the probe law, as OpenDoor and Unlock keep it.
-  rpc Take(TakeRequest) returns (TakeResponse);
+  // Hold picks up the holdable prop named by `target`, as `member`. The prop
+  // leaves the atlas for everyone and the holder carries it; both arrive as
+  // the HELD beat. A prop the member cannot see refuses identically to one
+  // that does not exist — the probe law, as OpenDoor and Unlock keep it.
+  //
+  // HOLD CREATES A RUN-SCOPED HOLDING FACT; `take` is reserved for the
+  // merchant lane's act of landing a thing in a character's inventory
+  // (design R10). This RPC was `Take` in #289 and was renamed, not
+  // deprecated, before anything pinned it.
+  rpc Hold(HoldRequest) returns (HoldResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.

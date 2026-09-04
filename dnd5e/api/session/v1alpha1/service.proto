@@ -933,6 +933,21 @@ message GetAtlasResponse {
   // and behaves exactly as it did before; nothing is defaulted in, and
   // `start` is not implicitly an exit.
   repeated AtlasExit exits = 12;
+  // Where the party comes in, and which way they are looking when they get
+  // there — the authored `start`, the same for every member.
+  //
+  // THE ATLAS CARRIED NO START AT ALL until this field: a client drawing the
+  // map from this message could see cells, props, walls, regions and exits,
+  // and had to learn where a run begins by watching a member appear. That is
+  // enough to render, and not enough to AIM — hence AtlasStart.facing, which
+  // is the whole point of this addition (a party that spawns looking at the
+  // back wall spends its first seconds spinning around).
+  //
+  // Unset from a producer that has not adopted it, and from a file whose
+  // author stated no facing the facing alone is empty. A client that finds
+  // either behaves exactly as it does today. Presentation only: nothing here
+  // gates movement, sight, or any rule.
+  AtlasStart start = 13;
 }
 
 // =============================================================================

@@ -1376,6 +1376,45 @@ message AtlasExit {
   Position at = 2;
 }
 
+// AtlasStart is where the party comes in, and which way they are looking
+// when they get there.
+//
+// THE AUTHORED START, verbatim from the dungeon file's `start`. The same for
+// every member, like AtlasExit beside it: where a dungeon begins is not
+// concealable and nothing here is per-member knowledge.
+//
+// FOR AIMING THE CAMERA, NOT A RULE. `facing` exists because a party that
+// spawns looking at the back wall spends its first seconds spinning around
+// (Kirk, walking the build). A client that spawns a member here points the
+// camera the authored way and the player starts looking at the room they
+// came to see. NOTHING GATES ON IT: it does not decide where a member may
+// walk, what they can see, or which way anything is oriented mechanically.
+// It is a presentation fact, and a client that ignores it renders a correct
+// dungeon with a worse first second.
+message AtlasStart {
+  // The floor cell the party comes in on, dungeon-absolute.
+  Position at = 1;
+
+  // The authored starting facing, verbatim from the file. EMPTY MEANS THE
+  // AUTHOR STATED NONE — the zero value telling the truth, not a hidden
+  // default — and a client that finds it empty aims the camera exactly as it
+  // does today.
+  //
+  // When present it is one of the EIGHT true-compass names —
+  // n|ne|e|se|s|sw|w|nw — the SAME vocabulary and the same eight words
+  // AtlasProp.facing already carries, redefined to true compass by
+  // rpg-project#272. Read that field's comment for the whole law; the short
+  // version is that compass directions live in world space, so the words do
+  // not depend on the atlas's hex orientation, and the wire carries the WORD
+  // and never an angle. The name-to-yaw map is one client-side calibrated
+  // table serving both orientations.
+  //
+  // AN OPEN STRING, matching AtlasProp.facing rather than inventing an enum
+  // beside it. One vocabulary, one shape: a client that already maps a prop's
+  // facing to a yaw maps this one with the same table and no second branch.
+  string facing = 2;
+}
+
 // =============================================================================
 // Doors
 // =============================================================================

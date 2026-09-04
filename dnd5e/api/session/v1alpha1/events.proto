@@ -705,6 +705,14 @@ message Exited {
   // at the moment of departure (design §5). Empty is the ordinary case and
   // the honest one: most departures carry nothing.
   //
+  // SINGULAR ON PURPOSE, though the field is repeated. It is the PARTICIPLE
+  // in the statement this beat makes — "Aldric exited, holding the heirloom"
+  // — which is the naming rule this whole slice runs on: a verb and a beat
+  // are named by what the record will say. The seam already carries repeated
+  // fields named this way where the word is not a count noun —
+  // ExitResponse.carry, the nearest neighbour there is, and `sealed` on the
+  // atlas — so this is the local convention rather than a missing `s`.
+  //
   // PROPS ONLY. Intel is a holding too — an author gives a monster the
   // knowledge of a door and the same one mechanism moves it — and it NEVER
   // appears here or anywhere else on this wire (design P3). A departure that

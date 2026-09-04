@@ -1180,33 +1180,30 @@ message LootRequest {
   int32 range = 4;
 }
 
-// LootResponse acknowledges the loot, and carries nothing.
+// LootResponse acknowledges the loot: the seam's standard reports, and
+// NOTHING ABOUT WHAT MOVED.
 //
-// THE BEAT IS THE ANSWER (design §4.2 Q1, lean adopted by the plan). What
-// moved reaches the looter as DOOR_REVEALED on their own stream — the same
-// beat a successful search produces — and everyone present hears LOOTED,
-// which names looter and body and nothing of what moved. A response that
-// said what transferred would put the secret on the caller's own wire, where
-// P3 spent the whole design keeping it off.
+// THE BEAT IS THE ANSWER. What the looter gained reaches them as
+// DOOR_REVEALED on their own stream — the same beat a successful search
+// produces — and everyone present hears LOOTED, which names looter and body
+// and nothing else. There is no found list here, no transferred count and no
+// flag: an empty body and the captain answer with the same fields, so the
+// response cannot be the place that says which corpse was worth looting
+// (design P3).
 //
-// EMPTY IS DELIBERATE AND IS NOT SETTLED. Design §4.2 Q1 is open: search
-// answers with nothing because ANY answer would say whether there had been
-// something to find, while loot's target is a known body and "this body
-// carried nothing" is arguably not that secret. A `transferred` count says
-// nothing about WHAT, but it does tell a failed looter the body was empty,
-// and a client cannot today tell "nothing" from "the beat has not arrived
-// yet". The design's lean — ack-only, for symmetry with Search — is what
-// ships, and the question reopens when the parchment shelf (design §9)
-// makes loot yield an item.
-//
-// AND IT CARRIES NO SaveReport/DeliveryReport, which every other mutating
-// verb at this seam does carry — S6's law, SearchResponse's shape: a
-// successful loot writes a fact and publishes a beat, either can half-fail,
-// and a partial save should be an error carrying a populated report rather
-// than a silent shrug. The plan (rpg-project#368, wave 0) says "response
-// empty" and that is what ships; the divergence is recorded here rather than
-// quietly resolved, and closing it later is two additive fields, no break.
-message LootResponse {}
+// THE REPORTS ARE NOT THAT ANSWER, and design §4.2 Q1 is closed on exactly
+// that ground (ruled 2026-09-04): saved and delivery say what was PERSISTED
+// and DELIVERED, addressed to the caller — who is the looter, and who learns
+// what they took anyway, on their own stream, moments later. They leak
+// nothing to anyone the secret was being kept from. So this verb keeps S6's
+// law like every other mutating verb at this seam (SearchResponse's shape):
+// a loot writes a fact and publishes a beat, either half can fail, and a
+// partial save is an error carrying a populated report rather than a silent
+// shrug.
+message LootResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
 
 // TakeRequest picks up a takeable prop, as `member`.
 //
@@ -1227,23 +1224,32 @@ message TakeRequest {
   string session = 1;
   // Who takes it. Bound to the authenticated caller by the host.
   string member = 2;
-  // The PLACEMENT ID of the prop — the dungeon file's `place[].id`, the same
+  // The placement id of the prop — the dungeon file's `place[].id`, the same
   // id AtlasProp.id carries. Not a ref: a dungeon may place two reliquaries
   // and a verb that named the ref could not say which one.
-  string prop = 3;
+  //
+  // Named `target` to mirror session.TakeInput.Target field-for-field, which
+  // is rule 1 of this service, and to read the same as LootRequest.target
+  // beside it — the two verbs differ in WHAT they target, not in how they
+  // name it.
+  string target = 3;
   // The maximum distance, in cells, the prop may stand from member. Zero
   // (the default) means adjacent, as Loot's and Interact's do.
   int32 range = 4;
 }
 
-// TakeResponse acknowledges the take, and carries nothing.
+// TakeResponse acknowledges the take: the seam's standard reports, and
+// nothing else.
 //
 // The world change everyone needs — the prop off the map, the taker holding
 // it — arrives as the TAKEN beat, which reaches the caller too (design rule
 // 2: a verb's response describes only the caller's own action, and everything
-// else is the stream's). Empty for LootResponse's reason and with
-// LootResponse's caveat about saved/delivery.
-message TakeResponse {}
+// else is the stream's). saved and delivery are S6's law, kept here for
+// LootResponse's reasons.
+message TakeResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
 
 // =============================================================================
 // Stream
@@ -1339,13 +1345,15 @@ service SessionService {
   // affordance that appeared only where there was something to take would
   // say which body carries intel. The response is an ack: what moved reaches
   // the looter as DOOR_REVEALED on their own stream, and everyone present
-  // hears LOOTED, which names looter and body and nothing else.
+  // hears LOOTED, which names looter and body and nothing else. The response
+  // carries the seam's standard save and delivery reports and nothing about
+  // what moved.
   rpc Loot(LootRequest) returns (LootResponse);
 
-  // Take picks up a takeable prop, as `member`. The prop leaves the atlas
-  // for everyone and the taker holds it; both arrive as the TAKEN beat. A
-  // prop the member cannot see refuses identically to one that does not
-  // exist — the probe law, as OpenDoor and Unlock keep it.
+  // Take picks up the takeable prop named by `target`, as `member`. The prop
+  // leaves the atlas for everyone and the taker holds it; both arrive as the
+  // TAKEN beat. A prop the member cannot see refuses identically to one that
+  // does not exist — the probe law, as OpenDoor and Unlock keep it.
   rpc Take(TakeRequest) returns (TakeResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the

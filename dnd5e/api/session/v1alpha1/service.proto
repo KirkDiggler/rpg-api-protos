@@ -1144,6 +1144,60 @@ message VendorStockEntry {
   optional int32 quantity = 5;
 }
 
+// TradeItem is one line of a trade offer — an equipment identity and how
+// many. Mirrors the toolkit's session.TradeItem field-for-field.
+// `equipment_type` is a plain string for the same reason
+// VendorStockEntry.equipment_type is: it mirrors the toolkit's
+// shared.EquipmentType, an open vocabulary with no fixed catalog — reused
+// here rather than inventing a second convention for the same fact.
+message TradeItem {
+  string equipment_type = 1;
+  string equipment_id = 2;
+  int32 quantity = 3;
+}
+
+// TradeOffer is one side of a trade — what a party is giving or receiving.
+// Mirrors session.TradeOffer.
+message TradeOffer {
+  repeated TradeItem items = 1;
+}
+
+// TradeRequest attempts a trade with a placed vendor, as `actor`.
+//
+// ONE-DIRECTIONAL THIS WAVE (rpg-toolkit#1275 wave 1, rpg-project#369/#370).
+// `give` must be empty — a caller that populates it is refused
+// FAILED_PRECONDITION, the toolkit's ErrGiveNotSupported. `receive` must
+// carry exactly one TradeItem, any quantity currently in stock; more or
+// fewer than one item is refused as ErrInvalidTradeOffer. No currency field
+// exists anywhere on this message: money isn't priced yet
+// (rpg-toolkit#1275's Money type is still unruled), and adding one ahead of
+// that would be inventing vocabulary the toolkit hasn't committed to (rule
+// 1). No player-to-player trade either — `target` is always a vendor this
+// wave.
+//
+// Same reach convention as Interact/Loot/Hold: `range` zero means adjacent.
+message TradeRequest {
+  string session = 1;
+  // The initiating player. Bound to the authenticated caller by the host,
+  // the same acting-as law every verb keeps.
+  string actor = 2;
+  // The MEMBER_KIND_WORLD vendor being traded with.
+  string target = 3;
+  int32 range = 4;
+  TradeOffer give = 5;
+  TradeOffer receive = 6;
+}
+
+// TradeResponse is the trade's outcome: the vendor's descriptor, refreshed
+// to reflect the stock decrement — the same WorldNPCDescriptor shape
+// InteractResponse.descriptor carries, not a second descriptor type.
+message TradeResponse {
+  WorldNPCDescriptor descriptor = 1;
+  uint64 seq = 2;
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
+}
+
 // =============================================================================
 // Holdings — Loot and Hold
 // =============================================================================
@@ -1369,6 +1423,12 @@ service SessionService {
   // monster Spawn does, driven by authored dungeon content rather than a
   // caller.
   rpc Interact(InteractRequest) returns (InteractResponse);
+
+  // Trade attempts to acquire one item from a placed vendor's stock.
+  // One-directional this wave: `give` must be empty, `receive` exactly one
+  // item. Refreshes and returns the vendor's WorldNPCDescriptor with stock
+  // decremented — the same descriptor Interact returns, not a second shape.
+  rpc Trade(TradeRequest) returns (TradeResponse);
 
   // Loot moves what a downed body holds to `member`, for free — no check
   // (design rpg-project#368 R1). Offered on EVERY downed member, because an

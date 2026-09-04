@@ -176,6 +176,28 @@ enum EventKind {
   // the physical d20 and progress pips are table-visible by ruling. Mirrors
   // session.EventDeathSave from Session v0.54.1.
   EVENT_KIND_DEATH_SAVE_ROLLED = 19;
+  // A member looted a downed body. EVERY downed member is lootable and the
+  // affordance never says which body carries anything — the answer must not
+  // leak the question, the law Search already keeps (design
+  // rpg-project#368 §4.2, P3). So this beat names the looter and the body
+  // and NOTHING OF WHAT MOVED: a body that carried intel and a body that
+  // carried nothing produce the same bytes here. What the looter GAINED
+  // reaches the looter alone, on their own stream, as the kind that already
+  // carries it — DOOR_REVEALED for intel, exactly the beat a search
+  // produces. Audience: everyone present.
+  EVENT_KIND_LOOTED = 20;
+  // A member took a takeable prop off the map. The prop leaves the atlas for
+  // EVERYONE — physical state folds on the truth grain — and the taker holds
+  // it (design §4.3, §5). A client patches its cached GetAtlas by dropping
+  // the prop, the way DOOR_REVEALED patches it by adding one.
+  EVENT_KIND_TAKEN = 21;
+  // A carrier let go of a holding and it landed on the map: a member leaving
+  // from anywhere but the scenario's bound exit drops what they carry where
+  // they stood (design R9, §6). The prop reappears as a takeable prop at
+  // that cell, so a client patches its cached GetAtlas by adding it back.
+  // Never a player verb — there is no Drop RPC; this is a consequence of
+  // departure, and the beat is how everyone learns of it.
+  EVENT_KIND_DROPPED = 22;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -277,6 +299,9 @@ message Event {
     Activated activated = 23;
     ActivationResult activation_result = 24;
     DeathSaveRolled death_save_rolled = 25;
+    Looted looted = 26;
+    Taken taken = 27;
+    Dropped dropped = 28;
   }
 }
 
@@ -676,6 +701,44 @@ message Joined {
 message Exited {
   // Who left.
   string member = 1;
+  // The PROP placement ids the member carried OUT — what they were holding
+  // at the moment of departure (design §5). Empty is the ordinary case and
+  // the honest one: most departures carry nothing.
+  //
+  // SINGULAR ON PURPOSE, though the field is repeated. It is the PARTICIPLE
+  // in the statement this beat makes — "Aldric exited, holding the heirloom"
+  // — which is the naming rule this whole slice runs on: a verb and a beat
+  // are named by what the record will say. The seam already carries repeated
+  // fields named this way where the word is not a count noun —
+  // ExitResponse.carry, the nearest neighbour there is, and `sealed` on the
+  // atlas — so this is the local convention rather than a missing `s`.
+  //
+  // PROPS ONLY. Intel is a holding too — an author gives a monster the
+  // knowledge of a door and the same one mechanism moves it — and it NEVER
+  // appears here or anywhere else on this wire (design P3). A departure that
+  // carried nothing but knowledge is indistinguishable from one that carried
+  // nothing at all, which is the point.
+  //
+  // Ids, not refs: a holding is one named placement from the dungeon file
+  // (`place[].id`), the same id AtlasProp.id and Taken.prop speak. A held
+  // prop is ABSENT from the atlas, so a client cannot join this id against
+  // GetAtlas to learn what it is — it names the thing from the TAKEN beat
+  // that first told it who was carrying what.
+  //
+  // A departure from anywhere but a scenario's bound exit does not populate
+  // this: the carrier DROPS what they hold where they stood (R9) and the
+  // DROPPED beat says so, so a holding is either carried out through the
+  // exit or left on the floor, never silently deleted.
+  repeated string holding = 2;
+  // The exit id they left through — one of the dungeon file's `exits[].id`.
+  //
+  // EMPTY FOR A DEPARTURE FROM ELSEWHERE, which is every departure today
+  // that is not a scenario ending: the lobby's abandon, a disconnect, a
+  // member walking out at a cell nobody authored as a way out. Empty is not
+  // "unknown"; it is the truth that no authored exit was used, and it is
+  // what tells a client this departure was not a withdrawal through the
+  // front gate.
+  string exit = 3;
 }
 
 // Ended: the encounter closed (EVENT_KIND_ENDED). The key of the declared
@@ -833,4 +896,69 @@ message RegionRevealed {
   // floor is still floor: it is drawn and it is lit, and what sight does at
   // it is the wall's business, not this list's.
   repeated Position sealed = 5;
+}
+
+// Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted
+// whom, and deliberately nothing else.
+//
+// THE AFFORDANCE MUST NOT SAY WHICH BODY CARRIES INTEL (design
+// rpg-project#368 P3). Loot is offered on every downed member, a body with
+// nothing to give transfers nothing, and this beat is identical either way:
+// no transferred list, no count, no flag. That is the same law SearchResponse
+// keeps for the same reason — a beat that varied with what the body held
+// would tell a party which corpse was worth searching, which is the one thing
+// looting a wrong body must not teach.
+//
+// What actually moved reaches the LOOTER ALONE as the kind that carries it:
+// intel arrives as DOOR_REVEALED on the looter's own stream, audience the
+// looter, byte-identical to the reveal a successful search produces (design
+// P4 — loot is a second writer of the fact search writes, cause "loot", and
+// zero new reveal shape). This beat's audience is everyone present.
+message Looted {
+  // Who looted.
+  string looter = 1;
+  // The downed member whose body was looted. A member id, the same
+  // vocabulary Exited.member and Downed.member speak.
+  string body = 2;
+}
+
+// Taken: a member took a takeable prop off the map (EVENT_KIND_TAKEN).
+//
+// PHYSICAL STATE FOLDS ON THE TRUTH GRAIN: an object leaving the floor is
+// not a secret, so this beat goes to everyone present and every recipient's
+// atlas loses the prop. A client patches its cached GetAtlas by removing the
+// prop with this id — the load-once, beat-refreshed law (rpg-project#264)
+// running in the subtractive direction, where DOOR_REVEALED runs it in the
+// additive one. GetAtlas itself omits taken props for everyone, so a refetch
+// agrees with the patch.
+//
+// Who HOLDS it afterwards is this beat's `taker` and stays true until they
+// carry it out through a bound exit (Exited.holding) or drop it (Dropped).
+message Taken {
+  // Who took it.
+  string taker = 1;
+  // The placement id of the prop taken — the dungeon file's `place[].id`,
+  // the same id AtlasProp.id carries.
+  string prop = 2;
+}
+
+// Dropped: a holding landed back on the map (EVENT_KIND_DROPPED).
+//
+// NOT A PLAYER VERB. There is no Drop RPC and this slice adds none: a drop
+// is what happens when a carrier leaves from anywhere but the scenario's
+// bound exit (design R9). Without it a carrier who walks out through the
+// lobby — or disconnects — takes the only win out of the run with them.
+//
+// The prop reappears as a takeable prop at `at` for everyone present, so a
+// client patches its cached GetAtlas by adding it back at that cell; GetAtlas
+// places dropped props there too, so a refetch agrees. The journal stays
+// append-only underneath — a drop is a new fact, not the erasure of the take.
+message Dropped {
+  // Who dropped it — the departing carrier.
+  string member = 1;
+  // The placement id of the prop dropped.
+  string prop = 2;
+  // The cell it landed on: where the carrier stood on the way out.
+  // Dungeon-absolute, like every position on this seam.
+  Position at = 3;
 }

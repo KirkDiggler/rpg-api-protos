@@ -41,6 +41,10 @@ service AuthoringService {
   // GetDungeon returns the stored file for a key so an author can reopen it.
   // Unknown key is NotFound. Ungated: reading content mutates nothing.
   rpc GetDungeon(GetDungeonRequest) returns (GetDungeonResponse);
+  // ListScenarios reports every scenario a dungeon may be bound to, and the
+  // form each one needs filled in. Ungated, for GetDungeon's reason: it
+  // reads a registry and mutates nothing.
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
 }
 
 // PutDungeonRequest carries one dungeon file, in its authored form.
@@ -121,4 +125,103 @@ message GetDungeonResponse {
   // their spacing. A server that round-tripped the file through its own
   // model would hand back its opinion of the file instead of the file.
   string yaml = 1;
+}
+
+// ListScenariosRequest asks for the whole registry. No fields, and none are
+// coming: the set of scenarios is a property of the SERVER'S rulebook build,
+// not of any one dungeon, so there is nothing here to scope it by. A builder
+// that has drawn no map yet still needs this list to show what a map could
+// become.
+message ListScenariosRequest {}
+
+// ListScenariosResponse is every scenario the server's rulebook offers.
+//
+// Empty is legal and means the build offers none. The builder shows no
+// scenario panel rather than an error: a dungeon with no scenario bound is a
+// perfectly good dungeon, which is every dungeon shipped before this one.
+message ListScenariosResponse {
+  repeated ScenarioDescriptor scenarios = 1;
+}
+
+// ScenarioDescriptor is one scenario and the form it needs filled in.
+//
+// THE DESCRIPTOR IS CONTENT, AND THIS SERVICE TRANSLATES IT VERBATIM (design
+// rpg-project#368 §3.2, ruled 2026-09-01). Each scenario package in the
+// rulebook exports its own descriptor — the field keys its `New(cfg)`
+// validates and the refusal words that constructor would use — and rpg-api
+// copies it onto this wire without interpreting it. Nothing on the server
+// path learns what a captain is, what an artifact is, or what winning means;
+// the builder renders one picker per field type and sends back a map of
+// key to placement id, which travels to the compiler inside the dungeon
+// YAML (see PutDungeonRequest) and is validated there by the package that
+// declared the form.
+//
+// That is why there is no `recover_the_artifact` message here and never will
+// be. A typed message per scenario would put the rulebook's vocabulary in
+// this contract, and every new scenario would then need a proto change, an
+// rpg-api change and a web change before an author could use it — which is
+// exactly the coupling the descriptor exists to remove.
+message ScenarioDescriptor {
+  // The scenario's id — the key a dungeon file binds under, in its
+  // `scenarios:` map. Stable: renaming it orphans every dungeon bound to it.
+  string id = 1;
+  // The author-facing name, for the panel's heading.
+  string name = 2;
+  // The form, in the order the author should see it. A scenario with no
+  // fields is legal — it binds nothing and its ending stands on its own.
+  repeated ScenarioField fields = 3;
+}
+
+// ScenarioField is one blank on a scenario's form.
+message ScenarioField {
+  // The binding key the dungeon file writes under this scenario — e.g.
+  // `artifact`, `exit`. What the builder emits as the YAML key and what the
+  // package's Config reads.
+  string key = 1;
+  // The author-facing label for the blank.
+  string label = 2;
+  // What kind of blank this is, which decides the widget.
+  FieldType type = 3;
+  // WHAT the blank accepts, when `type` needs narrowing — for an ENTITY_REF,
+  // which family of authored thing the picker should list: "prop", "exit",
+  // "door", "monster".
+  //
+  // AN OPEN STRING, DELIBERATELY NOT AN ENUM. The descriptor is content: a
+  // rulebook that grows a new kind of bindable thing must not need a proto
+  // release to say so, and this repo's own VendorStockEntry.equipment_type
+  // is a plain string for the same reason. A builder that meets a kind it has
+  // no picker for shows the raw id field rather than refusing — the author
+  // can still type the id, and the package still validates it.
+  //
+  // Empty when the type needs no narrowing (a CHECK names no family).
+  string kind = 4;
+  // The refusal this blank's constructor would use, VERBATIM — form-filler
+  // words, not developer words: "this scenario needs an artifact — which
+  // placed thing is the party here to recover". The builder shows it as
+  // guidance while the blank is empty and as the error when it is wrong, so
+  // the sentence an author reads is the sentence the rulebook wrote. There is
+  // no second copy of it in rpg-api or in the web.
+  string guidance = 5;
+}
+
+// FieldType says what widget a scenario blank wants.
+//
+// A CLOSED ENUM, unlike `kind` beside it, and the split is on purpose: the
+// set of WIDGET SHAPES is the builder's own vocabulary and grows only when
+// the builder learns to render something new, while the set of THINGS a
+// widget can point at is content and grows with the rulebook. Adding a value
+// here is a real contract change because a client cannot render a shape it
+// has never heard of; adding a `kind` is not.
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  // Points at one authored thing in this dungeon, named by its id — a
+  // placement's `place[].id` or an exit's `exits[].id`. `kind` says which
+  // family the picker lists.
+  FIELD_TYPE_ENTITY_REF = 1;
+  // Names an ability or skill check the scenario resolves. NOTHING BINDS ONE
+  // YET: the first is the parchment shelf's "reading is a check" (design §9),
+  // and the value is here because the descriptor's shape was designed with it
+  // in view, not because a field of this type exists today. A builder may
+  // ship without a widget for it and show the raw value.
+  FIELD_TYPE_CHECK = 2;
 }

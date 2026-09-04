@@ -1130,6 +1130,24 @@ message AtlasProp {
   // a prop well past one cell-height is the point (a skull onto an altar, a
   // torch onto a sconce line). VISUAL ONLY, like its two siblings.
   float offset_z = 8;
+
+  // The AUTHOR'S NAME for this placement, verbatim from the dungeonspec
+  // `place[].id` — the third id the dialect carries, after a region's and a
+  // door's (design rpg-project#368 P2). EMPTY WHEN THE AUTHOR NAMED NONE,
+  // which is most props: an id is required only by whatever binds to it — a
+  // scenario binding, or the Take verb, which names its target by this id and
+  // nothing else. Unique within the dungeon when present; the compiler
+  // refuses a collision by name.
+  //
+  // A TAKEN PROP IS ABSENT FROM EVERY MEMBER'S ATLAS, not marked taken: the
+  // atlas is construction truth projected per member, and an object that
+  // left the floor left the floor for everyone (design §4.3). There is no
+  // `taken` flag here on purpose — a flag would be a second answer to a
+  // question absence already answers, and a client that drew flagged props
+  // would draw furniture nobody can reach. A prop DROPPED after being
+  // carried (see Dropped) appears again, at its drop cell rather than its
+  // authored one, and carries this same id.
+  string id = 9;
 }
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors

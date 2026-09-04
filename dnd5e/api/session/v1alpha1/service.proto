@@ -920,6 +920,19 @@ message GetAtlasResponse {
   // The engine refuses the step either way — this is so a client need not ask
   // to find out.
   repeated Position sealed = 11;
+  // Every authored way out of the dungeon, each an id and a floor cell.
+  //
+  // THE SAME FOR EVERY MEMBER, unlike the doors and regions above: an exit is
+  // structure, not concealable, and no part of this list is per-member
+  // knowledge. It rides the atlas because a dungeon has ways out whatever the
+  // party came for — see AtlasExit, including why this is for drawing the way
+  // out and never for deciding whether Leave is offered.
+  //
+  // Empty from a dungeon whose author declared none, which is every dungeon
+  // authored before slice 2. A client that finds none draws no exit marker
+  // and behaves exactly as it did before; nothing is defaulted in, and
+  // `start` is not implicitly an exit.
+  repeated AtlasExit exits = 12;
 }
 
 // =============================================================================
@@ -1146,11 +1159,16 @@ message VendorStockEntry {
 //
 // HOLD, NOT TAKE (design R10, ruled 2026-09-04). This verb was called Take
 // when it landed in #289, and the word is being given back: `take` belongs to
-// the merchant lane's act — paying for a thing and landing it in a
-// character's inventory, which outlives the run. What this verb creates is a
+// the act that lands a thing in a character's INVENTORY and outlives the run
+// — carrying the artifact back to town is a take. What this verb creates is a
 // run-scoped HOLDING fact, and a verb must not claim a word for an act it
-// does not perform. The rename is the whole of that ruling; the shapes,
-// the tags and the rules are untouched.
+// does not perform. The rename is the whole of that ruling; the shapes, the
+// tags and the rules are untouched.
+//
+// A NAMED SHELF, EMPTY: holding is meant to mean something in its own right
+// later — one-handed or two-handed, or a thing somebody has to keep hold of.
+// Nothing here prices a hold today. The word was chosen so the verb will
+// already say it when something does.
 //
 // Both verbs move HOLDINGS — the one mechanism for "who has what" (design
 // P5). A monster holds the intel an author gave it; a member who picked the
@@ -1367,10 +1385,16 @@ service SessionService {
   // the HELD beat. A prop the member cannot see refuses identically to one
   // that does not exist — the probe law, as OpenDoor and Unlock keep it.
   //
-  // HOLD CREATES A RUN-SCOPED HOLDING FACT; `take` is reserved for the
-  // merchant lane's act of landing a thing in a character's inventory
-  // (design R10). This RPC was `Take` in #289 and was renamed, not
-  // deprecated, before anything pinned it.
+  // HOLD CREATES A RUN-SCOPED HOLDING FACT; `take` is reserved for acts that
+  // land a thing in a character's inventory — carrying the artifact back to
+  // town is a take, picking it up off the altar is a hold (design R10). This
+  // RPC was `Take` in #289 and was renamed, not deprecated, before anything
+  // pinned it.
+  //
+  // AND HOLDING IS MEANT TO MEAN SOMETHING LATER — a named shelf, empty
+  // today: maybe one-handed or two-handed, maybe a thing somebody has to
+  // keep hold of. Nothing on this contract prices a hold yet, and the word
+  // was chosen so that when it does, the verb already says it.
   rpc Hold(HoldRequest) returns (HoldResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the

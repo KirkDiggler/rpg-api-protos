@@ -1135,19 +1135,47 @@ message AtlasProp {
   // `place[].id` — the third id the dialect carries, after a region's and a
   // door's (design rpg-project#368 P2). EMPTY WHEN THE AUTHOR NAMED NONE,
   // which is most props: an id is required only by whatever binds to it — a
-  // scenario binding, or the Take verb, which names its target by this id and
+  // scenario binding, or the Hold verb, which names its target by this id and
   // nothing else. Unique within the dungeon when present; the compiler
   // refuses a collision by name.
   //
-  // A TAKEN PROP IS ABSENT FROM EVERY MEMBER'S ATLAS, not marked taken: the
+  // A HELD PROP IS ABSENT FROM EVERY MEMBER'S ATLAS, not marked held: the
   // atlas is construction truth projected per member, and an object that
   // left the floor left the floor for everyone (design §4.3). There is no
-  // `taken` flag here on purpose — a flag would be a second answer to a
+  // `held` flag here on purpose — a flag would be a second answer to a
   // question absence already answers, and a client that drew flagged props
   // would draw furniture nobody can reach. A prop DROPPED after being
   // carried (see Dropped) appears again, at its drop cell rather than its
   // authored one, and carries this same id.
   string id = 9;
+
+  // Whether this prop can be picked up — the author's `holdable` flag,
+  // verbatim.
+  //
+  // STRUCTURE ON THE TRUTH GRAIN (design rpg-project#368 §5, the wire
+  // paragraph), which is why it is here rather than left for a client to
+  // discover by trying. A holdable thing LOOKS holdable: a reliquary on an
+  // altar reads differently from the altar, and every member who can see the
+  // cell sees the same thing, so this is not per-member knowledge and nothing
+  // about it is concealed.
+  //
+  // THE CLIENT OFFERS HOLD ONLY WHERE THIS IS TRUE, AND NEVER GUESSES FROM
+  // AN ID. A prop carrying an `id` is not thereby holdable — ids exist for
+  // anything a scenario binds to, and inferring the verb from the presence of
+  // a name would put a Hold button on the altar as readily as on the
+  // reliquary. Two independent facts, asked separately. An author who wants a
+  // thing to stay scenery simply does not set this.
+  //
+  // FALSE IS THE DEFAULT AND IT IS THE TRUTH, not a missing answer: a thing
+  // nobody declared holdable IS scenery. Plain bool for AtlasProp's own
+  // stated reason — an atlas is the projection of a resolved world, and
+  // `optional` would invent an unspecified state the producer cannot mean.
+  //
+  // OFFERING IS NOT PERMISSION. Hold still refuses out of range, already
+  // held, or out of turn on the clock, and a prop inside space the member
+  // cannot see is absent from this list entirely (the probe law). This field
+  // decides what the client DRAWS a button on, never what the server allows.
+  bool holdable = 10;
 }
 
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
@@ -1321,6 +1349,31 @@ message AtlasRegion {
   // is, is `lighting`.
   string archetype = 4;
   Lighting lighting = 5;
+}
+
+// AtlasExit is one authored way out of the dungeon: an id and a floor cell.
+//
+// STRUCTURE, NOT SCENARIO. A dungeon has ways out whatever the party came
+// for, so exits sit in the atlas beside cells and regions rather than inside
+// whatever scenario happens to be bound (design rpg-project#368 §3.1, and §5's
+// wire paragraph). Same shape as the file's `start`, and the same for every
+// member: an exit is not concealable and nothing here is per-member knowledge.
+//
+// FOR DRAWING THE WAY OUT, NOT FOR GATING IT. Leave is offered everywhere and
+// the SERVER decides what a departure means — R9 REQUIRES a departure from
+// the vault to be possible, because that is the departure that drops the
+// artifact where the carrier stood. A client that only offered Leave at these
+// cells would make R9 unreachable. So this list says where the way out IS;
+// when the member happens to stand on one, the button may say so.
+//
+// NOTHING IS DEFAULTED INTO IT. `start` is not implicitly an exit: a dungeon
+// whose entrance is also its exit says so, by authoring one here.
+message AtlasExit {
+  // The author's id for this exit — the dungeon file's `exits[].id`, which
+  // is what a scenario binds to and what Exited.exit reports.
+  string id = 1;
+  // The floor cell a member stands on to use it, dungeon-absolute.
+  Position at = 2;
 }
 
 // =============================================================================

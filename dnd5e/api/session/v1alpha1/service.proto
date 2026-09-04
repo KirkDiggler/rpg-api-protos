@@ -862,6 +862,12 @@ message GetAtlasResponse {
   // blocking questions for itself. See AtlasProp for why this replaced a bare
   // list of occluded coordinates; a host that wants that list back filters on
   // blocks_line_of_sight.
+  //
+  // A prop a member has TAKEN (see Taken) is ABSENT here, for every member —
+  // not flagged — and one DROPPED afterwards stands at its drop cell rather
+  // than its authored one. This list is still construction truth: taking is
+  // the one thing that folds into it, and it folds for everyone at once
+  // because an object leaving the floor is not a secret. See AtlasProp.id.
   repeated AtlasProp props = 7;
   // Every wall and barrier on the map, sorted by endpoint.
   //
@@ -1126,6 +1132,120 @@ message VendorStockEntry {
 }
 
 // =============================================================================
+// Holdings — Loot and Take
+// =============================================================================
+//
+// TWO VERBS, NOT ONE BUTTON (design rpg-project#368 R4). A verb is named by
+// what the record will say: "looted the captain" and "took the heirloom" are
+// statements, and the beat kind, the journal fact and the rule half all carry
+// that word. Interact is not a statement — it is a fine button and a poor
+// fact — so it stays what it is, the world-NPC verb, and names no rule half
+// here. If one button is ever wanted, Loot and Take become two declarations
+// under one verb the way Unarmed Strike sits under Attack: a client menu or
+// an Afford declaration, never a merged rule.
+//
+// Both verbs move HOLDINGS — the one mechanism for "who has what" (design
+// P5). A monster holds the intel an author gave it; a member who took the
+// artifact holds the artifact; a fallen holder's body holds it still, and
+// Loot takes it back. Nothing on this wire ever says WHO HOLDS INTEL: that is
+// engine-internal by design, and the only trace it leaves is the
+// DOOR_REVEALED a looter receives.
+
+// LootRequest takes what a downed body holds, as `member`.
+//
+// FREE — NO CHECK (design R1). The act is explicit and the transfer is
+// automatic; there is no roll here and no DC, so nothing about this verb can
+// fail in a way that varies with what the body held.
+//
+// OFFERED ON EVERY BODY (design P3). Every downed member is lootable and a
+// body with nothing to give transfers nothing. An affordance that appeared
+// only on bodies worth looting would say which monster carries intel, which
+// is the whole secret this slice keeps.
+//
+// Refusals are ORDINARY here, unlike the probe law OpenDoor and Unlock keep:
+// a body is visible, and there is no secret in whether it is down or how far
+// away it is. NOT_FOUND if the session, encounter or either member is absent;
+// FAILED_PRECONDITION when the encounter is closed, the target is not down,
+// or the target is out of range — each naming the reason.
+message LootRequest {
+  string session = 1;
+  // Who loots. Bound to the authenticated caller by the host, the same
+  // acting-as law every verb keeps.
+  string member = 2;
+  // The downed member whose body is looted. A member id.
+  string target = 3;
+  // The maximum distance, in cells, target may lie from member. Zero (the
+  // default) means adjacent — one cell. Interact's shape, for the same
+  // reason: reach is the host's truth.
+  int32 range = 4;
+}
+
+// LootResponse acknowledges the loot, and carries nothing.
+//
+// THE BEAT IS THE ANSWER (design §4.2 Q1, lean adopted by the plan). What
+// moved reaches the looter as DOOR_REVEALED on their own stream — the same
+// beat a successful search produces — and everyone present hears LOOTED,
+// which names looter and body and nothing of what moved. A response that
+// said what transferred would put the secret on the caller's own wire, where
+// P3 spent the whole design keeping it off.
+//
+// EMPTY IS DELIBERATE AND IS NOT SETTLED. Design §4.2 Q1 is open: search
+// answers with nothing because ANY answer would say whether there had been
+// something to find, while loot's target is a known body and "this body
+// carried nothing" is arguably not that secret. A `transferred` count says
+// nothing about WHAT, but it does tell a failed looter the body was empty,
+// and a client cannot today tell "nothing" from "the beat has not arrived
+// yet". The design's lean — ack-only, for symmetry with Search — is what
+// ships, and the question reopens when the parchment shelf (design §9)
+// makes loot yield an item.
+//
+// AND IT CARRIES NO SaveReport/DeliveryReport, which every other mutating
+// verb at this seam does carry — S6's law, SearchResponse's shape: a
+// successful loot writes a fact and publishes a beat, either can half-fail,
+// and a partial save should be an error carrying a populated report rather
+// than a silent shrug. The plan (rpg-project#368, wave 0) says "response
+// empty" and that is what ships; the divergence is recorded here rather than
+// quietly resolved, and closing it later is two additive fields, no break.
+message LootResponse {}
+
+// TakeRequest picks up a takeable prop, as `member`.
+//
+// THE ARTIFACT IS TAKEN (design R5), not reached, not stood on: an explicit
+// verb on an adjacent takeable placement. Reach-its-cell-and-leave was
+// rejected because a member who stood there and walked away would "have" it,
+// and zero values must tell the truth.
+//
+// The prop leaves the atlas FOR EVERYONE and the taker holds it, both
+// reported by the TAKEN beat to everyone present.
+//
+// THE PROBE LAW APPLIES, and only here (design §4.3): a prop standing in
+// space the member cannot see answers NOT_FOUND identically whether it does
+// not exist, is not takeable, or is merely unseen — naming it would confirm
+// a guessed id. A prop the member can see refuses by name:
+// FAILED_PRECONDITION for not takeable, already taken, or out of range.
+message TakeRequest {
+  string session = 1;
+  // Who takes it. Bound to the authenticated caller by the host.
+  string member = 2;
+  // The PLACEMENT ID of the prop — the dungeon file's `place[].id`, the same
+  // id AtlasProp.id carries. Not a ref: a dungeon may place two reliquaries
+  // and a verb that named the ref could not say which one.
+  string prop = 3;
+  // The maximum distance, in cells, the prop may stand from member. Zero
+  // (the default) means adjacent, as Loot's and Interact's do.
+  int32 range = 4;
+}
+
+// TakeResponse acknowledges the take, and carries nothing.
+//
+// The world change everyone needs — the prop off the map, the taker holding
+// it — arrives as the TAKEN beat, which reaches the caller too (design rule
+// 2: a verb's response describes only the caller's own action, and everything
+// else is the stream's). Empty for LootResponse's reason and with
+// LootResponse's caveat about saved/delivery.
+message TakeResponse {}
+
+// =============================================================================
 // Stream
 // =============================================================================
 
@@ -1163,6 +1283,15 @@ service SessionService {
 
   // Exit removes a member, returning what they knew on the way out. The last
   // member leaving auto-closes the encounter (ExitResponse.closed).
+  //
+  // AN EXIT IS ALSO HOW A RUN IS WON, and the request does not change to say
+  // so: a member standing on a scenario's bound exit while holding its
+  // artifact ends the run by declaring this verb, explicitly, never by
+  // arriving on the cell (design rpg-project#368 R6, R7 — "you always feel
+  // like you are in control"). The server decides what a departure means;
+  // the client just says leave. What it meant is on the EXITED beat, which
+  // now carries the exit id and the holdings carried out, and — when the run
+  // ended — in ExitResponse.closed and the ENDED beat.
   rpc Exit(ExitRequest) returns (ExitResponse);
 
   // Move walks a member along a path, one cell at a time, crossing doorways as
@@ -1204,6 +1333,20 @@ service SessionService {
   // monster Spawn does, driven by authored dungeon content rather than a
   // caller.
   rpc Interact(InteractRequest) returns (InteractResponse);
+
+  // Loot takes what a downed body holds, as `member`, for free — no check
+  // (design rpg-project#368 R1). Offered on EVERY downed member, because an
+  // affordance that appeared only where there was something to take would
+  // say which body carries intel. The response is an ack: what moved reaches
+  // the looter as DOOR_REVEALED on their own stream, and everyone present
+  // hears LOOTED, which names looter and body and nothing else.
+  rpc Loot(LootRequest) returns (LootResponse);
+
+  // Take picks up a takeable prop, as `member`. The prop leaves the atlas
+  // for everyone and the taker holds it; both arrive as the TAKEN beat. A
+  // prop the member cannot see refuses identically to one that does not
+  // exist — the probe law, as OpenDoor and Unlock keep it.
+  rpc Take(TakeRequest) returns (TakeResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.

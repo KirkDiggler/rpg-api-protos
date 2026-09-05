@@ -94,6 +94,22 @@ enum DissolveKind {
   // and in the roster, and Exit still carries them out. A defeat is not an
   // ending; it is a fight running out of a side.
   DISSOLVE_KIND_BY_DEFEAT = 2;
+  // A fight that ended because the two factions in it stopped being
+  // hostile: a disposition's `until` predicate held — the faction's mind
+  // came to know the fact the author named — and the pair's stance folded
+  // to neutral, so there is no longer a side to fight (design
+  // rpg-project#375, ideas/living-world/hold-out §3.5 and §6, R1). The wire
+  // mirror of the toolkit's sealed session.ByStance() cause, landing with
+  // the same slice: the wire merges first (plan, wave 0) and the SDK
+  // follows, which is the order the seal's own rule above anticipates.
+  //
+  // Like BY_DEFEAT, NOT HONESTLY DECLARABLE BY A CALLER. The world notices
+  // a stance change in the same pass that notices a defeat, and a bubble
+  // whose two factions are no longer hostile dissolves itself with this
+  // cause; STANCE_CHANGED precedes the FIGHT_ENDED that carries it. Only
+  // the pair's bubble ends — members of a third faction still hostile keep
+  // their fight, and the encounter stays open.
+  DISSOLVE_KIND_BY_STANCE = 3;
 }
 
 // GridKind names the map's coordinate family. Mirrors session.GridKind

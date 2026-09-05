@@ -996,9 +996,10 @@ message Dropped {
 // holds — the faction's mind came to know the fact the author named — and
 // the pair's edge is rewritten (design rpg-project#375 §3.4; R2: to
 // `neutral`, "not hostile"). A fight formed between members of these two
-// factions dissolves in the same pass, so a FIGHT_ENDED follows this beat
-// for the members who were in it, while members of a third faction still
-// hostile keep their fight (§3.5, R1).
+// factions dissolves in the same pass, so a FIGHT_ENDED with cause
+// DISSOLVE_KIND_BY_STANCE follows this beat for the members who were in
+// it, while members of a third faction still hostile keep their fight
+// (§3.5, R1).
 //
 // THE STANCE IS DERIVED, NEVER STORED (§3.4): a reload folds it again from
 // the journal, and this beat is how a client learns the fold changed between

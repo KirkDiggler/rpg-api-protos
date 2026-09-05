@@ -184,7 +184,9 @@ message ScenarioField {
   FieldType type = 3;
   // WHAT the blank accepts, when `type` needs narrowing — for an ENTITY_REF,
   // which family of authored thing the picker should list: "prop", "exit",
-  // "door", "monster".
+  // "door", "monster", "faction". A "faction" picker lists the dungeon
+  // file's declared `factions[]` — the hold-out's `convince` is the first
+  // blank of that kind (rpg-project#375 §2).
   //
   // AN OPEN STRING, DELIBERATELY NOT AN ENUM. The descriptor is content: a
   // rulebook that grows a new kind of bindable thing must not need a proto
@@ -215,8 +217,8 @@ message ScenarioField {
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
   // Points at one authored thing in this dungeon, named by its id — a
-  // placement's `place[].id` or an exit's `exits[].id`. `kind` says which
-  // family the picker lists.
+  // placement's `place[].id`, an exit's `exits[].id` or a faction's
+  // `factions[].id`. `kind` says which family the picker lists.
   FIELD_TYPE_ENTITY_REF = 1;
   // Names an ability or skill check the scenario resolves. NOTHING BINDS ONE
   // YET: the first is the parchment shelf's "reading is a check" (design §9),

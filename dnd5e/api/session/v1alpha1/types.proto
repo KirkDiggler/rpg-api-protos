@@ -153,6 +153,25 @@ enum MemberKind {
   MEMBER_KIND_WORLD = 3;
 }
 
+// PlacementKind names which family of authored placement an Arrived beat
+// carries — the two families of `place[]` entry that can be held in reserve
+// (design rpg-project#375, ideas/living-world/hold-out §2: `arrives` is legal
+// on monsters and props).
+//
+// NOT MemberKind, AND NOT A STRING. MemberKind cannot say PROP — a prop is
+// not a member and has no row in any member list — and a client BRANCHES on
+// this value (a monster arrival patches the roster, a prop arrival patches
+// the atlas), which is the same reason EventKind is an enum. The set grows
+// only when a new family of placement can wait in reserve, and that is a
+// design change rather than content, so it is closed here.
+enum PlacementKind {
+  PLACEMENT_KIND_UNSPECIFIED = 0;
+  // A monster placement: on arrival, a new MEMBER_KIND_MONSTER member.
+  PLACEMENT_KIND_MONSTER = 1;
+  // A prop placement: on arrival, a new AtlasProp.
+  PLACEMENT_KIND_PROP = 2;
+}
+
 // Standing says whether a member is still on their feet. Mirrors
 // session.Standing ("up" / "downed").
 //
@@ -493,6 +512,30 @@ message PublicMemberInfo {
   // Public visual identity projected to the roster. Always set; see
   // Customization.
   Customization customization = 7;
+  // The faction this member fights for — a free-form id: the dungeon file's
+  // `factions[].id`, or one of the two the rulebook reserves and no author
+  // may declare — players are `party`, and a monster placed with no
+  // `faction` line is `monsters` (design rpg-project#375 §2, R4).
+  //
+  // FACTIONS ARE CONTENT, NEVER AN ENUM. An author declares them per
+  // dungeon, so this is an open string the way AtlasProp.facing and
+  // ScenarioField.kind are, and a client groups or colours by the word
+  // without knowing what a goblin is. Who fights whom is not derived from
+  // it either: the stance between two factions is the run's own fold, and
+  // a change in it reaches a client as STANCE_CHANGED.
+  //
+  // ON THE ROSTER BECAUSE THE ROSTER IS THE ONLY PER-MEMBER ROW ON THE
+  // WIRE. Sighting, Participant and Member all speak a member id and join
+  // here for anything stable about them; a faction is stable in exactly the
+  // way name and body are — set at spawn, never per turn — so it rides the
+  // one row a client already loads once and re-pulls on JOINED and ARRIVED.
+  //
+  // Empty means the member is in no faction. Today that is exactly a
+  // MEMBER_KIND_WORLD member: a world NPC stands structurally outside
+  // combat and its own stance is its policy's (the npc lane); folding that
+  // into the faction graph is a named shelf (design §11), not a default
+  // applied here.
+  string faction = 8;
 }
 
 // Customization is public visual identity, not owner-private sheet or rules

@@ -22,9 +22,9 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
 // UNCHANGED across v0.9.0 -> v0.13.0 (the one-map reshape and the Where read
 // added no beat and removed none), then v0.18.0 both dropped TRAVERSED and
 // added DOWNED — see each below for why. The set has grown since (DOOR,
-// rpg-project#269; DOOR_REVEALED and REGION_REVEALED, rpg-api-protos#266)
-// and will again, so a client pinned to an older set must be re-read rather
-// than counted.
+// rpg-project#269; DOOR_REVEALED and REGION_REVEALED, rpg-api-protos#266;
+// STANCE_CHANGED and ARRIVED, rpg-project#375) and will again, so a client
+// pinned to an older set must be re-read rather than counted.
 //
 // Removing a kind is the compatible half of that pair only because nothing can
 // produce it: TRAVERSED's number and name are RESERVED here, so no future beat
@@ -203,6 +203,22 @@ enum EventKind {
   // Never a player verb — there is no Drop RPC; this is a consequence of
   // departure, and the beat is how everyone learns of it.
   EVENT_KIND_DROPPED = 22;
+  // The stance between two factions changed: a disposition's `until`
+  // predicate held — the faction's mind came to know the fact the author
+  // named — and the fight between those two factions dissolves (design
+  // rpg-project#375, ideas/living-world/hold-out §3.4–3.5, §5). Audience:
+  // everyone in the run. A stance is truth-grain, like a door standing
+  // open; what is per-member is the KNOWLEDGE that led to it, and that
+  // never rides this beat.
+  EVENT_KIND_STANCE_CHANGED = 23;
+  // A reserved placement entered the run: its `arrives` predicate held, and
+  // on the first verb after that the placement was put on the map (design
+  // §3.7, R6). Before this beat the placement had no cell, no turn and no
+  // row anywhere — absent from roster and atlas for every member, the way a
+  // concealed door is absent — so this is the first any client hears of it.
+  // Audience: everyone in the run, the same law as HELD and DROPPED —
+  // physical state folds on the truth grain.
+  EVENT_KIND_ARRIVED = 24;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -307,6 +323,8 @@ message Event {
     Looted looted = 26;
     Held held = 27;
     Dropped dropped = 28;
+    StanceChanged stance_changed = 29;
+    Arrived arrived = 30;
   }
 }
 
@@ -971,4 +989,62 @@ message Dropped {
   // The cell it landed on: where the carrier stood on the way out.
   // Dungeon-absolute, like every position on this seam.
   Position at = 3;
+}
+
+// StanceChanged: the stance between two factions changed
+// (EVENT_KIND_STANCE_CHANGED). Fired when a disposition's `until` predicate
+// holds — the faction's mind came to know the fact the author named — and
+// the pair's edge is rewritten (design rpg-project#375 §3.4; R2: to
+// `neutral`, "not hostile"). A fight formed between members of these two
+// factions dissolves in the same pass, so a FIGHT_ENDED follows this beat
+// for the members who were in it, while members of a third faction still
+// hostile keep their fight (§3.5, R1).
+//
+// THE STANCE IS DERIVED, NEVER STORED (§3.4): a reload folds it again from
+// the journal, and this beat is how a client learns the fold changed between
+// its reads. It names the pair and the word, and nothing of WHY — which
+// member carried what to whom is knowledge, per-member by law, and reaches
+// its holders on their own streams.
+message StanceChanged {
+  // The two faction ids the stance is between — the dungeon file's
+  // `factions[].id`, or the reserved `party` / `monsters`. Exactly two, and
+  // UNORDERED: a disposition is one per pair and has no direction (design
+  // §2), so [goblins, party] and [party, goblins] name the same edge.
+  // Repeated rather than two named fields for that reason — there is no
+  // "first" faction to name.
+  repeated string between = 1;
+  // The stance the pair now holds: `hostile`, `neutral` or `allied` — the
+  // dungeon file's own closed vocabulary (design §2), carried as the word
+  // the author wrote rather than an enum, the way Ended.ending carries the
+  // author's key: what a stance MEANS to a client (which colour, which
+  // sentence) is content the rulebook declares. Neutral is the only value
+  // this slice can produce (R2); the other two are here because the word
+  // is the file's, and a static `allied` may one day change too.
+  string stance = 2;
+}
+
+// Arrived: a reserved placement entered the run (EVENT_KIND_ARRIVED). A
+// placement authored with `arrives` is spawned at launch and held in
+// reserve — no cell, no turn, in no pair, absent from every projection for
+// every member (design rpg-project#375 §3.7, R6) — until its predicate
+// holds; on the first verb after that it is placed, and this beat says
+// what, and where.
+//
+// NAMES THE THING, NOT ITS ROW — the same shape as Joined. A MONSTER
+// arrival is a new roster member, so a client re-pulls GetRoster exactly as
+// it does on JOINED; a PROP arrival is a new atlas prop, so it re-pulls
+// GetAtlas. The same verb's sight refresh then reports the arrival like any
+// member walking into view — a FIGHT_STARTED, or a fight joined, may follow
+// on the same correlation.
+message Arrived {
+  // The placement id — the dungeon file's `place[].id`. For a MONSTER this
+  // is also the member id the roster will list; for a PROP it is the
+  // AtlasProp.id the atlas will carry.
+  string id = 1;
+  // Which family of placement arrived, and so which cached view to patch.
+  PlacementKind kind = 2;
+  // The cell it was placed on, dungeon-absolute like every position on this
+  // seam — the authored `at`, or the nearest free floor cell in the same
+  // region when `at` was occupied (design §3.7).
+  Position cell = 3;
 }

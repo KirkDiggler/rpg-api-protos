@@ -429,7 +429,7 @@ message CharacterData {
   // passes it through.
   string main_hand_damage = 8;
 
-  // Fields 9-16 are authenticated-owner-only. Encounter Entity.character projections for
+  // Fields 9-17 are authenticated-owner-only. Encounter Entity.character projections for
   // any foreign viewer MUST leave every one of them at its unpopulated/default shape.
   int32 level = 9;
   // temp remains zero until the toolkit character state owns temporary HP.
@@ -451,6 +451,13 @@ message CharacterData {
   // progress and absent when not applicable. Remaining counts are provider
   // answers; owners never derive a three-save threshold.
   dnd5e.api.session.v1alpha1.DeathSaveProgress death_saves = 16;
+  // The character's coin purse (rpg-toolkit#1532), same session-owned Money
+  // shape session.Trade prices with. Persists on the character's own sheet
+  // (character.Data.Wallet) independent of any session/encounter lifecycle —
+  // it survives across dungeons the same way inventory does, and
+  // session.Trade mutates this same persistent field on a successful
+  // purchase, not a session-local copy.
+  dnd5e.api.session.v1alpha1.Money wallet = 17;
 }
 
 // FeatureView is an owner-private, display-ready owned feature. detail is composed by

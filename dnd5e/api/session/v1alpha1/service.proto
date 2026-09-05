@@ -1164,6 +1164,12 @@ message VendorStockEntry {
   // (see TradeRequest); a stale or manipulated value here cannot buy
   // anything for less than the real price.
   Money price = 6;
+  // Whether a player's sale created or added to this row, rather than the
+  // vendor being authored with it. Mirrors the toolkit's
+  // StockEntryView.PlayerSold (rpg-toolkit#1537) verbatim — display-only, a
+  // badge/pip decision for the client, never omitted for pre-Sell rows
+  // (false is the correct default there).
+  bool player_sold = 7;
 }
 
 // TradeItem is one line of a trade offer — an equipment identity and how
@@ -1182,32 +1188,45 @@ message TradeItem {
 // that direction. Mirrors session.TradeOffer field-for-field.
 message TradeOffer {
   repeated TradeItem items = 1;
-  // The coin moving in this offer's direction. On `give`, this is the
-  // payment: it must exactly equal the server-computed price of what
-  // `receive` names (rpg-toolkit#1534, design.md §5 Wave 4) — see
-  // TradeRequest for why an offered amount is never trusted as correct on
-  // its own.
+  // The coin moving in this offer's direction. Whichever side of a
+  // TradeRequest ISN'T carrying items carries this instead: on a buy,
+  // `give.currency` is the payment; on a sell, `receive.currency` is the
+  // payout. Either way it must exactly equal the server-computed price
+  // (rpg-toolkit#1534/#1537) — see TradeRequest for why an offered amount
+  // is never trusted as correct on its own.
   Money currency = 2;
 }
 
-// TradeRequest attempts a trade with a placed vendor, as `actor`.
+// TradeRequest attempts a trade with a placed vendor, as `actor` — buying
+// from its stock or selling into it, one verb, no separate RPC
+// (rpg-project#369/#370 buy wave, rpg-toolkit#1537/rpg-project#385/#390
+// sell wave).
 //
-// ITEM SHAPE STILL NARROW THIS WAVE (rpg-project#369/#370): `give.items`
-// must be empty — no item-for-item barter yet, refused as
-// FAILED_PRECONDITION (the toolkit's ErrGiveNotSupported) — and
-// `receive.items` must carry exactly one TradeItem, any quantity currently
-// in stock; anything else is ErrInvalidTradeOffer. No player-to-player
-// trade either — `target` is always a vendor this wave.
+// ONE DIRECTION PER CALL, STILL NO BARTER: exactly one of `give.items` /
+// `receive.items` is populated, never both. Buying: `receive.items` names
+// the one item (any quantity currently in stock), `give.currency` is the
+// payment. Selling: `give.items` names the one item (any quantity the
+// actor holds), `receive.currency` is the payout. The side not carrying
+// items must leave its own items field empty; the side not carrying
+// currency must leave currency at its zero value. Anything outside this
+// one shape is ErrInvalidTradeOffer. No player-to-player trade either —
+// `target` is always a vendor this wave.
 //
-// PRICE IS A SECURITY PROPERTY, NOT A DISPLAY CONVENIENCE
-// (rpg-toolkit#1534, design.md §5 Wave 4). `give.currency` is the payment,
-// and it must equal the server's own computed price EXACTLY — no
-// tolerance. A client reads a vendor's listed price (VendorStockEntry.price)
-// only to display it and pre-populate what to send; the server never
-// trusts a client-supplied amount as correct on its own, and a mismatch is
-// refused loudly (FAILED_PRECONDITION, ErrWrongPrice) rather than silently
-// charging whatever the server computed. Insufficient wallet funds is a
-// separate refusal (FAILED_PRECONDITION, ErrInsufficientFunds).
+// PRICE IS A SECURITY PROPERTY, NOT A DISPLAY CONVENIENCE (rpg-toolkit
+// #1534/#1537). Whichever side carries currency, it must equal the
+// server's own computed price EXACTLY — no tolerance, and this applies
+// symmetrically to a sell's payout, not just a buy's payment: the design
+// doc states it as one law, "a client asserting an inflated expected
+// payout is the same risk class as asserting a discounted payment." A
+// client reads a vendor's listed price (VendorStockEntry.price) only to
+// display it and pre-populate what to send; the server never trusts a
+// client-supplied amount as correct on its own, and a mismatch is refused
+// loudly (FAILED_PRECONDITION, ErrWrongPrice) rather than silently
+// substituting what it computed. Buying can also refuse ErrOutOfStock or
+// ErrInsufficientFunds; selling can refuse ErrNotInInventory (the actor
+// doesn't hold what they're offering) — the toolkit's ErrGiveNotSupported
+// from the buy-only wave is retired now that giving items has a legal
+// meaning.
 //
 // Same reach convention as Interact/Loot/Hold: `range` zero means adjacent.
 message TradeRequest {

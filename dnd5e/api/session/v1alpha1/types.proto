@@ -266,6 +266,24 @@ message DeathSaveProgress {
   bool dead = 6;
 }
 
+// Money is a normalized D&D 5e currency amount, denominated in copper — the
+// smallest unit — so arithmetic never has to reconcile mixed denominations.
+// Mirrors the toolkit's currency.Money field-for-field (rpg-toolkit#1534).
+// A character's own copy lives on their persistent sheet (character.Data.
+// Wallet), not session state — it survives across dungeons the same way
+// inventory does. `session.Trade` mutates that same persistent field when a
+// purchase succeeds; nothing about this type is session-scoped.
+//
+// Defined here rather than in a new package because CharacterData
+// (dnd5e.api.v1alpha2.encounter) already imports this file and reuses two
+// other session-owned types the same way — LifeState and DeathSaveProgress
+// above. The reverse import (session depending on v1alpha2.encounter) is not
+// available regardless: that would reopen a path to the retired encounter
+// service, which this seam does not allow.
+message Money {
+  int32 copper = 1;
+}
+
 // DamageType names the kind of damage an attack deals. Lands with
 // rpg-toolkit#866 as the damage type carried on session.AttackRef; the values
 // are the rulebook's own thirteen.

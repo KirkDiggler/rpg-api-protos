@@ -1157,6 +1157,13 @@ message VendorStockEntry {
   VendorStockMode stock_mode = 4;
   // Meaningful only when stock_mode is LIMITED.
   optional int32 quantity = 5;
+  // The unit price, server-computed (equipment.PriceOf), display-only.
+  // rpg-toolkit#1534. This field exists so a client can show "15gp" and
+  // pre-populate Trade.give.currency — it is never the price authority.
+  // The server always recomputes and requires an exact match at trade time
+  // (see TradeRequest); a stale or manipulated value here cannot buy
+  // anything for less than the real price.
+  Money price = 6;
 }
 
 // TradeItem is one line of a trade offer — an equipment identity and how
@@ -1171,24 +1178,36 @@ message TradeItem {
   int32 quantity = 3;
 }
 
-// TradeOffer is one side of a trade — what a party is giving or receiving.
-// Mirrors session.TradeOffer.
+// TradeOffer is one side of a trade — the items and/or currency moving in
+// that direction. Mirrors session.TradeOffer field-for-field.
 message TradeOffer {
   repeated TradeItem items = 1;
+  // The coin moving in this offer's direction. On `give`, this is the
+  // payment: it must exactly equal the server-computed price of what
+  // `receive` names (rpg-toolkit#1534, design.md §5 Wave 4) — see
+  // TradeRequest for why an offered amount is never trusted as correct on
+  // its own.
+  Money currency = 2;
 }
 
 // TradeRequest attempts a trade with a placed vendor, as `actor`.
 //
-// ONE-DIRECTIONAL THIS WAVE (rpg-toolkit#1275 wave 1, rpg-project#369/#370).
-// `give` must be empty — a caller that populates it is refused
-// FAILED_PRECONDITION, the toolkit's ErrGiveNotSupported. `receive` must
-// carry exactly one TradeItem, any quantity currently in stock; more or
-// fewer than one item is refused as ErrInvalidTradeOffer. No currency field
-// exists anywhere on this message: money isn't priced yet
-// (rpg-toolkit#1275's Money type is still unruled), and adding one ahead of
-// that would be inventing vocabulary the toolkit hasn't committed to (rule
-// 1). No player-to-player trade either — `target` is always a vendor this
-// wave.
+// ITEM SHAPE STILL NARROW THIS WAVE (rpg-project#369/#370): `give.items`
+// must be empty — no item-for-item barter yet, refused as
+// FAILED_PRECONDITION (the toolkit's ErrGiveNotSupported) — and
+// `receive.items` must carry exactly one TradeItem, any quantity currently
+// in stock; anything else is ErrInvalidTradeOffer. No player-to-player
+// trade either — `target` is always a vendor this wave.
+//
+// PRICE IS A SECURITY PROPERTY, NOT A DISPLAY CONVENIENCE
+// (rpg-toolkit#1534, design.md §5 Wave 4). `give.currency` is the payment,
+// and it must equal the server's own computed price EXACTLY — no
+// tolerance. A client reads a vendor's listed price (VendorStockEntry.price)
+// only to display it and pre-populate what to send; the server never
+// trusts a client-supplied amount as correct on its own, and a mismatch is
+// refused loudly (FAILED_PRECONDITION, ErrWrongPrice) rather than silently
+// charging whatever the server computed. Insufficient wallet funds is a
+// separate refusal (FAILED_PRECONDITION, ErrInsufficientFunds).
 //
 // Same reach convention as Interact/Loot/Hold: `range` zero means adjacent.
 message TradeRequest {

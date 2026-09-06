@@ -219,6 +219,15 @@ enum EventKind {
   // Audience: everyone in the run, the same law as HELD and DROPPED —
   // physical state folds on the truth grain.
   EVENT_KIND_ARRIVED = 24;
+  // A reaction window opened and the fight is frozen on its answer: a monster
+  // stepped out of a player's reach part-way through its turn, the seam
+  // paused that turn and posed the reaction to that player (design
+  // rpg-project#316, the interrupt design). The step's own MOVED does not
+  // follow until the window is answered — the mover has not moved yet.
+  // Audience: everyone in the run, pre-v1 full data. The body names whose
+  // answer the fight is waiting on, so every client shows a pause rather than
+  // a stall.
+  EVENT_KIND_WINDOW_OPENED = 25;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -325,6 +334,7 @@ message Event {
     Dropped dropped = 28;
     StanceChanged stance_changed = 29;
     Arrived arrived = 30;
+    WindowOpened window_opened = 31;
   }
 }
 
@@ -1048,4 +1058,37 @@ message Arrived {
   // seam — the authored `at`, or the nearest free floor cell in the same
   // region when `at` was occupied (design §3.7).
   Position cell = 3;
+}
+
+// WindowOpened: a reaction window opened and the fight is waiting on it
+// (EVENT_KIND_WINDOW_OPENED). The mover is part-way through its turn and is
+// leaving `from` for `to`; that departure offered `reaction` to each member in
+// `audience`, and until every one of them has answered React no verb at this
+// seam writes.
+//
+// THE STEP HAS NOT HAPPENED. `to` is announced, not taken — a client that drew
+// the mover there on this beat would be showing the fight a step ahead of
+// itself, and the MOVED that follows the answer would be a no-op.
+//
+// WHAT IT DOES NOT CARRY: the two answers. They are implied by the VERB_REACT
+// declaration the audience already reads from Afford (see ReactChoice), so a
+// client narrates the pause from this beat and reads the offer from Afford
+// like everything else it may do.
+message WindowOpened {
+  // The members whose answers the fight is waiting on, each exactly once.
+  // Never empty — a window with no audience is not posed. More than one when
+  // several reactors are offered the same step, and the freeze lasts until
+  // the last of them has answered.
+  repeated string audience = 1;
+  // Who is moving — the member the reaction would answer. A client rings this
+  // member on the canvas.
+  string mover = 2;
+  // The cell the mover is leaving, dungeon-absolute like every position on
+  // this seam. This is where the mover still stands.
+  Position from = 3;
+  // The cell the mover is stepping to once the window is answered.
+  Position to = 4;
+  // Which reaction is on offer — the same identity Struck and Missed carry
+  // when the strike lands, so a client's icon table needs no second entry.
+  ReactionRef reaction = 5;
 }

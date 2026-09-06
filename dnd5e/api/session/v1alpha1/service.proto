@@ -536,6 +536,57 @@ message ActivateResponse {
   DeliveryReport delivery = 2;
 }
 
+// ReactRequest answers one open reaction window (rpg-project#316, the
+// interrupt design). A monster stepped out of the member's reach, the seam
+// posed the reaction and froze the fight; this is the answer, and the paused
+// turn resumes on it.
+//
+// `declaration_id` is required and says WHICH WINDOW, exactly as it says which
+// ability on Activate: it is echoed from the VERB_REACT declaration Afford
+// compiled for this member, and a member may hold more than one when two
+// movers pass in the same step. There is no mover field and no reaction ref
+// here — the selector identified both already, and a client that sent them
+// would be re-deciding what Afford decided.
+//
+// Unknown, stale, mismatched or already-answered selectors are refused with
+// FAILED_PRECONDITION; a member answering a window they are not the audience
+// for is PERMISSION_DENIED. The client refreshes Afford and never retries
+// implicitly.
+message ReactRequest {
+  string session = 1;
+  // Who is answering. Bound to the authenticated caller by the host, the same
+  // law Afford and Activate keep: a window is answered by its audience and by
+  // nobody else.
+  string member = 2;
+  // Non-empty opaque selector echoed from the VERB_REACT declaration.
+  string declaration_id = 3;
+  // Take the reaction, or let the mover pass. REACT_CHOICE_UNSPECIFIED is
+  // INVALID_ARGUMENT rather than a quiet default: "the client forgot to say"
+  // and "the player chose to hold" must not be the same bytes, because one of
+  // them declines a swing on the player's behalf.
+  ReactChoice choice = 4;
+}
+
+// ReactResponse is an acknowledgement, the same shape as ActivateResponse and
+// for the same reasons: a refusal is a status code rather than a field, and
+// saved/delivery are S6's law about a half-done write rather than a report of
+// what the member can do next. The client re-reads Afford.
+//
+// # THE RESUMED TURN IS NOT IN HERE
+//
+// Answering the last open window unfreezes the fight, and the paused monster
+// finishes its walk inside this same call. None of that is on this response.
+// The strike's own Struck or Missed, every Moved of the remainder, the
+// TurnEnded that follows — all of them reach clients through StreamEvents,
+// addressed per recipient, like every other beat. Returning them here would
+// hand the answering member a second, differently shaped copy of a story
+// everyone else reads off the stream, and leave that one client reconciling
+// two orderings of the same fight.
+message ReactResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
 // EndTurnResponse mirrors session.EndTurnOutput.
 message EndTurnResponse {
   // Who acts now.
@@ -1572,6 +1623,11 @@ service SessionService {
   // selector says which one; there are seven at level 1 and only Help takes a
   // target.
   rpc Activate(ActivateRequest) returns (ActivateResponse);
+
+  // React answers one open reaction window — an opportunity attack offered
+  // off the member's own turn, with the fight frozen on the answer. The
+  // selector says which window; the choice is to strike or to hold.
+  rpc React(ReactRequest) returns (ReactResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

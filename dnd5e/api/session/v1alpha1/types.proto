@@ -354,6 +354,17 @@ enum ShortfallReason {
   // which is a different question from what the economy refuses. A client that
   // collapsed the two would tell a raging barbarian to come back next turn.
   SHORTFALL_REASON_UNAVAILABLE = 7;
+  // A reaction window is open and the seam is frozen on its answer
+  // (rpg-project#316). This is what EVERY OTHER VERB answers, for EVERY
+  // member, while any window stands — the audience's own Attack and Move
+  // included, and the paused mover's turn included.
+  //
+  // Nothing ran out and no gate failed, so no currency is populated: the seam
+  // is refusing writes until somebody answers React. Waiting IS what helps
+  // here, which is the exact opposite of NO_BUDGET and the reason this is not
+  // spelled as one. A client that collapsed the two would tell a fighter to
+  // come back next turn while the fight waits on that fighter.
+  SHORTFALL_REASON_WINDOW_OPEN = 8;
 }
 
 // Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.
@@ -416,6 +427,26 @@ enum Verb {
   // Death Save — the active Dying character's explicit tabletop saving throw.
   // It spends its provider-owned once-per-turn capacity, not an action slot.
   VERB_DEATH_SAVE = 5;
+  // React — answering an open reaction window.
+  //
+  // THE FIRST VERB OFFERED OFF THE MEMBER'S OWN TURN. Every value above is
+  // gated on being the active member, and a client could read that as the
+  // law of this enum. React arrives precisely because somebody ELSE is
+  // acting: a monster stepped out of the member's reach part-way through its
+  // turn, the seam paused that turn, and the fight is frozen on this answer
+  // (rpg-project#316, the interrupt design).
+  //
+  // ONE DECLARATION PER OPEN WINDOW — not one per verb, and not one per
+  // option. A window offers a single reaction against a single mover, so
+  // `reaction` says which reaction and `candidates` carries the mover as the
+  // sole member row. A member holds more than one row when two movers pass in
+  // the same step.
+  //
+  // THE TWO CHOICES ARE IMPLIED BY THE VERB. Strike and hold are not members,
+  // and `candidates` speaks member ids and nothing else; the answer travels
+  // as ReactChoice on the React request instead. The day a second reaction
+  // needs a third answer is the day that becomes a list.
+  VERB_REACT = 6;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -459,6 +490,30 @@ enum Slot {
   SLOT_BONUS = 3;
   // The reaction.
   SLOT_REACTION = 4;
+}
+
+// ReactChoice is the answer to an open reaction window: take the reaction, or
+// let it pass. Mirrors session.ReactChoice ("strike" / "hold").
+//
+// A CLOSED TWO-VALUE SET RATHER THAN A LIST ON THE DECLARATION, because the
+// declaration already says which reaction is on offer — one VERB_REACT row
+// carries one ReactionRef — so the only question left is whether to take it.
+// The options are implied by the verb and never enumerated on the wire
+// (rpg-project#316, the interrupt design). A second reaction wanting a third
+// answer adds a value here, and a client pinned to the old set is re-read
+// rather than left to guess.
+//
+// HOLDING IS FREE, and that is what makes being asked cost nothing: the
+// reaction is spent when it is TAKEN, not when it is offered.
+enum ReactChoice {
+  REACT_CHOICE_UNSPECIFIED = 0;
+  // Take the reaction — swing the opportunity attack. It records through the
+  // same path a declared swing does, so the beat is the existing Struck or
+  // Missed with its `reaction` populated, not a shape of its own.
+  REACT_CHOICE_STRIKE = 1;
+  // Let the mover pass. Nothing is rolled, nothing is spent, and the paused
+  // turn resumes from where it stopped.
+  REACT_CHOICE_HOLD = 2;
 }
 
 // =============================================================================
@@ -948,6 +1003,16 @@ message Declaration {
   // The provider-authored Death Save identity. Present only on a compiled
   // VERB_DEATH_SAVE declaration; absent for every other verb and blocker.
   DeathSaveRef death_save = 13;
+  // The sole public reaction identity: which reaction this window is
+  // offering, "Opportunity Attack" and its ref. Present if and only if `verb`
+  // is VERB_REACT; absent for every other verb and every blocker. Another
+  // sibling of `attack`, `ability` and `death_save` rather than a oneof with
+  // them, for the reason given on `ability`.
+  //
+  // The mover this reaction would answer is not here — it rides `candidates`
+  // as the single member row, with target_kind MEMBER. Neither is the answer:
+  // strike and hold are ReactChoice on the React request.
+  ReactionRef reaction = 14;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the

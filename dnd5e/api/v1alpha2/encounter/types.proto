@@ -509,6 +509,17 @@ message Item {
   // confirming; never the price authority — the server always recomputes
   // and requires an exact match at trade time.
   dnd5e.api.session.v1alpha1.Money price = 8;
+  // The equipment's coarse family — "weapon", "armor", "tool", "pack",
+  // "item", "ammunition". Mirrors the toolkit's shared.EquipmentType.
+  // Distinct from `kind` above: `kind` is a narrower display vocabulary
+  // (weapon/shield/armor/gear) built specifically to drive equip-slot
+  // compatibility, and collapses tool/pack/item/ammunition into one
+  // indistinguishable "gear" bucket — lossy for anything that needs to
+  // know which of those four a gear-kind item actually is (a Sell UI
+  // grouping by category, or Unpack's pack contents). Open vocabulary,
+  // deliberately not an enum, same convention as
+  // VendorStockEntry.equipment_type / TradeItem.equipment_type.
+  string equipment_type = 9;
 }
 
 // SlotDef is one equip socket a character exposes. Server-owned data, not a client enum —

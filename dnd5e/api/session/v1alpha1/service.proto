@@ -1251,6 +1251,45 @@ message TradeResponse {
   DeliveryReport delivery = 4;
 }
 
+// UnpackRequest decomposes a pack the actor already owns into its own
+// contents — a tinderbox and rope out of an explorer's pack, scaled by
+// quantity. Mirrors session.UnpackInput field-for-field (rpg-toolkit#1544).
+//
+// NO COUNTERPARTY, NO REACH, NO STORY BEAT. Unlike Trade or Interact, the
+// target is something the actor already owns — no session/member/range
+// triple, no visibility check, nothing a witness needs told. `item_id`
+// must name a Pack the actor holds at least `quantity` of; anything else
+// is FAILED_PRECONDITION (ErrNotAPack, ErrNotInInventory) or
+// INVALID_ARGUMENT (ErrInvalidUnpackRequest: empty item_id or a
+// nonpositive quantity). ErrBadPackContents (the pack's own contents don't
+// resolve against the catalog) is an internal defect, not a caller
+// mistake. Full decomposition, no partial state — if any content line
+// fails to resolve, nothing is touched.
+message UnpackRequest {
+  string session = 1;
+  // Who's unpacking. Bound to the authenticated caller by the host, the
+  // same acting-as law every verb keeps.
+  string actor = 2;
+  // The pack's catalog identifier.
+  string item_id = 3;
+  // How many pack instances to unpack at once, contents scaled
+  // accordingly — the same generic scaling TradeItem.quantity already
+  // applies. Must be strictly positive.
+  int32 quantity = 4;
+}
+
+// UnpackResponse reports only what persisted — no seq, unlike every other
+// mutating verb here. Mirrors session.UnpackOutput field-for-field: the
+// SDK type carries no Seq, because Unpack never touches the encounter
+// aggregate (no scope.enc calls at all) and has no story beat to number.
+// A client re-reads CharacterData.inventory afterward to see the result,
+// the same pattern every other verb's response follows — this response
+// says what was persisted, not what changed.
+message UnpackResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
 // =============================================================================
 // Holdings — Loot and Hold
 // =============================================================================
@@ -1477,11 +1516,18 @@ service SessionService {
   // caller.
   rpc Interact(InteractRequest) returns (InteractResponse);
 
-  // Trade attempts to acquire one item from a placed vendor's stock.
-  // One-directional this wave: `give` must be empty, `receive` exactly one
-  // item. Refreshes and returns the vendor's WorldNPCDescriptor with stock
-  // decremented — the same descriptor Interact returns, not a second shape.
+  // Trade buys from or sells to a placed vendor — one verb, one direction
+  // per call: buying names the item in `receive` and pays via
+  // `give.currency`, selling names the item in `give` and is paid via
+  // `receive.currency`. Refreshes and returns the vendor's
+  // WorldNPCDescriptor with stock adjusted — the same descriptor Interact
+  // returns, not a second shape.
   rpc Trade(TradeRequest) returns (TradeResponse);
+
+  // Unpack decomposes a pack the actor already owns into its own contents,
+  // scaled by quantity. No reach or visibility check — the target is
+  // something the actor already holds, not something to reach for.
+  rpc Unpack(UnpackRequest) returns (UnpackResponse);
 
   // Loot moves what a downed body holds to `member`, for free — no check
   // (design rpg-project#368 R1). Offered on EVERY downed member, because an

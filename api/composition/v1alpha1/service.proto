@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package api.composition.v1alpha1;
+
+option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/api/composition/v1alpha1;compositionpb";
+option java_multiple_files = true;
+option java_package = "com.kirkdiggler.rpg.api.composition.v1alpha1";
+
+// Composition is an immutable snapshot of authored composition JSON.
+message Composition {
+  // id is the opaque identifier assigned when the composition is created.
+  string id = 1;
+  // world_id identifies the world that contains the composition.
+  string world_id = 2;
+  // json contains the composition in its authored JSON format.
+  string json = 3;
+}
+
+// CreateCompositionRequest contains the authored snapshot to save.
+message CreateCompositionRequest {
+  // world_id selects the target world; the server authorizes the caller independently.
+  string world_id = 1;
+  // json contains the composition in its authored JSON format.
+  string json = 2;
+}
+
+// CreateCompositionResponse contains the newly saved composition.
+message CreateCompositionResponse {
+  Composition composition = 1;
+}
+
+// GetCompositionRequest identifies a composition within a world.
+message GetCompositionRequest {
+  // world_id selects the target world; the server authorizes the caller independently.
+  string world_id = 1;
+  string id = 2;
+}
+
+// GetCompositionResponse contains the requested composition.
+message GetCompositionResponse {
+  Composition composition = 1;
+}
+
+// ListCompositionsRequest selects the world whose compositions are returned.
+message ListCompositionsRequest {
+  // world_id selects the target world; the server authorizes the caller independently.
+  string world_id = 1;
+}
+
+// ListCompositionsResponse contains the world's saved compositions.
+message ListCompositionsResponse {
+  repeated Composition compositions = 1;
+}
+
+// CompositionService saves and retrieves immutable authored compositions.
+// RPC failures use standard gRPC status errors.
+service CompositionService {
+  // CreateComposition saves a new immutable snapshot with a new opaque ID.
+  // Saving edited JSON creates another composition rather than updating one.
+  rpc CreateComposition(CreateCompositionRequest) returns (CreateCompositionResponse);
+
+  // GetComposition returns one composition selected by world and ID.
+  rpc GetComposition(GetCompositionRequest) returns (GetCompositionResponse);
+
+  // ListCompositions returns all compositions in the selected world.
+  rpc ListCompositions(ListCompositionsRequest) returns (ListCompositionsResponse);
+}

@@ -503,6 +503,12 @@ message Item {
   // Authenticated-owner projection: total copies owned; updated owner producers send > 0.
   // Foreign projections MUST leave 0; 0 also marks a legacy producer, never zero owned.
   int32 quantity = 7;
+  // The unit price, server-computed (equipment.PriceOf), display-only —
+  // same convention as VendorStockEntry.price (dnd5e.api.session.v1alpha1).
+  // Lets a client preview and pre-populate a Sell's Receive.Currency before
+  // confirming; never the price authority — the server always recomputes
+  // and requires an exact match at trade time.
+  dnd5e.api.session.v1alpha1.Money price = 8;
 }
 
 // SlotDef is one equip socket a character exposes. Server-owned data, not a client enum —

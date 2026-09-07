@@ -295,6 +295,22 @@ message AttackResponse {
   // "6 slashing" and "with a longsword" come from here. Lands with
   // rpg-toolkit#866.
   AttackRef attack = 10;
+  // One opaque provider-generated token shared with every witness event. It
+  // contains no Story/global sequence and is never parsed. The same token
+  // appears here, on the attacker's response, and on the Struck or Missed beat
+  // every recipient receives for that same swing — that shared token, and no
+  // seq, is what lets the attacker and a witness agree they are presenting ONE
+  // roll. An off-table retry presents this same authoritative result with
+  // this same token and a new attempt; it never issues a second Attack RPC.
+  //
+  // The presentation service receives numeric authority_seq separately from
+  // this attacker's recipient-local response seq; neither value is parsed from
+  // presentation_id.
+  //
+  // EMPTY IS LEGAL ON READ. A beat recorded before this field existed carries
+  // an empty value here. A consumer reads that as "this roll has no shared
+  // presentation" and narrates the swing alone; it is never an error.
+  string presentation_id = 11;
 }
 
 // DeathSaveRequest executes the active Dying character's current explicit

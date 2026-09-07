@@ -877,6 +877,16 @@ message BackgroundInfo {
   repeated string ideals = 13;
   repeated string bonds = 14;
   repeated string flaws = 15;
+
+  // ALL requirements (choices) - equipment, tool proficiencies, etc.
+  // This is the ONE place for all choices, same pattern as
+  // ClassInfo.choices (field 13 above) — mirrors the toolkit's
+  // choices.GetBackgroundRequirements, which now exists alongside
+  // GetRaceRequirements/GetClassRequirements (rpg-toolkit#1554).
+  // Eight backgrounds have a real choice here (equipment and/or tool
+  // proficiency, varying per background) as of rulebooks/dnd5e/v0.146.0;
+  // every other background leaves this empty.
+  repeated Choice choices = 16;
 }
 
 // Detailed feature information for class features, racial traits, etc.

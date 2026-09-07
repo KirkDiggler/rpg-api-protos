@@ -52,6 +52,16 @@ message ListCompositionsResponse {
   repeated Composition compositions = 1;
 }
 
+// DeleteCompositionRequest identifies a composition within a world.
+message DeleteCompositionRequest {
+  // world_id selects the target world; the server authorizes the caller independently.
+  string world_id = 1;
+  string id = 2;
+}
+
+// DeleteCompositionResponse is returned after deletion succeeds.
+message DeleteCompositionResponse {}
+
 // CompositionService saves and retrieves immutable authored compositions.
 // RPC failures use standard gRPC status errors.
 service CompositionService {
@@ -64,4 +74,9 @@ service CompositionService {
 
   // ListCompositions returns all compositions in the selected world.
   rpc ListCompositions(ListCompositionsRequest) returns (ListCompositionsResponse);
+
+  // DeleteComposition permanently removes one composition from the selected world.
+  // Missing compositions succeed; dungeon references are not modified automatically.
+  // The server applies the same authorization and mutation policy as CreateComposition.
+  rpc DeleteComposition(DeleteCompositionRequest) returns (DeleteCompositionResponse);
 }

@@ -596,6 +596,21 @@ message Struck {
   // opportunity attack lands here, during somebody else's turn. Absent on an
   // ordinary swing, which is how a witness tells the two apart.
   ReactionRef reaction = 12;
+  // The same opaque provider-generated token returned to the attacker by
+  // AttackResponse, here for every recipient of this beat. It contains no
+  // Story/global sequence and is never parsed. Agreeing on one roll is the
+  // whole job: the attacker's response and every witness's Struck carry this
+  // same token, while each recipient's Event.seq is its own and correlates
+  // nothing across streams.
+  //
+  // The presentation service receives numeric authority_seq separately from
+  // the attacker's recipient-local response seq and every witness's local
+  // Event.seq; none of those values is parsed from presentation_id.
+  //
+  // EMPTY IS LEGAL ON READ. A beat recorded before this field existed carries
+  // an empty value here. A consumer reads that as "this roll has no shared
+  // presentation" and narrates the strike alone; it is never an error.
+  string presentation_id = 13;
 }
 
 // Missed: an attack did not land (EVENT_KIND_MISSED). A separate body rather
@@ -615,6 +630,21 @@ message Missed {
   // Struck.reaction. A missed opportunity attack is still worth naming: the
   // reactor spent their reaction on it.
   ReactionRef reaction = 7;
+  // The same opaque provider-generated token returned to the attacker by
+  // AttackResponse, here for every recipient of this beat. It contains no
+  // Story/global sequence and is never parsed. Agreeing on one roll is the
+  // whole job: the attacker's response and every witness's Missed carry this
+  // same token, while each recipient's Event.seq is its own and correlates
+  // nothing across streams.
+  //
+  // The presentation service receives numeric authority_seq separately from
+  // the attacker's recipient-local response seq and every witness's local
+  // Event.seq; none of those values is parsed from presentation_id.
+  //
+  // EMPTY IS LEGAL ON READ. A beat recorded before this field existed carries
+  // an empty value here. A consumer reads that as "this roll has no shared
+  // presentation" and narrates the whiff alone; it is never an error.
+  string presentation_id = 8;
 }
 
 // Activated: a member successfully used an authored ability

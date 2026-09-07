@@ -228,6 +228,16 @@ enum EventKind {
   // answer the fight is waiting on, so every client shows a pause rather than
   // a stall.
   EVENT_KIND_WINDOW_OPENED = 25;
+  // A reaction window opened after a d20 was rolled and before its outcome
+  // was read, and the fight is frozen on its answer: the roller holds
+  // something spendable on that very roll — a Bardic Inspiration die — so the
+  // machine stopped between the die and the hit (design rpg-project#316, the
+  // post-roll window design). The STRUCK or MISSED beat does not follow until
+  // the window is answered — the swing has not landed yet.
+  // Audience: everyone in the run, pre-v1 full data. The body names whose
+  // answer the fight is waiting on, so every client shows a pause rather than
+  // a stall.
+  EVENT_KIND_ROLL_WINDOW_OPENED = 26;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -335,6 +345,7 @@ message Event {
     StanceChanged stance_changed = 29;
     Arrived arrived = 30;
     WindowOpened window_opened = 31;
+    RollWindowOpened roll_window_opened = 32;
   }
 }
 
@@ -1121,4 +1132,45 @@ message WindowOpened {
   // Which reaction is on offer — the same identity Struck and Missed carry
   // when the strike lands, so a client's icon table needs no second entry.
   ReactionRef reaction = 5;
+}
+
+// RollWindowOpened: a reaction window opened on a d20 that has already been
+// rolled, and the fight is waiting on it (EVENT_KIND_ROLL_WINDOW_OPENED). The
+// member in `audience` rolled `roll` for a total of `total`, and holds
+// something they may spend on that roll — `offer` — so the resolution machine
+// stopped after the die and before the outcome was read.
+//
+// THE SWING HAS NOT LANDED. No STRUCK and no MISSED has been written for this
+// attack; the beat that says whether it hit follows the answer, and its total
+// is this one plus whatever the answer added. A client that narrated a result
+// from this beat would be showing the fight a step ahead of itself.
+//
+// WHAT IT DOES NOT CARRY: the target's AC. The client learns an AC only when
+// the server has shown it, and a window that leaked it here would tell the
+// player whether their swing lands before they choose — which is the whole
+// decision. The struck beat says `against` afterwards, as it does today.
+//
+// WHAT IT DOES NOT CARRY EITHER: the two answers. They are implied by the
+// VERB_REACT declaration the audience already reads from Afford (see
+// ReactChoice), the same law WindowOpened states, so a client narrates the
+// pause from this beat and reads the offer from Afford like everything else it
+// may do.
+message RollWindowOpened {
+  // The member whose answer the fight is waiting on: the one who rolled the
+  // d20. Exactly one — this window is posed to the roller and to nobody else,
+  // because the roller is the only audience whose freeze is designed. Never
+  // empty; a window with no audience is not posed.
+  string audience = 1;
+  // Which offer is on the table — the same identity Struck and Missed carry
+  // when a strike was a reaction, so a client's icon table needs no second
+  // entry. Its name is what the button reads: "Bardic Inspiration".
+  ReactionRef offer = 2;
+  // The face of the d20 as it was rolled, before anything the answer may add.
+  // A natural 1 and a natural 20 are read off this number and the answer does
+  // not move them.
+  int32 roll = 3;
+  // The total the roll stands at right now — the face plus the attacker's
+  // bonuses, and nothing the pending answer would add. What the player is
+  // deciding about.
+  int32 total = 4;
 }

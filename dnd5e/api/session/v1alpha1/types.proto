@@ -1031,6 +1031,19 @@ message Declaration {
   // as the single member row, with target_kind MEMBER. Neither is the answer:
   // strike and hold are ReactChoice on the React request.
   ReactionRef reaction = 14;
+  // Set on a VERB_CAST row, and empty on every other verb. It names WHICH
+  // SPELL this row casts and carries the server-authored display name the
+  // dock labels the row from — never derived from the ref by the client.
+  //
+  // A CAST ROW IS NOT SELF-DESCRIBING WITHOUT IT. A level-1 bard knows two
+  // cantrips and must read as TWO ROWS, and VERB_CAST alone cannot tell them
+  // apart any more than VERB_ACTIVATE can tell Rage from Second Wind. This is
+  // the sibling of `attack`, `ability`, `death_save` and `reaction`, and it is
+  // a sibling rather than a oneof arm for the reason given on `ability`.
+  //
+  // The declaration id remains the selector Cast takes; this field is what the
+  // player reads, never what the client sends back.
+  SpellRef spell = 15;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the

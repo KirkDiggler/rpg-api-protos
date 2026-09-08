@@ -228,6 +228,20 @@ message Character {
 
   // Visual appearance customization
   Appearance appearance = 29;
+
+  // The cantrips this character knows, as canonical spell refs —
+  // "dnd5e:spells:true-strike". The sheet has held them since creation
+  // (character.Data.KnownCantrips); this is the first field that says so on
+  // the wire. Refs, never the Spell enum, for the reason SpellOptions gives.
+  //
+  // KNOWN IS NOT CASTABLE. A ref here says the character learned the spell,
+  // not that this build can cast it right now; what can be cast is compiled
+  // per turn and read from Afford, which is the only surface that answers it.
+  repeated string known_cantrips = 30;
+
+  // The levelled spells this character knows, as canonical spell refs. Same
+  // vocabulary and same law as known_cantrips: knowing is not casting.
+  repeated string known_spells = 31;
 }
 
 // Character appearance customization for visual rendering.

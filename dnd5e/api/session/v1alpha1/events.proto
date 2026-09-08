@@ -238,6 +238,25 @@ enum EventKind {
   // answer the fight is waiting on, so every client shows a pause rather than
   // a stall.
   EVENT_KIND_ROLL_WINDOW_OPENED = 26;
+  // A creature made a saving throw, and the table saw the number: the roll,
+  // the DC it was measured against, and the outcome the rulebook read from
+  // the two (design rpg-project#405, R7). A save is the whole beat — what it
+  // then delivers, or spares the saver, arrives as the beats that already
+  // carry effects.
+  //
+  // ITS OWN KIND BECAUSE NO EXISTING BODY CARRIES AN ORDINARY SAVE HONESTLY.
+  // DEATH_SAVE_ROLLED is death-shaped — stabilized, dead, hp_restored, a
+  // continuation — and every one of those zero values would LIE on a
+  // Wisdom save against a cantrip. Audience: everyone in the run, pre-v1
+  // full data.
+  EVENT_KIND_SAVED = 27;
+  // A member cast a spell (design rpg-project#405, R1). The beat names the
+  // caster, the spell and the target — and NOTHING OF WHAT FOLLOWED.
+  // What a cast forced reaches the table as SAVED, and what it delivered as
+  // ACTIVATION_RESULT: the damage arm and the condition arms it already has.
+  // A cast that delivers nothing still produces this beat, because the table
+  // watched somebody cast. Audience: everyone in the run.
+  EVENT_KIND_CAST = 28;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -346,6 +365,8 @@ message Event {
     Arrived arrived = 30;
     WindowOpened window_opened = 31;
     RollWindowOpened roll_window_opened = 32;
+    Saved saved = 33;
+    Cast cast = 34;
   }
 }
 
@@ -677,6 +698,7 @@ message ActivationResult {
     ConditionApplied condition_applied = 3;
     ConditionRemoved condition_removed = 4;
     CapacityGranted capacity_granted = 5;
+    DamageApplied damage_applied = 6;
   }
 }
 
@@ -710,6 +732,33 @@ message HealingApplied {
   RollCalculation calculation = 10;
 }
 
+// DamageApplied carries authoritative post-application damage facts as one
+// rulebook effect — the mirror of HealingApplied, and the arm a spell that
+// hurts somebody needs (design rpg-project#405, R7). Vicious Mockery's 1d4
+// psychic is the first of them.
+//
+// The requested roll arrives as `calculation`: the ordered sourced components
+// and the producing rulebook's asserted total, never recomputed by receivers,
+// so the 1d4 FACE reaches the client rather than a bare number. `amount` is
+// the post-clamp fact — what the target actually lost.
+message DamageApplied {
+  string target = 1;
+  int32 amount = 2;
+  // The damage's type, authored by the rulebook — psychic for Vicious
+  // Mockery. Never derived by a client from the source ref.
+  DamageType damage_type = 3;
+  string source_ref = 4;
+  string source_name = 5;
+  int32 hp_before = 6;
+  int32 hp_after = 7;
+  // What the rulebook asked for, before any clamp at zero hit points. When
+  // `calculation` is set, its total equals this.
+  int32 requested = 8;
+  // The authoritative calculation behind the requested damage. See
+  // HealingApplied.calculation, whose law this keeps exactly.
+  RollCalculation calculation = 9;
+}
+
 // ConditionApplied identifies a condition attached to a target.
 message ConditionApplied {
   string target = 1;
@@ -731,6 +780,42 @@ message ConditionRemoved {
 message CapacityGranted {
   string member = 1;
   string description = 2;
+}
+
+// Cast: a member cast a spell (EVENT_KIND_CAST). The spell is copied from the
+// server-authored declaration; its name is not derived from its ref. Target is
+// empty for a spell that selects nobody.
+message Cast {
+  string actor = 1;
+  SpellRef spell = 2;
+  string target = 3;
+}
+
+// Saved: one creature's saving throw, whole (EVENT_KIND_SAVED). The facts a
+// player must see to believe the outcome — what was rolled, what it came to,
+// what it had to beat, and what the rulebook read from that.
+message Saved {
+  // Who rolled. A member id, the same vocabulary every other body speaks.
+  string saver = 1;
+  // Which ability the save was made with, in the rulebook's own vocabulary —
+  // "wis", "dex". Opaque to a client, which renders a display name from its
+  // own table and never branches on it for a rule.
+  string ability = 2;
+  // The one authoritative d20 face.
+  int32 roll = 3;
+  // The roll plus the saver's own modifiers, as the rulebook asserts it.
+  // Never recomputed by a receiver from `roll`.
+  int32 total = 4;
+  // The DC the total was measured against.
+  int32 dc = 5;
+  // The rulebook's own reading of total against dc. Provider-classified, the
+  // law DeathSaveRolled.outcome keeps: a client NEVER compares the two
+  // numbers itself, because the day a rule changes what beating a DC means,
+  // every client that derived it would be wrong at once.
+  bool succeeded = 6;
+  // What forced the save, when a spell did. Unset when something else did —
+  // a trap, a monster trait — and a client narrates the save alone.
+  SpellRef source = 7;
 }
 
 // FightStarted: two sides came into contact and a fight began

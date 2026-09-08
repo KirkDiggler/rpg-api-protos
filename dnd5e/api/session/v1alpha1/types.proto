@@ -447,6 +447,24 @@ enum Verb {
   // as ReactChoice on the React request instead. The day a second reaction
   // needs a third answer is the day that becomes a list.
   VERB_REACT = 6;
+  // Cast — casting a spell the member knows and this build can actually cast
+  // (design rpg-project#405, R1).
+  //
+  // A VERB OF ITS OWN RATHER THAN AN ACTIVATE ROW. A cast could physically
+  // ride ActivateRequest, which is {session, member, declaration_id, target}
+  // with no ability ref by design. It should not: the activation machine
+  // enforces the sheet's own ability list and the TargetKind that list
+  // carries, and a cantrip is on neither. Teaching abilities to be spells
+  // would buy one saved enum value and pay with an ability surface that is
+  // half spells — and what comes next is cast-shaped rather than
+  // activation-shaped, so the split is owed either now or later at a higher
+  // price.
+  //
+  // ONE DECLARATION PER CASTABLE SPELL, the way Activate is one per ability:
+  // a level-1 bard knows two cantrips and reads two rows. A spell the
+  // character knows but this build cannot cast mints NO ROW — a row that
+  // resolved to nothing would be a lie at the door.
+  VERB_CAST = 7;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -1099,6 +1117,26 @@ message AbilityRef {
   // would be deriving 5e, which is the whole thing declarations prevent.
   string ref = 1;
   // Display name — "Dodge", "Rage", "Second Wind". Authored by the ability
+  // itself, never derived from the ref by the client.
+  string name = 2;
+}
+
+// SpellRef identifies WHICH SPELL a VERB_CAST declaration casts, and which
+// spell a cast beat is about. Mirrors AbilityRef field for field, for the
+// same reason: a declaration the client renders verbatim needs an identity,
+// and "Vicious Mockery" is no more derivable from VERB_CAST than "Rage" is
+// from VERB_ACTIVATE.
+message SpellRef {
+  // The full core.Ref.String() — "dnd5e:spells:vicious-mockery",
+  // "dnd5e:spells:true-strike". Bare ids such as "true-strike" are invalid.
+  // An OPEN set, so a string: the catalog grows without this contract
+  // changing.
+  //
+  // For correlation and for a client's own icon table. NEVER for a rules
+  // decision — a client that branched on this ref to decide what a spell does
+  // would be deriving 5e, which is the whole thing declarations prevent.
+  string ref = 1;
+  // Display name — "Vicious Mockery", "True Strike". Authored by the spell
   // itself, never derived from the ref by the client.
   string name = 2;
 }

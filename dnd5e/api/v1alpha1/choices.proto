@@ -146,9 +146,25 @@ message FightingStyleOptions {
 
 // Spells that can be chosen
 message SpellOptions {
-  repeated Spell available = 1;
+  // DEPRECATED: spells travel as ref strings in `available_refs`; producers no
+  // longer write this field. The closed enum cannot name a spell the catalog
+  // learned after it was generated, which is why the ref strings replace it.
+  // Left in place, and left readable, so no client breaks the day the
+  // producers stop writing it.
+  repeated Spell available = 1 [deprecated = true];
   int32 spell_level = 2; // Optional: level of spells being chosen
   SpellSelectionType selection_type = 3; // How spells are selected (learned, prepared, etc.)
+  // THE LIVE FIELD. Canonical spell refs — "dnd5e:spells:vicious-mockery",
+  // the full core.Ref.String() the toolkit's own catalog speaks
+  // (refs/spells.go). Bare ids such as "vicious-mockery" are invalid.
+  //
+  // SUCCEEDS `available`, and is not read beside it (Kirk's ruling,
+  // rpg-project#397; design rpg-project#405 R8): a ref string and an enum
+  // value naming one spell are two names free to disagree, with every reader
+  // left to learn which wins. Producers write this one alone. The catalog
+  // grows without this contract changing, and a client that cannot resolve a
+  // ref shows the ref rather than mistaking it for SPELL_UNSPECIFIED.
+  repeated string available_refs = 4;
 }
 
 // Skills/tools that can gain expertise
@@ -227,7 +243,13 @@ message FightingStyleSelection {
 
 // Selected spells
 message SpellSelection {
-  repeated Spell spells = 1;
+  // DEPRECATED: spells travel as ref strings in `spell_refs`; producers no
+  // longer write this field. See SpellOptions.available.
+  repeated Spell spells = 1 [deprecated = true];
+  // THE LIVE FIELD. Canonical spell refs, the same vocabulary
+  // SpellOptions.available_refs offers and the same succession of the closed
+  // enum. See that field.
+  repeated string spell_refs = 2;
 }
 
 // Selected expertise

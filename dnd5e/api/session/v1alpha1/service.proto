@@ -552,6 +552,50 @@ message ActivateResponse {
   DeliveryReport delivery = 2;
 }
 
+// CastRequest casts a spell the member knows and this build can cast — at
+// level 1, one of a bard's two chosen cantrips (design rpg-project#405, R1).
+//
+// MIRRORS ActivateRequest FIELD FOR FIELD, AND CARRIES NO SPELL REF. As with
+// Activate, `declaration_id` is required and must select the current compiled
+// Cast offer, which is also WHICH SPELL is being cast: the selector identifies
+// one row, so naming the spell here would be the client deciding the thing
+// Afford exists to have already decided.
+//
+// A SEPARATE VERB FROM Activate, not a flag on it — see VERB_CAST. The
+// request shape is deliberately identical so that what differs between the two
+// is the machine behind them, never the fields in front.
+//
+// Unknown, stale, mismatched or now-unavailable selectors are refused with
+// FAILED_PRECONDITION; the client refreshes and never retries implicitly. The
+// same code covers a spent action, which Afford reported ahead of the attempt.
+message CastRequest {
+  string session = 1;
+  // Who is casting. Bound to the authenticated caller by the host.
+  string member = 2;
+  // Non-empty opaque selector echoed from Afford.
+  string declaration_id = 3;
+  // Required when the selected declaration's target_kind is MEMBER, which is
+  // every cantrip that names somebody. Empty for a spell that selects nobody,
+  // and a populated target on a TARGET_KIND_NONE declaration is
+  // INVALID_ARGUMENT rather than a value quietly ignored.
+  string target = 4;
+}
+
+// CastResponse is an acknowledgement, the same shape and the same reasoning as
+// ActivateResponse: it says nothing about what the member can do next (the
+// client re-reads Afford), a refusal is an ERROR rather than a field, and the
+// two reports are S6's law — a cast writes a sheet and publishes effects, so
+// both halves can be half-done and a caller told only "fine" could not tell.
+//
+// WHAT THE CAST DID reaches every client, the caster included, on the stream:
+// CAST, then SAVED if the spell forced a roll, then ACTIVATION_RESULT for each
+// effect. Putting any of that here would make this response a second, rival
+// account of the same beats.
+message CastResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
 // ReactRequest answers one open reaction window (rpg-project#316, the
 // interrupt design). A monster stepped out of the member's reach, the seam
 // posed the reaction and froze the fight; this is the answer, and the paused
@@ -1639,6 +1683,10 @@ service SessionService {
   // selector says which one; there are seven at level 1 and only Help takes a
   // target.
   rpc Activate(ActivateRequest) returns (ActivateResponse);
+
+  // Cast casts a spell the member knows and this build can cast. The selector
+  // says which one; at level 1 a bard reads a row per chosen cantrip.
+  rpc Cast(CastRequest) returns (CastResponse);
 
   // React answers one open reaction window — an opportunity attack offered
   // off the member's own turn, with the fight frozen on the answer. The

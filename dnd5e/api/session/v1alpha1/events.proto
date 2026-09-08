@@ -257,6 +257,16 @@ enum EventKind {
   // A cast that delivers nothing still produces this beat, because the table
   // watched somebody cast. Audience: everyone in the run.
   EVENT_KIND_CAST = 28;
+  // A caster's concentration ended, and everything the spell was holding on
+  // the board ended with it (design rpg-project#407, R10). The body names the
+  // caster, the spell that was being concentrated on, and why it ended.
+  //
+  // ITS OWN KIND RATHER THAN INFERRED FROM THE REMOVALS. Three of the six
+  // reasons produce no saving throw at all, so there is no beat to read the
+  // break off; and the effects that end land on OTHER members' sheets, where
+  // a bare condition-removed reads as a random drop. Audience: everyone in
+  // the run, pre-v1 full data.
+  EVENT_KIND_CONCENTRATION_ENDED = 29;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -367,6 +377,7 @@ message Event {
     RollWindowOpened roll_window_opened = 32;
     Saved saved = 33;
     Cast cast = 34;
+    ConcentrationEnded concentration_ended = 35;
   }
 }
 
@@ -816,6 +827,25 @@ message Saved {
   // What forced the save, when a spell did. Unset when something else did —
   // a trap, a monster trait — and a client narrates the save alone.
   SpellRef source = 7;
+}
+
+// ConcentrationEnded: a caster stopped concentrating, and the effects the
+// spell was holding ended with it (EVENT_KIND_CONCENTRATION_ENDED). The beat
+// names the break; what it took off the board arrives as the condition
+// removals the encounter's result set already carries.
+message ConcentrationEnded {
+  // Whose concentration ended. A member id, the same vocabulary every other
+  // body speaks.
+  string caster = 1;
+  // The spell that was being concentrated on, copied from the server-authored
+  // declaration the way Cast.spell is. Its name is not derived from its ref.
+  SpellRef spell = 2;
+  // Why it ended, in the rulebook's own vocabulary — "damage", "recast",
+  // "duration", "combat_end", "spell_ended", "caster_down". An OPEN STRING,
+  // following Saved.ability rather than FightEnded.cause: these are a
+  // rulebook vocabulary, not a wire contract, and a client renders the
+  // sentence the server authored rather than branching on it for a rule.
+  string reason = 3;
 }
 
 // FightStarted: two sides came into contact and a fight began

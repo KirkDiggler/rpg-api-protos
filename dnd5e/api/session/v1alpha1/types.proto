@@ -897,7 +897,15 @@ message Participant {
   // Provider-owned progress, present for applicable Dying/Stabilized character
   // progress and absent when not applicable. The remaining counts are already
   // derived by the provider; clients never apply a three-save threshold.
-  DeathSaveProgress death_saves = 7;
+  DeathSaveProgress death_saves = 7; // Whether this member is concentrating on a spell (design rpg-project#407,
+  // R11). Mirrors `active`: one bool the whole table can see about a member
+  // whose sheet they do not hold. The caster's own client does not need it —
+  // the concentrating condition reaches them through CharacterData.conditions
+  // — and a member an effect is riding already learns who placed it from that
+  // effect's own source ref. This answers the third question: what everyone
+  // ELSE can see, so a concentration-ended beat lands on a member whose state
+  // was already visible.
+  bool concentrating = 8;
 }
 
 // =============================================================================

@@ -927,6 +927,19 @@ message TargetCandidate {
   Shortfall why = 3;
 }
 
+// CostComponent is one provider-authored display component of a declaration's
+// generic price. It is projected from the same spend profile execution charges,
+// but is not authorization: execution regenerates and revalidates the offer.
+message CostComponent {
+  // The generic budget or charge kind this component consumes.
+  Currency currency = 1;
+  // How many units the declaration needs.
+  int32 needed = 2;
+  // Provider-authored display label, such as "Level 1 spell slot". This is not
+  // a resource key and clients do not branch on it.
+  string label = 3;
+}
+
 // Declaration is one server-compiled action/cost variant. Declarations, not
 // remaining currencies (ADR-0042): the client renders availability, identity,
 // target kind, and candidates verbatim and never derives game rules. Attack,
@@ -1052,6 +1065,14 @@ message Declaration {
   // The declaration id remains the selector Cast takes; this field is what the
   // player reads, never what the client sends back.
   SpellRef spell = 15;
+  // Minimum and maximum number of entries execution accepts in the ordered
+  // target list. These are provider-authored cardinality facts; clients do not
+  // derive them from target_kind or spell identity.
+  int32 min_targets = 16;
+  int32 max_targets = 17;
+  // Generic display price copied from the same spend profile execution charges.
+  // This is not authorization and carries no private resource key.
+  repeated CostComponent cost = 18;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the

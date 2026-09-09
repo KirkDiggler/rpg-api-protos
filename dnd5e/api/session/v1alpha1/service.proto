@@ -583,9 +583,8 @@ message CastRequest {
   // Non-empty opaque selector echoed from Afford.
   string declaration_id = 3;
 
-  // Retired in favor of one ordered target list.
-  reserved 4;
-  reserved "target";
+  // Deprecated: use targets.
+  string target = 4 [deprecated = true];
   // The ordered targets for this one cast. Cardinality is constrained by the
   // selected declaration's min_targets and max_targets. Empty is valid only
   // when that declaration permits no targets; receivers preserve this order.

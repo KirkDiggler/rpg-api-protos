@@ -822,9 +822,8 @@ message Cast {
   string actor = 1;
   SpellRef spell = 2;
 
-  // Retired in favor of one ordered target list.
-  reserved 3;
-  reserved "target";
+  // Deprecated: use targets.
+  string target = 3 [deprecated = true];
   // Every target of this cast, in request order. Empty only for a spell whose
   // declaration permits no targets.
   repeated string targets = 4;

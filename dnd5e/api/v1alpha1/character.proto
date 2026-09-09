@@ -220,9 +220,9 @@ message Character {
   // Class resources (rage uses, ki points, etc)
   repeated ClassResource class_resources = 26;
 
-  // Retired: recoverable resources are the sole mutable slot authority.
-  reserved 27;
-  reserved "spell_slots";
+  // Deprecated: use canonical recoverable resources. Retained for wire
+  // compatibility only.
+  SpellSlots spell_slots = 27 [deprecated = true];
 
   // Active conditions (raging, blessed, poisoned, etc.)
   repeated Condition active_conditions = 28;

@@ -815,12 +815,19 @@ message CapacityGranted {
 }
 
 // Cast: a member cast a spell (EVENT_KIND_CAST). The spell is copied from the
-// server-authored declaration; its name is not derived from its ref. Target is
-// empty for a spell that selects nobody.
+// server-authored declaration; its name is not derived from its ref. Targets
+// preserve the cast request's order. The following per-target Saved and
+// ActivationResult beats are emitted in that same target order.
 message Cast {
   string actor = 1;
   SpellRef spell = 2;
-  string target = 3;
+
+  // Retired in favor of one ordered target list.
+  reserved 3;
+  reserved "target";
+  // Every target of this cast, in request order. Empty only for a spell whose
+  // declaration permits no targets.
+  repeated string targets = 4;
 }
 
 // Saved: one creature's saving throw, whole (EVENT_KIND_SAVED). The facts a

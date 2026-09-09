@@ -448,6 +448,10 @@ message DeathSaveRolled {
   // the actor's recipient-local response seq and every witness's local
   // Event.seq; none of those values is parsed from presentation_id.
   string presentation_id = 15;
+  // The authoritative sourced calculation behind this Death Save. It is the
+  // same settled calculation returned to the actor and is never rerolled or
+  // recomputed by a receiver.
+  RollCalculation calculation = 16;
 }
 
 // -----------------------------------------------------------------------------
@@ -479,6 +483,9 @@ message RollSource {
   // Provider-authored term for this contribution, when more specific than
   // name.
   string label = 3;
+  // The responsible character or entity when this contribution has entity
+  // provenance. This is not a player, dice-set, or presentation-style key.
+  string source_id = 4;
 }
 
 // DiceReroll is one reroll applied to one die of a DiceTrace, in the order it
@@ -550,6 +557,9 @@ message RollComponent {
   // means a modifier participated and its amount was zero. These are
   // different facts and the wire preserves the difference.
   optional int32 modifier = 3;
+  // Whether this component's dice subtotal is subtracted from the calculation.
+  // This applies only to dice; modifier remains a signed additive value.
+  bool subtract_dice = 4;
 }
 
 // RollCalculation is one domain's ordered roll inputs and the total the
@@ -654,6 +664,9 @@ message Struck {
   // an empty value here. A consumer reads that as "this roll has no shared
   // presentation" and narrates the strike alone; it is never an error.
   string presentation_id = 13;
+  // The authoritative sourced calculation behind roll and total. It preserves
+  // the ordered actual dice and modifiers selected for this attack.
+  RollCalculation calculation = 14;
 }
 
 // Missed: an attack did not land (EVENT_KIND_MISSED). A separate body rather
@@ -688,6 +701,9 @@ message Missed {
   // an empty value here. A consumer reads that as "this roll has no shared
   // presentation" and narrates the whiff alone; it is never an error.
   string presentation_id = 8;
+  // The authoritative sourced calculation behind roll and total. It preserves
+  // the ordered actual dice and modifiers selected for this attack.
+  RollCalculation calculation = 9;
 }
 
 // Activated: a member successfully used an authored ability
@@ -775,6 +791,9 @@ message ConditionApplied {
   string target = 1;
   string ref = 2;
   string name = 3;
+  // The character or entity responsible for this condition. Together with
+  // target and ref, this qualifies the condition being described.
+  string source_id = 4;
 }
 
 // ConditionRemoved identifies a condition removed from a target and the
@@ -784,6 +803,8 @@ message ConditionRemoved {
   string ref = 2;
   string name = 3;
   string reason = 4;
+  // The character or entity responsible for the exact condition removed.
+  string source_id = 5;
 }
 
 // CapacityGranted carries the member and provider-authored description of
@@ -827,6 +848,9 @@ message Saved {
   // What forced the save, when a spell did. Unset when something else did —
   // a trap, a monster trait — and a client narrates the save alone.
   SpellRef source = 7;
+  // The authoritative sourced calculation behind roll and total. It preserves
+  // the ordered actual dice and modifiers selected for this save.
+  RollCalculation calculation = 8;
 }
 
 // ConcentrationEnded: a caster stopped concentrating, and the effects the
@@ -1288,4 +1312,7 @@ message RollWindowOpened {
   // bonuses, and nothing the pending answer would add. What the player is
   // deciding about.
   int32 total = 4;
+  // The settled sourced calculation at the pause. Later resolution extends
+  // this same frozen fact; receivers never reroll or recompute it.
+  RollCalculation calculation = 5;
 }

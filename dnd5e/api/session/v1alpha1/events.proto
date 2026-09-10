@@ -1321,4 +1321,7 @@ message RollWindowOpened {
   // The settled sourced calculation at the pause. Later resolution extends
   // this same frozen fact; receivers never reroll or recompute it.
   RollCalculation calculation = 5;
+  // Same provider token as AttackResponse, the shared throw and final outcome.
+  // Empty on legacy windows; never reconstruct it from recipient-local seq.
+  string presentation_id = 6;
 }

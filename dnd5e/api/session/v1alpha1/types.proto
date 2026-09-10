@@ -476,6 +476,17 @@ enum TargetKind {
   TARGET_KIND_NONE = 1;
   TARGET_KIND_MEMBER = 2;
   TARGET_KIND_PATH = 3;
+
+  // TARGET_KIND_AREA is a cast the caster aims at nobody: the content declares
+  // a shape in space and the engine derives who is standing in it.
+  //
+  // It carries NO candidates, and that is the shape rather than an omission —
+  // there is nothing to choose between. It is deliberately not NONE, which
+  // already means "this lands on you" for a self cast; an area centred on the
+  // caster lands on everyone BUT them, and one value cannot say both. A client
+  // that knows the kind can also draw the shape, which "no selector" never
+  // permits.
+  TARGET_KIND_AREA = 4;
 }
 
 // Slot names which of a turn's three economy shapes a Declaration draws from.

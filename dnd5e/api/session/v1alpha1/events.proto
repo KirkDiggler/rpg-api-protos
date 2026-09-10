@@ -1288,4 +1288,7 @@ message RollWindowOpened {
   // bonuses, and nothing the pending answer would add. What the player is
   // deciding about.
   int32 total = 4;
+  // Same provider token as AttackResponse, the shared throw and final outcome.
+  // Empty on legacy windows; never reconstruct it from recipient-local seq.
+  string presentation_id = 6;
 }

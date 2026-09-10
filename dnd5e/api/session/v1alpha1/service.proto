@@ -311,6 +311,10 @@ message AttackResponse {
   // an empty value here. A consumer reads that as "this roll has no shared
   // presentation" and narrates the swing alone; it is never an error.
   string presentation_id = 11;
+  // The authoritative sourced calculation behind roll and total. Its ordered
+  // components carry the actual dice and modifiers selected by the rulebook;
+  // receivers render these facts and never recompute the total.
+  RollCalculation calculation = 12;
 }
 
 // DeathSaveRequest executes the active Dying character's current explicit
@@ -366,6 +370,10 @@ message DeathSaveResponse {
   uint64 seq = 15;
   SaveReport saved = 16;
   DeliveryReport delivery = 17;
+  // The authoritative sourced calculation behind this Death Save. It retains
+  // the actual d20 and every selected contribution; receivers do not reroll or
+  // recompute it.
+  RollCalculation calculation = 18;
 }
 
 // TurnRequest asks what one member is waiting on.
@@ -574,11 +582,13 @@ message CastRequest {
   string member = 2;
   // Non-empty opaque selector echoed from Afford.
   string declaration_id = 3;
-  // Required when the selected declaration's target_kind is MEMBER, which is
-  // every cantrip that names somebody. Empty for a spell that selects nobody,
-  // and a populated target on a TARGET_KIND_NONE declaration is
-  // INVALID_ARGUMENT rather than a value quietly ignored.
-  string target = 4;
+
+  // Deprecated: use targets.
+  string target = 4 [deprecated = true];
+  // The ordered targets for this one cast. Cardinality is constrained by the
+  // selected declaration's min_targets and max_targets. Empty is valid only
+  // when that declaration permits no targets; receivers preserve this order.
+  repeated string targets = 5;
 }
 
 // CastResponse is an acknowledgement, the same shape and the same reasoning as
@@ -588,8 +598,9 @@ message CastRequest {
 // both halves can be half-done and a caller told only "fine" could not tell.
 //
 // WHAT THE CAST DID reaches every client, the caster included, on the stream:
-// CAST, then SAVED if the spell forced a roll, then ACTIVATION_RESULT for each
-// effect. Putting any of that here would make this response a second, rival
+// CAST names the ordered target list, then each target's SAVED beat (when the
+// spell forced a roll) and ACTIVATION_RESULT beats follow in that same target
+// order. Putting any of that here would make this response a second, rival
 // account of the same beats.
 message CastResponse {
   SaveReport saved = 1;

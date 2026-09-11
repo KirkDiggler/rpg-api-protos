@@ -922,6 +922,24 @@ message Sighted {
   repeated string gained = 1;
   // Members who left it, and who the recipient now holds only as a ghost.
   repeated string lost = 2;
+  // Members STILL in this recipient's view whose appearance changed under
+  // them — a weapon drawn or put away, and in time anything else an observer
+  // can see. Not a transition: the recipient could see them before and can
+  // see them now, so they are in neither list above.
+  //
+  // WHY IT IS THE SAME EVENT AND NOT ITS OWN. All three lists answer one
+  // question — "what do I perceive now that I did not a moment ago?" — and a
+  // client's answer to all three is identical: re-read GetView. Splitting
+  // them would give a client two ways to learn the same thing and two places
+  // to get it wrong.
+  //
+  // WHAT IT IS NOT is a list of what changed. The server does not say a
+  // weapon was drawn, because saying so would tell this recipient a FACT
+  // rather than that their own view is stale — and the fact is exactly what
+  // an illusion has to be able to lie about. The recipient re-reads their
+  // own view and sees whatever they are entitled to see, which may not be
+  // what actually happened.
+  repeated string changed = 3;
 }
 
 // FightStarted: two sides came into contact and a fight began

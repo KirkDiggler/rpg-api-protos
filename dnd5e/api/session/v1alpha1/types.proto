@@ -1277,6 +1277,33 @@ message SaveReport {
   repeated string failed = 2;
 }
 
+// CaughtMember is somebody an area cast reached and the engine could not
+// resolve against.
+message CaughtMember {
+  // member is who was caught, by member ID.
+  string member = 1;
+
+  // kind is what they are, in the seam's own vocabulary.
+  MemberKind kind = 2;
+
+  // reason is why the engine could not resolve against them.
+  UnresolvedReason reason = 3;
+}
+
+// UnresolvedReason says why a member a footprint caught could not be resolved
+// against.
+//
+// One real value, because there is one cause today. A second arrives with
+// whatever produces it, the way this enum's neighbours do.
+enum UnresolvedReason {
+  UNRESOLVED_REASON_UNSPECIFIED = 0;
+
+  // UNRESOLVED_REASON_NO_SHEET is a placed world member — a shopkeeper, a
+  // bystander — with no character or monster sheet behind it. The blast reached
+  // them and nothing in this build models what that does.
+  UNRESOLVED_REASON_NO_SHEET = 1;
+}
+
 // DeliveryReport says what reached the event stream. Mirrors
 // session.DeliveryReport.
 //

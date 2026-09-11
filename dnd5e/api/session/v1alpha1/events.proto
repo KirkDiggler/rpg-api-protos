@@ -268,6 +268,25 @@ enum EventKind {
   // the run, pre-v1 full data.
   EVENT_KIND_CONCENTRATION_ENDED = 29;
 
+  // THIS RECIPIENT's own perception changed: members who came into their
+  // view, and members who left it. Recipient-scoped to exactly one member,
+  // like DOOR_REVEALED and REGION_REVEALED — what somebody can see is news
+  // for them, and a roster-wide audience would publish the sight graph to
+  // the table.
+  //
+  // A NUDGE, NOT A PATCH, and the one place this differs from the two
+  // reveals. Sighted carries NAMES AND NO TESTIMONY: what the recipient now
+  // perceives about those members — cell, standing, what is in their hands —
+  // is already answered, member-scoped, by GetView. A body restating it
+  // would be a second computation of that same answer, which is how a patch
+  // and a projection learn to disagree. A client re-reads its view.
+  //
+  // A TRANSITION, NEVER A STATE. It is published only when perception
+  // actually changed, so no event means nothing changed: an observer who
+  // keeps watching the same people hears nothing at all. It is NOT a
+  // periodic "here is what you can see".
+  EVENT_KIND_SIGHTED = 30;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -378,6 +397,7 @@ message Event {
     Saved saved = 33;
     Cast cast = 34;
     ConcentrationEnded concentration_ended = 35;
+    Sighted sighted = 36;
   }
 }
 
@@ -876,6 +896,32 @@ message ConcentrationEnded {
   // rulebook vocabulary, not a wire contract, and a client renders the
   // sentence the server authored rather than branching on it for a rule.
   string reason = 3;
+}
+
+// Sighted is EVENT_KIND_SIGHTED's body: who entered this recipient's view,
+// and who left it.
+//
+// EITHER LIST MAY BE EMPTY AND NEVER BOTH. The server omits the half that
+// did not happen and publishes nothing at all when neither did, so a
+// delivered Sighted always names at least one member. A client may read an
+// empty `gained` as "nobody arrived" without wondering whether the question
+// was asked.
+//
+// GAINED MERGES FIRST CONTACT WITH RE-ACQUISITION on purpose. Somebody the
+// recipient has never seen and somebody whose ghost just became real again
+// are ONE FACT to a client — a peer is in view who was not — and the answer
+// to both is the same re-read of GetView.
+//
+// LOST IS NOT A REMOVAL. A member who leaves your view stays on your map as
+// a GHOST: what you last saw, at the moment you last saw it, hands and all.
+// A client that deletes them on this beat is discarding testimony the server
+// still holds and still serves. What changes is that the sighting is no
+// longer current, which GetView already says.
+message Sighted {
+  // Members who came into this recipient's view. Member ids.
+  repeated string gained = 1;
+  // Members who left it, and who the recipient now holds only as a ghost.
+  repeated string lost = 2;
 }
 
 // FightStarted: two sides came into contact and a fight began

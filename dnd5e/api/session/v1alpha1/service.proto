@@ -589,6 +589,24 @@ message CastRequest {
   // selected declaration's min_targets and max_targets. Empty is valid only
   // when that declaration permits no targets; receivers preserve this order.
   repeated string targets = 5;
+
+  // The cell a caster-edge shape is aimed toward, and the only field a cast
+  // ever carries about space. Set when — and only when — the selected
+  // declaration's target_kind is CELL, where it is required: a shape anchored
+  // on the caster's edge with nothing to point it at has no position at all.
+  //
+  // A REFERENCE THE ENGINE READS, NEVER A COMPUTED SHAPE. The client names one
+  // cell; the engine anchors the content's footprint on the caster, aims it
+  // down that bearing, and derives which cells it covers and who is standing
+  // in them. None of that is sent, which is the same law `targets` keeps for a
+  // member cast and `path` keeps on Move — the caller says what it meant, not
+  // what it worked out.
+  //
+  // INVALID_ARGUMENT for an unset cell on a CELL declaration, for a cell set
+  // on a declaration of any other kind, and for the CASTER'S OWN CELL, which
+  // is not a direction: a caster-edge shape is aimed away from where the
+  // caster stands, so pointing it at that spot names no bearing to aim along.
+  Position cell = 6;
 }
 
 // CastResponse is an acknowledgement, the same shape and the same reasoning as

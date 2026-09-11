@@ -487,6 +487,25 @@ enum TargetKind {
   // that knows the kind can also draw the shape, which "no selector" never
   // permits.
   TARGET_KIND_AREA = 4;
+
+  // TARGET_KIND_CELL is a cast the caster AIMS: the content declares a shape
+  // anchored on the caster's own edge, and the client names the one cell it is
+  // pointed toward. The engine covers from there and derives who was caught.
+  //
+  // UNLIKE PATH, THE CELL IS NOT A ROUTE. A path is walked — every cell of it
+  // is entered, and the ones in between are the whole reason it is a list.
+  // This is a single cell with nothing between it and the caster: a bearing,
+  // read once, and never travelled.
+  //
+  // UNLIKE AREA, THE CASTER MUST AIM. An area carries no selector because
+  // there is genuinely nothing to choose: the shape is centred on the caster
+  // and lands where it lands. Here the same shape has a direction, and a
+  // client that sent nothing would leave it pointing nowhere — which is why
+  // this is its own value rather than AREA with an optional extra.
+  //
+  // Its candidates are empty, as AREA's are, and for a different reason: every
+  // cell of the map is legal, so listing them would be the atlas a second time.
+  TARGET_KIND_CELL = 5;
 }
 
 // Slot names which of a turn's three economy shapes a Declaration draws from.

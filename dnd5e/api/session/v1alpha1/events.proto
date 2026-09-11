@@ -253,7 +253,8 @@ enum EventKind {
   // A member cast a spell (design rpg-project#405, R1). The beat names the
   // caster, the spell and the target — and NOTHING OF WHAT FOLLOWED.
   // What a cast forced reaches the table as SAVED, and what it delivered as
-  // ACTIVATION_RESULT: the damage arm and the condition arms it already has.
+  // ACTIVATION_RESULT: the damage arm, the condition arms, and the move arm a
+  // spell that shoves somebody lands on.
   // A cast that delivers nothing still produces this beat, because the table
   // watched somebody cast. Audience: everyone in the run.
   EVENT_KIND_CAST = 28;
@@ -746,6 +747,7 @@ message ActivationResult {
     ConditionRemoved condition_removed = 4;
     CapacityGranted capacity_granted = 5;
     DamageApplied damage_applied = 6;
+    MoveImposed move_imposed = 7;
   }
 }
 
@@ -832,6 +834,37 @@ message ConditionRemoved {
 message CapacityGranted {
   string member = 1;
   string description = 2;
+}
+
+// MoveImposed: a rulebook effect moved a creature who did not choose to move —
+// Thunderwave's shove is the first of them (design rpg-project#432). The
+// effect decided the direction and the distance; this beat says what the floor
+// allowed.
+//
+// HOW FAR IT GOT, NOT HOW FAR IT WAS ASKED FOR, and that distinction is the
+// reason both fields exist rather than one. A two-cell shove that met a pillar
+// after one cell reports one cell and names the pillar: "the push was weak"
+// and "the push was stopped" are different stories, and a client shown only
+// the rulebook's requested number would narrate the wrong one every time
+// something was in the way.
+//
+// THE CELLS THEMSELVES ARE NOT IN HERE. Each cell actually entered reaches the
+// table as an ordinary MOVED beat, one per step, exactly as a walk's do — a
+// creature shoved across the room is watched the same way as one that walked
+// there, and a second account of the same steps on this body would be a rival
+// one.
+message MoveImposed {
+  // Who was moved. Never the caster of a caster-edge shape; a cast does not
+  // shove the person casting it.
+  string target = 1;
+  // How many cells the target actually entered. Zero is legal and honest: the
+  // very first cell was refused, so nothing moved and stopped_by says what
+  // refused it.
+  int32 moved_cells = 2;
+  // What the move stopped in front of, authored by the rulebook — a prop's
+  // ref, a wall, another creature standing in the way. Empty when nothing
+  // stopped it and the whole budget was spent.
+  string stopped_by = 3;
 }
 
 // Cast: a member cast a spell (EVENT_KIND_CAST). The spell is copied from the

@@ -605,6 +605,19 @@ message CastRequest {
 message CastResponse {
   SaveReport saved = 1;
   DeliveryReport delivery = 2;
+
+  // caught are members an area cast's footprint reached that this build could
+  // not resolve against — today, a placed world member with no sheet behind it.
+  //
+  // REPORTED RATHER THAN DROPPED, and the distinction is the whole reason the
+  // field exists. Without it, "nobody was standing in the blast" and "somebody
+  // was standing in the blast and we have nothing to model what it does to
+  // them" reach a client as the same answer: a cast with no targets. The second
+  // is a missing capability, and it should stay visible until it is built
+  // rather than looking like a spell that simply missed.
+  //
+  // Empty for every cast that is not an area, and for most that are.
+  repeated CaughtMember caught = 3;
 }
 
 // ReactRequest answers one open reaction window (rpg-project#316, the

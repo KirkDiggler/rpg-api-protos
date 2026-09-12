@@ -607,6 +607,22 @@ message CastRequest {
   // is not a direction: a caster-edge shape is aimed away from where the
   // caster stands, so pointing it at that spot names no bearing to aim along.
   Position cell = 6;
+
+  // The id of one of the selected declaration's options — which of a Command's
+  // words was spoken. Set when — and only when — that declaration lists
+  // options, where it is required: a spell whose whole effect is chosen at cast
+  // time does nothing at all until the caster has chosen.
+  //
+  // AN ECHO, NEVER A COMPOSED VALUE. The client sends back one id it read off
+  // Declaration.options and says nothing about what that word buys, which is
+  // the same law `cell` keeps about the cells a shape covers and `targets`
+  // keeps about a member cast — the caller says what it meant, not what it
+  // worked out.
+  //
+  // INVALID_ARGUMENT for an unset option on a declaration that lists options,
+  // for an option set on a declaration that lists none, and for an id that is
+  // not one of that declaration's options.
+  string option = 7;
 }
 
 // CastResponse is an acknowledgement, the same shape and the same reasoning as

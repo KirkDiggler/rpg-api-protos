@@ -1144,6 +1144,20 @@ message Declaration {
   // Generic display price copied from the same spend profile execution charges.
   // This is not authorization and carries no private resource key.
   repeated CostComponent cost = 18;
+  // The menu of choices this cast offers, when the spell has one — the word a
+  // Command speaks. Empty on a cast that offers no choice, and on every verb
+  // that is not VERB_CAST.
+  //
+  // A CAST-TIME INPUT, THE WAY `cell` IS ONE, rather than a row of its own. One
+  // spell stays one declaration with one selector, and the client echoes the id
+  // of the option it picked on CastRequest.option. Splitting a spell's words
+  // into a declaration apiece would make the dock's row count a function of the
+  // spell's vocabulary, and a client that assembled the menu itself would be
+  // authoring 5e content.
+  //
+  // Each label is authored by the spell, never derived from its id by the
+  // client, for the same reason `spell`'s name is.
+  repeated CastOption options = 19;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -1252,6 +1266,30 @@ message SpellRef {
   // Display name — "Vicious Mockery", "True Strike". Authored by the spell
   // itself, never derived from the ref by the client.
   string name = 2;
+}
+
+// CastOption is one entry in the menu a cast offers — one of the words Command
+// can speak. It sits beside SpellRef because a cast row needs it for the same
+// reason: the player must read something the client could not have derived, and
+// "Grovel" is no more derivable from a spell ref than "Vicious Mockery" is from
+// VERB_CAST.
+//
+// It is NOT an identity of anything on a sheet. It names a CHOICE the caster
+// makes while casting, so it rides Declaration.options as the menu and comes
+// back as a single id on CastRequest.option, the way `cell` rides back as a
+// single bearing.
+message CastOption {
+  // Opaque server-authored id for this choice, echoed verbatim on
+  // CastRequest.option. An OPEN set, so a string: a spell's vocabulary grows
+  // without this contract changing.
+  //
+  // For correlation and for a client's own icon table. NEVER for a rules
+  // decision — a client that branched on this id to decide what the word does
+  // would be deriving 5e, which is the whole thing declarations prevent.
+  string id = 1;
+  // Display name — "Approach", "Flee", "Grovel". Authored by the spell itself,
+  // never derived from the id by the client.
+  string label = 2;
 }
 
 // ReactionRef identifies WHAT a strike was taken as, when the strike was a

@@ -483,9 +483,9 @@ enum TargetKind {
   // It carries NO candidates, and that is the shape rather than an omission —
   // there is nothing to choose between. It is deliberately not NONE, which
   // already means "this lands on you" for a self cast; an area centred on the
-  // caster lands on everyone BUT them, and one value cannot say both. A client
-  // that knows the kind can also draw the shape, which "no selector" never
-  // permits.
+  // caster lands on everyone BUT them, and one value cannot say both. The kind
+  // names the input interaction; Declaration.footprint supplies the shape for
+  // presentation. The kind alone does not describe its geometry.
   TARGET_KIND_AREA = 4;
 
   // TARGET_KIND_CELL is a cast the caster AIMS: the content declares a shape
@@ -1011,6 +1011,44 @@ message CostComponent {
   string label = 3;
 }
 
+// FootprintShape names the two-dimensional outline supplied by the provider.
+// Values arrive with supported toolkit footprints, not individual spell names.
+enum FootprintShape {
+  FOOTPRINT_SHAPE_UNSPECIFIED = 0;
+  // SizeFeet is the distance from the centre to the circle's boundary.
+  FOOTPRINT_SHAPE_RADIUS = 1;
+  // Equal width and depth; SizeFeet is one edge, not a half-extent.
+  // This is a floor outline and declares no height.
+  FOOTPRINT_SHAPE_BOX = 2;
+}
+
+// FootprintOrigin describes how the outline is placed relative to the caster.
+// It does not identify affected creatures or grant targeting permission.
+enum FootprintOrigin {
+  FOOTPRINT_ORIGIN_UNSPECIFIED = 0;
+  // The caster's cell centre is the centre of a radius footprint.
+  FOOTPRINT_ORIGIN_CASTER = 1;
+  // The box's near-edge midpoint sits on the caster cell's boundary along
+  // the bearing from the caster to the aimed cell. Its depth extends away
+  // from the caster and its width is perpendicular to that bearing.
+  // The aimed cell supplies direction, not the box's centre or far edge.
+  FOOTPRINT_ORIGIN_CASTER_EDGE = 2;
+}
+
+// Footprint is provider-authored area presentation copied from the content's
+// footprint. It says where an outline goes, never who a cast catches.
+// Consumers may place and draw it, but must not derive affected cells, targets,
+// exclusions, obstruction, or legality from it. Those remain engine answers.
+message Footprint {
+  // A supported shape; UNSPECIFIED is invalid on a present footprint.
+  FootprintShape shape = 1;
+  // Positive extent in feet: a radius for RADIUS, one full edge for BOX.
+  int32 size_feet = 2;
+  // A supported anchor; UNSPECIFIED is invalid on a present footprint.
+  // Current provider combinations are RADIUS/CASTER and BOX/CASTER_EDGE.
+  FootprintOrigin origin = 3;
+}
+
 // Declaration is one server-compiled action/cost variant. Declarations, not
 // remaining currencies (ADR-0042): the client renders availability, identity,
 // target kind, and candidates verbatim and never derives game rules. Attack,
@@ -1158,6 +1196,15 @@ message Declaration {
   // Each label is authored by the spell, never derived from its id by the
   // client, for the same reason `spell`'s name is.
   repeated CastOption options = 19;
+  // Present on compiled offers with an area footprint, including unavailable
+  // offers; absent when no footprint is supplied or on an early blocker that
+  // could not compile the offer. Absence is not a zero-sized footprint, and
+  // clients must not infer one from spell identity or target_kind.
+  //
+  // This is display data, not cast input or an affected-cell preview. The
+  // client still sends only the existing selector/reference inputs. Unknown
+  // shape/origin values must not be reinterpreted as a supported outline.
+  Footprint footprint = 20;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the

@@ -16,6 +16,13 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Paid cast misses on the session wire (session/v0.82.0)** — additive
+  `EVENT_KIND_CAST_MISSED` and `CastMissed { actor, target, spell }` preserve
+  the provider's per-target misses in live events and saved story. Mixed
+  misses/effects retain cast target order; `CastResponse` stays unchanged.
+  API mapping and web narration require subsequent released SDK adoption;
+  see [the contract and adoption steps](architecture/components/session-service.md#paid-cast-misses).
+
 - **Explicit Death Saves on the session wire (rpg-api-protos#277,
   session/v0.54.1, 2026-09-03)** — additive transcription of the released SDK:
   `VERB_DEATH_SAVE`, compiled `DeathSaveRef`, dedicated request/response RPC,

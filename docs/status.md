@@ -16,6 +16,12 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Spare the Dying stabilization (session/v0.86.1, toolkit #1743)** — additive
+  `ActivationResult.stabilized` reuses life-state/progress types and carries
+  unchanged HP, source, and target in live events and Story. Private-sheet
+  fields already suffice. API/browser acceptance and the proto release tag
+  remain pending merge/publication; see [the adoption handoff](architecture/components/session-service.md#stabilization-results).
+
 - **Paid cast misses on the session wire (session/v0.82.0)** — additive
   `EVENT_KIND_CAST_MISSED` and `CastMissed { actor, target, spell }` preserve
   the provider's per-target misses in live events and saved story. Mixed

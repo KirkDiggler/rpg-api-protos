@@ -753,7 +753,29 @@ message ActivationResult {
     CapacityGranted capacity_granted = 5;
     DamageApplied damage_applied = 6;
     MoveImposed move_imposed = 7;
+    Stabilized stabilized = 8;
   }
+}
+
+// Stabilized carries instantaneous stabilization without healing, revival or
+// a roll. Mirrors session.StabilizedBody at session/v0.86.1 (rpg-toolkit#1743)
+// in both live ActivationResult events and saved Story replay.
+// All state and progress values are authoritative provider facts, including
+// zero counters and false flags; consumers must not derive them from HP.
+message Stabilized {
+  string target = 1;
+  string source_ref = 2;
+  string source_name = 3;
+  // Already-stabilized recipients are valid: before and after may both be
+  // LIFE_STATE_STABILIZED.
+  LifeState before = 4;
+  LifeState after = 5;
+  // Unchanged by stabilization. Spare the Dying leaves the target at zero HP.
+  int32 hit_points = 6;
+  // Post-result progress, present even when both counters are zero. Spare the
+  // Dying clears successes and failures, sets stabilized, and leaves dead false.
+  // Remaining counts are copied from the provider, never computed here.
+  DeathSaveProgress progress = 7;
 }
 
 // HealingApplied carries authoritative post-clamp healing facts, including

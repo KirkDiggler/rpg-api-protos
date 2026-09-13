@@ -61,6 +61,51 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
 
+## Stabilization results
+
+`ActivationResult.result` adds `Stabilized stabilized = 8` in `events.proto`.
+The body copies `session.ActivationResultBody.Stabilized` directly: `target`,
+`source_ref`, `source_name`, `before`, `after`, unchanged `hit_points`, and
+post-result `progress`. It reuses `LifeState` and `DeathSaveProgress`, including
+all six progress fields: successes, failures, successes needed, failures
+remaining, stabilized, and dead. Progress is populated even when counters are
+zero; clients copy the provider's remaining counts rather than calculate them.
+
+Verified provider: [toolkit #1743](https://github.com/KirkDiggler/rpg-toolkit/pull/1743),
+merge `18d5b6e87c1d70f3b645519a5cc28014d4129638`, is tagged
+`rulebooks/dnd5e/session/v0.86.1`. Its dependency combination is root
+`v0.168.0`, resolution `v0.48.0`, and encounter `v0.82.0`.
+`session/types.go` defines the body, `participation.go` defines the progress,
+and `spare_the_dying_test.go` verifies public casting, action payment without
+slots or dice, persistence, Story replay, private status, and stable turn
+advancement for dying and already-stable recipients.
+
+Spare the Dying clears both counters and leaves the target stabilized at zero
+HP; this result is neither healing nor revival. Before/after may both be
+`LIFE_STATE_STABILIZED`. It travels through the existing
+`EVENT_KIND_ACTIVATION_RESULT` / `Event.activation_result` in live events and
+Story, preserving the provider's event order. There is no new event kind,
+death-save roll, or CastResponse result projection.
+
+The authenticated-owner `v1alpha2.encounter.CharacterData` already carries
+`hit_points = 10`, `life_state = 15`, and `death_saves = 16`. Its existing
+privacy restrictions remain applicable. `Participant.life_state/death_saves`
+also already use the shared types. No private-sheet fields need adding.
+
+API adoption: after this proto PR is merged and its generated SDK tag is
+published, record that actual tag in the handoff and pin it alongside verified
+session `v0.86.1`. Map `ActivationResultBody.Stabilized` to the `stabilized`
+oneof arm in the converter shared by live stream and Story. Copy every field,
+including zero HP/counters and false `dead`, and populate `progress`; do not
+route it through `healing_applied` or infer life state from HP. Validate dying
+and already-stable recipients through both delivery paths and private-sheet
+refresh. Browser acceptance must show stabilization without healing, revival,
+or dice and preserve ordered narration. API/browser acceptance is outstanding;
+this PR does not change consumer pins. The released proto version remains
+pending merge/publication and must not be guessed from the previous tag.
+
+Preparation, monster stabilization, and timed natural recovery remain deferred.
+
 ## Paid cast misses
 
 `events.proto` adds `EVENT_KIND_CAST_MISSED = 31` and the `Event.body`

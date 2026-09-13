@@ -61,6 +61,52 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
 
+## Paid cast misses
+
+`events.proto` adds `EVENT_KIND_CAST_MISSED = 31` and the `Event.body`
+arm `cast_missed = 37`. `CastMissed` carries only `actor = 1`, the named
+`target = 2`, and the existing `SpellRef spell = 3`. This transcribes
+`EventCastMissed` / `CastMissedBody` from released
+[session v0.82.0 (rpg-toolkit#1712)](https://github.com/KirkDiggler/rpg-toolkit/pull/1712),
+backed by [encounter v0.79.0 (#1711)](https://github.com/KirkDiggler/rpg-toolkit/pull/1711).
+The provider preserves this body through live delivery and saved-story replay.
+
+`Cast.targets` retains request order; subsequent per-target `CastMissed`,
+`Saved`, and `ActivationResult` beats retain that order even for mixed
+misses/effects. A missed target has no save or effect for that cast. For example,
+targets `[ally-a, ally-b, ally-c]` can narrate `Cast`, an effect on ally-a,
+`CastMissed` for ally-b, then an effect on ally-c. Consumers must not gather
+misses into a separate batch. The provider rejects contradictory outcomes before
+recording; the proto carries the resulting facts.
+
+The strike-specific `Missed` body remains distinct: a gateless cast miss has
+no attack roll, AC, aimed/actual position, or inferred reason. `SpellRef` carries
+the supplied reference and name (for example `dnd5e:spells:bless` and `Bless`);
+there is no Bless-specific enum. Existing ordered targets, spell choices,
+source-qualified condition bodies, and `Shortfall.available/why/text` cover
+the rest of this slice.
+
+`CastResponse` remains unchanged. Cast outcomes reach clients through events;
+the toolkit's internal `CastOutput.MissedTargets` convenience projection is not
+a second wire account of those outcomes.
+
+Consumer adoption follows the published proto SDK release:
+
+- **rpg-api:** pin the released Go SDK and map `session.EventCastMissed` plus
+  `CastMissedBody` to the new kind/body in both stream and story conversion.
+  Copy actor, target, and spell directly, retaining recipient-local sequence
+  and event order. API/SDK setup explicitly defaults the host's
+  `Session.Config.StaleTargetPolicy` to `refuse`, with `attempt` as an override,
+  as already approved. That configuration belongs in host setup, never generated
+  protobuf code or a player-selectable request field.
+- **rpg-dnd5e-web:** adopt the published TypeScript SDK after the API provider
+  is available, and render `castMissed` in the ordered feed and replay using the
+  named actor, target, and spell. Do not render an attack roll or guess why it
+  missed. Verify mixed and all-missed casts without duplicate response narration.
+
+These consumer changes and pins are follow-on work. The root Cleric acquisition
+slice in toolkit #1713 is not a prerequisite for this additive contract.
+
 ## Public roster customization
 
 `PublicMemberInfo.customization = 7` remains the public identity shelf and now

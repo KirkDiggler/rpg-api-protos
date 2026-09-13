@@ -632,10 +632,11 @@ message CastRequest {
 // both halves can be half-done and a caller told only "fine" could not tell.
 //
 // WHAT THE CAST DID reaches every client, the caster included, on the stream:
-// CAST names the ordered target list, then each target's SAVED beat (when the
-// spell forced a roll) and ACTIVATION_RESULT beats follow in that same target
-// order. Putting any of that here would make this response a second, rival
-// account of the same beats.
+// CAST names the ordered target list, then each target's CAST_MISSED beat or
+// SAVED beat (when the spell forced a roll) and ACTIVATION_RESULT beats follow
+// in that same target order. A missed target carries no save or effect.
+// Putting any of that here would make this response a second, rival account
+// of the same beats.
 message CastResponse {
   SaveReport saved = 1;
   DeliveryReport delivery = 2;

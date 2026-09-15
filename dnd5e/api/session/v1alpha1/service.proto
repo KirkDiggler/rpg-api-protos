@@ -315,6 +315,15 @@ message AttackResponse {
   // components carry the actual dice and modifiers selected by the rulebook;
   // receivers render these facts and never recompute the total.
   RollCalculation calculation = 12;
+  // True when the swing stopped to ask the attacker something (a held offer
+  // — Bardic Inspiration, etc.) and has not landed yet. While true, against,
+  // hit, critical, and damage all stay at their zero value: against is zero
+  // because the AC has deliberately not been shown, and hit is false because
+  // nothing has hit yet. roll and total ARE answers even so — the d20 as
+  // rolled and the total before whatever is being offered joins it.
+  // Answered via the session's generic React verb; finishing the attack
+  // writes the beat this response did not.
+  bool paused = 13;
 }
 
 // DeathSaveRequest executes the active Dying character's current explicit
@@ -1204,6 +1213,17 @@ message UnlockResponse {
   // The door as it now stands: OPEN when beaten — a beaten lock opens the
   // door, it does not merely unlock it — unchanged and retryable when not.
   DoorInfo door = 4;
+  // True when the attempt stopped to ask the member whether to spend a held
+  // offer (Guidance, etc.) before the lock's verdict is settled — Attack's
+  // `paused` shape, applied to a check instead of a swing. While true,
+  // beaten, dc, and door all stay at their zero value: there is no verdict
+  // yet, only a question. Answered via the session's generic React verb.
+  bool paused = 5;
+  // The d20 as rolled, present only when paused — unlike AttackResponse.roll
+  // (always present), this seam's own Roll is a pointer, meaningful only
+  // mid-question. The lock's DC is deliberately not surfaced alongside it,
+  // for the same reason `dc` above stays zero while paused.
+  optional int32 roll = 6;
 }
 
 // SearchRequest declares a search of a room — the player's verb for finding

@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-03
+updated: 2026-09-16
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,20 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **A weapon list door for the dungeon builder palette (rpg-project#448,
+  2026-09-16)** — additive `ListWeapons` on `AuthoringService`, with
+  `WeaponDescriptor { ref, name, ranged, category }`. The palette writes
+  `ref` verbatim into a placement's `actions:` list, so an author can arm one
+  goblin archer with a scimitar as backup and the next with nothing but the
+  bow, without touching Go. `ref` is a string rather than the generated
+  `dnd5e.api.v1alpha2.weapons.Weapon` enum on purpose — a new weapon in the
+  rulebook must not need a proto release before an author can reach it, and a
+  client that rebuilt `"dnd5e:weapons:" + id` would eventually rebuild it
+  wrong. No damage or range: the toolkit assembles the attack at spawn from
+  the wielding monster's own scores. Merges first — a proto is a contract; the
+  toolkit, `rpg-api` and web legs follow on pseudo-versions. See
+  [the contract](architecture/components/authoring-service.md#weapondescriptor-carries-the-ref-the-author-writes).
 
 - **Spare the Dying stabilization (session/v0.86.1, toolkit #1743)** — additive
   `ActivationResult.stabilized` reuses life-state/progress types and carries
@@ -493,7 +507,7 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.EncounterService` | Medium — works in production; carries two state shapes (legacy + unified), four deprecated RPCs, and many `reserved` slots. Highest churn, biggest cleanup debt |
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
-| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 2 RPCs, answers with the session atlas itself; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
+| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 4 RPCs, answers with the session atlas itself, plus the two ungated registry doors `ListScenarios` (2026-09-04) and `ListWeapons` (rpg-project#448, 2026-09-16) that hand the builder the rulebook's own vocabulary instead of letting the web hold a copy; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
 | `dnd5e.session.SessionService` | High (contract) / consumer adoption pending — current explicit Death Save surface is transcribed from released session/v0.54.1; earlier core came from #222/#226 and `GetWhere` from #228. Proto lint/breaking/generation are the contract evidence; API/web runtime acceptance remains follow-on work |
 | `dnd5e.session.presentation.SessionPresentationService` | High (contract) / no consumer yet — new (rpg-api-protos#256, 2026-08-27). Presentation-only live-session dice throw plans: `PublishDiceThrow` + `StreamDiceThrows`, group-shaped bodies/contacts/terminals, server-bound `roller`, intended live/no-replay Redis-backed host in rpg-api. Both consumer issues are already assigned (`rpg-api#852`, `rpg-dnd5e-web#837`), so this is consumer-pending rather than speculative unused proto |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |

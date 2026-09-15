@@ -45,6 +45,10 @@ service AuthoringService {
   // form each one needs filled in. Ungated, for GetDungeon's reason: it
   // reads a registry and mutates nothing.
   rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
+  // ListWeapons reports every weapon the server's rulebook can arm a placed
+  // monster with, for the builder's action palette. Ungated, for GetDungeon's
+  // reason: it reads a registry and mutates nothing.
+  rpc ListWeapons(ListWeaponsRequest) returns (ListWeaponsResponse);
 }
 
 // PutDungeonRequest carries one dungeon file, in its authored form.
@@ -226,4 +230,83 @@ enum FieldType {
   // in view, not because a field of this type exists today. A builder may
   // ship without a widget for it and show the raw value.
   FIELD_TYPE_CHECK = 2;
+}
+
+// ListWeaponsRequest asks for the whole catalog. No fields, and none are
+// coming, for ListScenariosRequest's reason: the set of weapons is a property
+// of the SERVER'S rulebook build, not of any one dungeon and not of any one
+// monster. A builder that has placed nothing yet still needs this list to
+// show what a monster could be armed with.
+message ListWeaponsRequest {}
+
+// ListWeaponsResponse is every weapon the server's rulebook offers.
+//
+// THE CATALOG IS CONTENT, AND THIS SERVICE TRANSLATES IT VERBATIM — the same
+// reason ListScenarios exists (see ScenarioDescriptor). The rulebook owns the
+// words and the builder must not: a web client holding its own list of weapon
+// names would need a release before an author could reach a weapon the
+// rulebook already has, and the day the two lists disagreed the palette would
+// be offering a chip that writes a file the compiler refuses.
+//
+// Empty is legal and means the build offers none. The builder shows no weapon
+// palette rather than an error — a monster with no authored actions falls back
+// to its definition's own, which is every monster shipped before this one.
+message ListWeaponsResponse {
+  repeated WeaponDescriptor weapons = 1;
+}
+
+// WeaponDescriptor is one weapon in the form a palette chip needs: what to
+// write, what to show, and enough to group by without reading the rulebook.
+//
+// It is deliberately NOT the weapon. No damage dice, no range, no properties,
+// no weight, no cost. The palette does not compute an attack — the toolkit
+// assembles one at spawn from the wielding monster's own ability scores and
+// proficiency (design rpg-project#448, decision 1), which is why a skeleton
+// shortbow and a goblin shortbow are the same weapon. Numbers here would be a
+// second copy of the rulebook's, and the moment they disagreed the palette
+// would be lying about what the author just armed. They arrive if a use case
+// asks for them, not before.
+message WeaponDescriptor {
+  // WHAT THE AUTHOR WRITES — the full ref, e.g. "dnd5e:weapons:shortbow". A
+  // placement's `actions:` list in the dungeon file is a list of exactly these
+  // strings, in the author's own preference order, and the palette emits this
+  // value verbatim.
+  //
+  // A STRING, NOT THIS REPO'S dnd5e.api.v1alpha2.weapons.Weapon ENUM, and the
+  // choice is the one ScenarioField.kind makes for the same reason. That enum
+  // is generated 1-to-1 from the toolkit registry, so a rulebook that grew a
+  // weapon would need a regeneration, a proto release and a web release before
+  // an author could reach it — exactly the coupling this RPC exists to remove.
+  // And the enum names the weapon without naming its ref: a client holding
+  // WEAPON_SHORTBOW would have to rebuild "dnd5e:weapons:" + "shortbow" to
+  // write the file, and a client that reconstructs an id will eventually
+  // reconstruct it wrong. The server hands over the string the file wants.
+  string ref = 1;
+  // The author-facing name, for the chip's label — "Shortbow".
+  string name = 2;
+  // Whether this weapon attacks at range. THE SERVER'S ANSWER, not the
+  // client's inference: it is the rulebook's own predicate, the same question
+  // a monster's mind asks when it decides whether it can shoot from where it
+  // stands. A palette offering a "ranged / melee / both" filter reads this
+  // bool rather than looking for "ranged" inside `category`. The day the
+  // rulebook spells a ranged category some other way, this stays true and that
+  // substring hunt breaks.
+  //
+  // The filter is a palette convenience that WRITES A WEAPON LIST and is never
+  // stored: a category is not a thing held, and a placement names weapons
+  // (design rpg-project#448, "the two cuts that broke").
+  bool ranged = 3;
+  // The rulebook's own category word, VERBATIM AND OPAQUE — today
+  // "simple-melee", "simple-ranged", "martial-melee", "martial-ranged". It is
+  // for grouping and for showing: a palette may section its chips under this
+  // value, and must not branch on it.
+  //
+  // An open string for ScenarioField.kind's reason — a rulebook that grows a
+  // category must not need a proto release to say so — and this repo's own
+  // VendorStockEntry.equipment_type is a plain string for the same reason.
+  //
+  // It is not `ranged`'s source. The word happens to fuse the proficiency tier
+  // and the melee/ranged split today; a client that took that as license to
+  // split it apart would be holding the rulebook's vocabulary again.
+  string category = 4;
 }

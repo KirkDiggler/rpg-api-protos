@@ -138,8 +138,11 @@ until the verdict settles.
 listed approaches, and otherwise derived as passive Insight — 10 + Wisdom
 modifier, plus proficiency when the definition lists Insight. That derivation
 is the living world's "passive is derived, never stored" rule applied to a
-monster; a goblin's is 9. Clients render it and never recompute it, the same
-law `Saved.dc` keeps.
+monster; a goblin's is 9. A client renders this number and never derives it,
+and it never reads `beaten` off `total` against `dc` either — the law
+`Saved.succeeded` and `DeathSaveRolled.outcome` keep, because the day a rule
+changes what beating a DC means, every client that derived it is wrong at
+once.
 
 **Neither the response nor the beat says what the threat did.** A beaten check
 lands an intimidate deed on the witnesses and stops there; what the deed is

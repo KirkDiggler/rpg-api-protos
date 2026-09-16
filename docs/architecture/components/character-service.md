@@ -1,7 +1,7 @@
 ---
 name: CharacterService
 description: D&D 5e character creation, draft lifecycle, equipment management, and reference data
-updated: 2026-09-03
+updated: 2026-09-16
 confidence: high — verified by reading dnd5e/api/v1alpha1/character.proto end-to-end
 ---
 
@@ -17,7 +17,8 @@ spells) that the character-creation UI needs.
 ## File and shape
 
 - `dnd5e/api/v1alpha1/character.proto`.
-- 1 service, ~32 RPCs, ~80 messages.
+- 1 service, 36 RPCs, 111 messages (counted, not estimated; the previous
+  "~32 / ~80" was already stale before the level-up additions).
 - Imports the neutral `customization/v1alpha1/types.proto` contract plus
   `choices.proto`, `common.proto`, `enums.proto`, and `equipment_types.proto`.
 
@@ -109,6 +110,32 @@ draft so the client can re-render without a separate `Get`.
 | `GetCharacter` | Fetches by ID |
 | `ListCharacters` | AIP-158 pagination; filter by session_id, player_id |
 | `DeleteCharacter` | Removes character |
+
+### Level progression (2 RPCs)
+
+Experience is **read-only over the wire**. `Character.experience_points` is the
+toolkit's cumulative total and `Character.entitled_level` is what that total
+entitles the character to; the gap between `entitled_level` and `level` is the
+whole "level up available" signal, so there is no flag and nothing to keep in
+sync. No RPC on this service or any other writes experience — the first
+in-toolkit source of experience brings its own mutator with it, and a levelled
+fixture is seeded on the persisted sheet rather than called into existence.
+
+| RPC | Notes |
+|---|---|
+| `GetNextLevel` | What the next level brings: level, class, `repeated Choice`, `repeated FeatureInfo`, hit die. Reuses the creation `Choice` message so the level-up screen is the creation choice renderer pointed at a delta, with no class-specific branch |
+| `LevelUp` | Takes the level. `HitPointMethod` (`ROLLED`/`AVERAGE`; the level-1-only maximum is not on the wire) plus the `ChoiceData` it was asked for. Returns the updated `Character` and `LevelGained { level, hit_points_gained, features, resource_changes }` |
+
+`LevelGained.resource_changes` is `repeated ResourceMaximumChange { key, name,
+previous_maximum, new_maximum }`, reusing the opaque resource-key vocabulary of
+`dnd5e.api.v1alpha2.encounter.ResourceView`. A level-up reports its pool deltas
+because slots have no persistent representation on any wire: v1alpha1
+`Character.spell_slots` is deprecated and unread, and `ResourceView` excludes
+slots by design.
+
+Level-up choices carry `CHOICE_SOURCE_CLASS`. `CHOICE_SOURCE_LEVEL_UP` in
+`choices.proto` is `[deprecated = true]` — it was never written and never read,
+and the level record already says which level a choice belongs to.
 
 ### Reference data (7 RPCs)
 

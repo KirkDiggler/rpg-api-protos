@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-03
+updated: 2026-09-16
 confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
@@ -105,6 +105,60 @@ this PR does not change consumer pins. The released proto version remains
 pending merge/publication and must not be guessed from the previous tag.
 
 Preparation, monster stabilization, and timed natural recovery remain deferred.
+
+## Intimidate
+
+`service.proto` adds `rpc Intimidate(IntimidateRequest) returns
+(IntimidateResponse)`, `types.proto` adds `VERB_INTIMIDATE = 8`, and
+`events.proto` adds `EVENT_KIND_INTIMIDATED = 32` with the `Intimidated
+{ actor = 1, target = 2, dc = 3, total = 4, beaten = 5 }` body at `Event.body`
+arm 38. Design: [rpg-project#454](https://github.com/KirkDiggler/rpg-project/issues/454),
+`rpg-project/ideas/shenanigans/intimidate.md`.
+
+**It merges ahead of its SDK**, the way the combat turn did (see below), and
+for the stated reason rather than by accident: the design's order of work puts
+the contract first so the toolkit, `rpg-api` and web legs can draft against one
+agreed shape on pseudo-versions. Every field here has a named counterpart in
+that design's Components section; nothing was invented at this seam.
+
+`IntimidateRequest` is `{ session, member, target }` — `UnlockRequest`'s shape
+with a creature where the door was. It carries no `declaration_id`, unlike
+`Attack`, `Activate`, `Cast` and `React`: each of those echoes a selector
+because each picks from a set, and this verb has none. `Afford` still compiles
+and prices the row, which is what a `Verb` value has always meant. The caller
+names no approach either, the law `UnlockRequest` states (rpg-project#350).
+
+`IntimidateResponse` is `UnlockResponse`'s shape minus the door: `beaten`,
+`total`, `dc`, `paused`, `optional roll`. `paused` and `roll` behave exactly as
+Unlock's do — the roll is carried only while the seam is asking whether to
+spend a held offer (Bardic Inspiration), and `beaten` and `dc` stay at zero
+until the verdict settles.
+
+`dc` is **the target's own number**: authored on its placement when the author
+listed approaches, and otherwise derived as passive Insight — 10 + Wisdom
+modifier, plus proficiency when the definition lists Insight. That derivation
+is the living world's "passive is derived, never stored" rule applied to a
+monster; a goblin's is 9. Clients render it and never recompute it, the same
+law `Saved.dc` keeps.
+
+**Neither the response nor the beat says what the threat did.** A beaten check
+lands an intimidate deed on the witnesses and stops there; what the deed is
+worth belongs to the threatened creature's own mind, and the same threat sends
+a coward running and brings a berserker at you. The outcome therefore reaches
+clients as that creature's next turn — `Moved`, `Struck`, `TurnEnded` — never
+as a field here. The design records a "fleeing" flag on this response as a cut
+that broke, so it is not proposed again.
+
+The beat is published **beaten or not**, to every member whose sight reaches
+the actor's cell — exactly the set a beaten threat lands its deed on. That
+audience rule is `landAttack`'s, and the publish-either-way rule is `DOOR`'s.
+
+One thing this response does **not** carry, and which the API leg should raise
+if it wants it: `SaveReport` / `DeliveryReport`. `UnlockResponse` carries
+neither, and this mirrors Unlock; `ActivateResponse`, `CastResponse`,
+`SearchResponse` and `LootResponse` all do carry them under S6's law. Adding
+them later is purely additive, so the narrower shape is the one that ships
+until a partial-save case is actually observed.
 
 ## Paid cast misses
 

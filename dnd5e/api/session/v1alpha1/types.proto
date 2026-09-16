@@ -465,6 +465,27 @@ enum Verb {
   // character knows but this build cannot cast mints NO ROW — a row that
   // resolved to nothing would be a lie at the door.
   VERB_CAST = 7;
+
+  // Intimidate — threatening one creature that can see you, on the action
+  // (design rpg-project#454).
+  //
+  // THE FIRST VERB WHOSE OUTCOME IS NOT THIS SEAM'S. Every value above
+  // resolves to something the seam did: a swing landed, a step was taken, an
+  // ability was used. A beaten intimidation lands a deed on the witnesses and
+  // stops — what follows is whatever the threatened creature's own mind makes
+  // of it, a turn later, and two creatures given the same threat do opposite
+  // things. The verb belongs here anyway, because this enum has only ever
+  // claimed to say what the SEAM gates and prices: one action, refused
+  // off-turn and out of sight.
+  //
+  // THE REQUEST NAMES ITS TARGET DIRECTLY — {session, member, target}, the
+  // shape Unlock uses, and carries no declaration_id. Afford still compiles
+  // and prices the row, which is what a value in this enum has always meant;
+  // there is simply nothing for a selector to have chosen between. Attack,
+  // Activate, Cast and React each echo one because each picks from a set —
+  // a weapon offer, an ability list, a known spell, an open window — and this
+  // verb has none.
+  VERB_INTIMIDATE = 8;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its

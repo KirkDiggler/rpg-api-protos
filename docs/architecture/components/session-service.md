@@ -128,11 +128,12 @@ because each picks from a set, and this verb has none. `Afford` still compiles
 and prices the row, which is what a `Verb` value has always meant. The caller
 names no approach either, the law `UnlockRequest` states (rpg-project#350).
 
-`IntimidateResponse` is `UnlockResponse`'s shape minus the door: `beaten`,
-`total`, `dc`, `paused`, `optional roll`. `paused` and `roll` behave exactly as
-Unlock's do — the roll is carried only while the seam is asking whether to
-spend a held offer (Bardic Inspiration), and `beaten` and `dc` stay at zero
-until the verdict settles.
+`IntimidateResponse` is `UnlockResponse`'s roll surface with a creature where
+the door was — `beaten`, `total`, `dc`, `paused`, `optional roll` — plus
+`SaveReport saved = 6` and `DeliveryReport delivery = 7`. `paused` and `roll`
+behave exactly as Unlock's do: the roll is carried only while the seam is
+asking whether to spend a held offer (Bardic Inspiration), and `beaten`, `dc`,
+`saved` and `delivery` all stay at zero until the verdict settles.
 
 `dc` is **the target's own number**: authored on its placement when the author
 listed approaches, and otherwise derived as passive Insight — 10 + Wisdom
@@ -156,12 +157,15 @@ The beat is published **beaten or not**, to every member whose sight reaches
 the actor's cell — exactly the set a beaten threat lands its deed on. That
 audience rule is `landAttack`'s, and the publish-either-way rule is `DOOR`'s.
 
-One thing this response does **not** carry, and which the API leg should raise
-if it wants it: `SaveReport` / `DeliveryReport`. `UnlockResponse` carries
-neither, and this mirrors Unlock; `ActivateResponse`, `CastResponse`,
-`SearchResponse` and `LootResponse` all do carry them under S6's law. Adding
-them later is purely additive, so the narrower shape is the one that ships
-until a partial-save case is actually observed.
+**The reports are on, and Unlock's omission is not the precedent.** The first
+draft of this response mirrored `UnlockResponse` all the way down and carried
+no `SaveReport` / `DeliveryReport`. Ruled otherwise on rpg-api-protos#339: S6's
+law as this repo states it reaches *every* mutating verb at this seam, and
+`ActivateResponse`, `CastResponse`, `SearchResponse` and `LootResponse` all
+keep it. A beaten threat lands a deed on the witnesses, teaches the fact the
+author asked for, and publishes a beat — three writes, any of which can
+half-fail, which is exactly the case the law exists for. `UnlockResponse`
+carrying neither is the older exception; a new verb does not inherit it.
 
 ## Paid cast misses
 

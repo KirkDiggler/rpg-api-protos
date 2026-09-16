@@ -795,9 +795,11 @@ message IntimidateResponse {
   // True when the attempt stopped to ask the member whether to spend a held
   // offer (Bardic Inspiration, Guidance) before the verdict is settled —
   // UnlockResponse.paused's own shape, applied to a threat instead of a lock
-  // check. While true, beaten and dc both stay at their zero value: there is
-  // no verdict yet, only a question. Answered via the session's generic React
-  // verb.
+  // check. While true, beaten and dc both stay at their zero value, and so do
+  // saved and delivery — nothing has been written yet, because there is no
+  // verdict yet, only a question (CastResponse's law for the same pair, which
+  // UnlockResponse has no counterpart to state). Answered via the session's
+  // generic React verb.
   bool paused = 4;
   // The d20 as rolled, present only when paused — UnlockResponse.roll's own
   // shape, a pointer meaningful only mid-question rather than a number always
@@ -806,6 +808,20 @@ message IntimidateResponse {
   // it would be deciding whether the die closes the gap rather than whether
   // the offer is worth spending.
   optional int32 roll = 5;
+
+  // saved and delivery are S6's law, kept by every mutating verb at this seam:
+  // a beaten threat lands a deed on every witness, teaches the fact the author
+  // asked for beside the check, and publishes a beat — any of which can
+  // half-fail, and a partial save is an error carrying a populated report,
+  // never a silent shrug (SearchResponse's shape, for the same reasons).
+  //
+  // THEY ARE HERE THOUGH UnlockResponse CARRIES NEITHER. This response mirrors
+  // Unlock's roll surface field for field, and stops mirroring it at this
+  // pair: Unlock's omission is the older exception rather than the precedent a
+  // new verb inherits, and the law as this repo states it reaches every
+  // mutating verb here — Search, Activate, Cast, Loot and now this one.
+  SaveReport saved = 6;
+  DeliveryReport delivery = 7;
 }
 
 // EndTurnResponse mirrors session.EndTurnOutput.

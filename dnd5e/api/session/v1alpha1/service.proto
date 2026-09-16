@@ -662,6 +662,23 @@ message CastResponse {
   //
   // Empty for every cast that is not an area, and for most that are.
   repeated CaughtMember caught = 3;
+
+  // True when a target's own saving throw stopped to ask them whether to
+  // spend a held offer (Resistance) before the save's verdict is settled —
+  // UnlockResponse.paused's own shape, applied to a cast's save instead of
+  // a lock check. While true, saved, delivery and caught all stay at their
+  // zero value: the price is already paid (a cast charges before the door
+  // yields its first step, whichever step that turns out to be), but there
+  // is no verdict yet, only a question. Answered via the session's generic
+  // React verb.
+  bool paused = 4;
+  // The d20 as rolled, present only when paused — UnlockResponse.roll's own
+  // shape. THE SAVE'S DC IS DELIBERATELY NOT SURFACED alongside it: a
+  // player who could see it would be deciding whether the die closes the
+  // gap rather than whether it is worth spending.
+  optional int32 roll = 5;
+  // The number the offer would join, present only when paused.
+  optional int32 total = 6;
 }
 
 // ReactRequest answers one open reaction window (rpg-project#316, the

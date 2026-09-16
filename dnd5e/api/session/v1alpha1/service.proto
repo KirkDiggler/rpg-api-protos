@@ -752,7 +752,7 @@ message ReactResponse {
 // listed route against the ones authored on the target, exactly as Unlock does
 // (approach choice is postponed by ruling, rpg-project#350). A target with no
 // authored list is checked against its derived passive Insight — see
-// IntimidateResponse.dc.
+// Intimidated.dc, which is where every number this verb produces is read.
 message IntimidateRequest {
   string session = 1;
   // Who threatens. Bound to the authenticated caller by the host — the same
@@ -763,51 +763,52 @@ message IntimidateRequest {
   string target = 3;
 }
 
-// IntimidateResponse is the attempt, in the open — UnlockResponse's shape
-// applied to a creature instead of a lock. The roll is public — full data
-// until v1.0 — and the Intimidated beat every witness hears carries the same
-// numbers, beaten or not: the table watched somebody roll either way.
+// IntimidateResponse carries only what is the CALLER'S ALONE. The outcome
+// reaches the actor the way all world change reaches anybody — as a beat
+// (design rule 2): Intimidated on the log, whose audience is every member
+// whose sight reaches the actor's cell, THE ACTOR INCLUDED.
 //
-// WHAT THE THREAT DID IS NOT IN HERE, and that absence is the design. A beaten
-// check lands an intimidate deed on the witnesses and stops; what the deed is
-// worth is the target's own mind's to decide — the coward runs while it can
-// see you, the berserker takes it personally and charges, the retaliator holds
-// the deed and does nothing with it. That outcome reaches clients as the
-// target's next turn on the stream. A "fleeing" field here would make the
+// SO THERE IS NO beaten, total OR dc HERE. A response that carried them would
+// be a second, differently shaped account of numbers the actor is already
+// reading off their own stream, and two accounts of one roll is how a client
+// learns to disagree with the table about what was rolled. Everyone sees the
+// same die, through the same beat, and the person who threw it is not a
+// special case (ruled by Kirk on rpg-api-protos#339). UnlockResponse's
+// beaten/total/dc are the OLDER SHAPE, not a precedent: this verb was drafted
+// as a copy of it and cut back.
+//
+// WHAT THE THREAT DID IS NOT ON THE BEAT EITHER, and that absence is the
+// design. A beaten check lands an intimidate deed on the witnesses and stops;
+// what the deed is worth is the target's own mind's to decide — the coward
+// runs while it can see you, the berserker takes it personally and charges,
+// the retaliator holds the deed and does nothing with it. That outcome reaches
+// clients as the target's next turn. A "fleeing" field here would make the
 // outcome this verb's instead of the mind's, which is the first cut the design
 // broke and recorded so it is not proposed again (rpg-project#454).
 message IntimidateResponse {
-  // Whether the check beat the DC. The session rolled it; the toolkit
-  // composition was told this verdict and nothing else — the total below is
-  // wire data for players, not something the composition ever learned.
-  bool beaten = 1;
-  // What the check totalled.
-  int32 total = 2;
-  // What it had to reach — the DC of the one approach the resolver applied,
-  // not of the whole authored list, which prices each route separately.
-  //
-  // THE TARGET'S OWN NUMBER. Authored on its placement when the author listed
-  // approaches; otherwise derived, and the derivation is the living world's
-  // "passive is derived, never stored" rule applied to a monster: passive
-  // Insight, 10 + Wisdom modifier, plus proficiency when the definition lists
-  // Insight. A client renders this number and never recomputes it.
-  int32 dc = 3;
   // True when the attempt stopped to ask the member whether to spend a held
   // offer (Bardic Inspiration, Guidance) before the verdict is settled —
   // UnlockResponse.paused's own shape, applied to a threat instead of a lock
-  // check. While true, beaten and dc both stay at their zero value, and so do
-  // saved and delivery — nothing has been written yet, because there is no
-  // verdict yet, only a question (CastResponse's law for the same pair, which
-  // UnlockResponse has no counterpart to state). Answered via the session's
-  // generic React verb.
-  bool paused = 4;
+  // check. While true, saved and delivery stay at their zero value: nothing
+  // has been written yet, because there is no verdict yet, only a question
+  // (CastResponse's law for the same pair). Answered via the session's generic
+  // React verb.
+  //
+  // THE OFFER WINDOW IS WHY THIS MESSAGE IS NOT EMPTY. It is the one moment of
+  // this verb that belongs to the caller alone and to nobody else at the
+  // table: the question is asked of them, it exists before any beat is
+  // published, and no witness is entitled to know it was asked.
+  bool paused = 1;
   // The d20 as rolled, present only when paused — UnlockResponse.roll's own
   // shape, a pointer meaningful only mid-question rather than a number always
-  // present. The target's DC is deliberately not surfaced alongside it, for
-  // the same reason `dc` above stays zero while paused: a player who could see
-  // it would be deciding whether the die closes the gap rather than whether
-  // the offer is worth spending.
-  optional int32 roll = 5;
+  // present. It is here for the same reason `paused` is: the member cannot
+  // decide whether an offer is worth spending without seeing the face it would
+  // join, and the settled roll reaches them on the beat like everyone else's.
+  //
+  // The target's DC is deliberately not surfaced alongside it: a player who
+  // could see it would be deciding whether the die closes the gap rather than
+  // whether the offer is worth spending.
+  optional int32 roll = 2;
 
   // saved and delivery are S6's law, kept by every mutating verb at this seam:
   // a beaten threat lands a deed on every witness, teaches the fact the author
@@ -815,13 +816,12 @@ message IntimidateResponse {
   // half-fail, and a partial save is an error carrying a populated report,
   // never a silent shrug (SearchResponse's shape, for the same reasons).
   //
-  // THEY ARE HERE THOUGH UnlockResponse CARRIES NEITHER. This response mirrors
-  // Unlock's roll surface field for field, and stops mirroring it at this
-  // pair: Unlock's omission is the older exception rather than the precedent a
-  // new verb inherits, and the law as this repo states it reaches every
-  // mutating verb here — Search, Activate, Cast, Loot and now this one.
-  SaveReport saved = 6;
-  DeliveryReport delivery = 7;
+  // THEY ARE HERE THOUGH UnlockResponse CARRIES NEITHER. Unlock's omission is
+  // the older exception rather than the precedent a new verb inherits, and the
+  // law as this repo states it reaches every mutating verb here — Search,
+  // Activate, Cast, Loot and now this one.
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
 }
 
 // EndTurnResponse mirrors session.EndTurnOutput.
@@ -1882,9 +1882,10 @@ service SessionService {
   rpc React(ReactRequest) returns (ReactResponse);
 
   // Intimidate threatens one creature as `member`: the server rolls the
-  // authored check against the target's own DC and reports the attempt, and
-  // every member who can see the actor hears the same numbers as an
-  // Intimidated beat — beaten or not. Costs the action; refused
+  // authored check against the target's own DC, and every member who can see
+  // the actor — the actor included — reads the numbers off one Intimidated
+  // beat, beaten or not. The response is an ack carrying only the caller's own
+  // offer window and the seam's two reports. Costs the action; refused
   // FAILED_PRECONDITION off the actor's turn, with the action spent, or when
   // the target cannot perceive the actor. What a beaten threat is WORTH is the
   // target's mind's to decide, and arrives as its next turn on the stream.

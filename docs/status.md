@@ -18,16 +18,19 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 - **Intimidate, the first shenanigan (rpg-project#454, 2026-09-16)** — additive
   on the v1alpha1 session surface: `rpc Intimidate`, `IntimidateRequest
-  { session, member, target }`, `IntimidateResponse { beaten, total, dc,
-  paused, roll, saved, delivery }`, `VERB_INTIMIDATE = 8`, and `EVENT_KIND_INTIMIDATED = 32`
+  { session, member, target }`, `IntimidateResponse { paused, roll,
+  saved, delivery }`, `VERB_INTIMIDATE = 8`, and `EVENT_KIND_INTIMIDATED = 32`
   with the `Intimidated { actor, target, dc, total, beaten }` body at
   `Event.body` arm 38. The response is `UnlockResponse`'s shape pointed at a
-  creature instead of a lock — the same authored check, the same pose window
-  for a held offer, the same public roll — plus the two S6 reports Unlock
-  omits and every other mutating verb here keeps. It carries **nothing about what the
-  threat did**: a beaten check lands a deed and the threatened creature's own
-  mind decides what that is worth, so the outcome arrives as that creature's
-  next turn on the stream and differs by monster. Merges first — the toolkit,
+  creature instead of a lock, but **not** its response shape: `beaten`, `total`
+  and `dc` were cut, because the outcome of this verb is the beat on the log
+  and **everyone reads it, the actor included**. A response repeating those
+  numbers would be a second account of one throw. What survives is the offer
+  window, which is the caller's alone and exists before any beat, plus the two
+  S6 reports Unlock omits and every other mutating verb here keeps. Nothing
+  anywhere says **what the threat did**: a beaten check lands a deed and the
+  threatened creature's own mind decides what that is worth, so the outcome
+  arrives as that creature's next turn and differs by monster. Merges first — the toolkit,
   `rpg-api` and web legs follow on pseudo-versions. See
   [the contract](architecture/components/session-service.md#intimidate).
 

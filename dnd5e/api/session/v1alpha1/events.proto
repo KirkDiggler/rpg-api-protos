@@ -1484,6 +1484,13 @@ message RollWindowOpened {
 // check came to, what it had to reach, and the rulebook's own reading of the
 // two. Delivered on a missed threat as well as a beaten one.
 //
+// THE ONLY ACCOUNT OF THIS ROLL, AND THE ACTOR READS IT TOO. IntimidateResponse
+// carries no beaten, total or dc: a response that repeated them would be a
+// second, differently shaped copy of the same throw, and two copies of one
+// truth is how a client learns to disagree with the table about what was
+// rolled. Everyone sees the same die through this beat, and the person who
+// threw it is not a special case (ruled by Kirk on rpg-api-protos#339).
+//
 // THE READING IS THE PROVIDER'S, never a client's comparison of total against
 // dc — the law Saved.succeeded and DeathSaveRolled.outcome keep, for the same
 // reason: the day a rule changes what beating a DC means, every client that

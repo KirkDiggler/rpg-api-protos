@@ -732,6 +732,98 @@ message ReactResponse {
   DeliveryReport delivery = 2;
 }
 
+// IntimidateRequest threatens one creature that can see the member do it: the
+// member's own Intimidation, the target's authored approaches, the whole table
+// watching the die. The first of the shenanigans — the authored-check machine
+// pointed at a creature instead of a lock (design rpg-project#454).
+//
+// ONE TARGET, AND IT MUST BE ABLE TO PERCEIVE THE ACTOR. The audience is every
+// member whose sight reaches the actor's cell — the same set a swing lands its
+// deed on — and the named target must be in it or the call is refused
+// FAILED_PRECONDITION with ErrOutOfReach. There is no distance cap beyond
+// sight: a threat carries exactly as far as the threatened can see who is
+// making it. Everyone in that set learns what happened, not only the target.
+//
+// PRICED AS AN ACTION (VERB_INTIMIDATE): refused off the actor's turn and when
+// the action is spent, each of which Afford announces first — the rule-refusal
+// law AttackRequest states in full.
+//
+// THE CALLER NAMES NO APPROACH. The resolver applies the character's best
+// listed route against the ones authored on the target, exactly as Unlock does
+// (approach choice is postponed by ruling, rpg-project#350). A target with no
+// authored list is checked against its derived passive Insight — see
+// Intimidated.dc, which is where every number this verb produces is read.
+message IntimidateRequest {
+  string session = 1;
+  // Who threatens. Bound to the authenticated caller by the host — the same
+  // acting-as gate every verb has.
+  string member = 2;
+  // Who is threatened: a monster member id. A member who cannot perceive the
+  // actor is refused, never silently missed.
+  string target = 3;
+}
+
+// IntimidateResponse carries only what is the CALLER'S ALONE. The outcome
+// reaches the actor the way all world change reaches anybody — as a beat
+// (design rule 2): Intimidated on the log, whose audience is every member
+// whose sight reaches the actor's cell, THE ACTOR INCLUDED.
+//
+// SO THERE IS NO beaten, total OR dc HERE. A response that carried them would
+// be a second, differently shaped account of numbers the actor is already
+// reading off their own stream, and two accounts of one roll is how a client
+// learns to disagree with the table about what was rolled. Everyone sees the
+// same die, through the same beat, and the person who threw it is not a
+// special case (ruled by Kirk on rpg-api-protos#339). UnlockResponse's
+// beaten/total/dc are the OLDER SHAPE, not a precedent: this verb was drafted
+// as a copy of it and cut back.
+//
+// WHAT THE THREAT DID IS NOT ON THE BEAT EITHER, and that absence is the
+// design. A beaten check lands an intimidate deed on the witnesses and stops;
+// what the deed is worth is the target's own mind's to decide — the coward
+// runs while it can see you, the berserker takes it personally and charges,
+// the retaliator holds the deed and does nothing with it. That outcome reaches
+// clients as the target's next turn. A "fleeing" field here would make the
+// outcome this verb's instead of the mind's, which is the first cut the design
+// broke and recorded so it is not proposed again (rpg-project#454).
+message IntimidateResponse {
+  // True when the attempt stopped to ask the member whether to spend a held
+  // offer (Bardic Inspiration, Guidance) before the verdict is settled —
+  // UnlockResponse.paused's own shape, applied to a threat instead of a lock
+  // check. While true, saved and delivery stay at their zero value: nothing
+  // has been written yet, because there is no verdict yet, only a question
+  // (CastResponse's law for the same pair). Answered via the session's generic
+  // React verb.
+  //
+  // THE OFFER WINDOW IS WHY THIS MESSAGE IS NOT EMPTY. It is the one moment of
+  // this verb that belongs to the caller alone and to nobody else at the
+  // table: the question is asked of them, it exists before any beat is
+  // published, and no witness is entitled to know it was asked.
+  bool paused = 1;
+  // The d20 as rolled, present only when paused — UnlockResponse.roll's own
+  // shape, a pointer meaningful only mid-question rather than a number always
+  // present. It is here for the same reason `paused` is: the member cannot
+  // decide whether an offer is worth spending without seeing the face it would
+  // join, and the settled roll reaches them on the beat like everyone else's.
+  //
+  // The target's DC is deliberately not surfaced alongside it: a player who
+  // could see it would be deciding whether the die closes the gap rather than
+  // whether the offer is worth spending.
+  optional int32 roll = 2;
+
+  // saved and delivery are S6's law, kept by every mutating verb at this seam:
+  // a beaten threat lands a deed on every witness, teaches the fact the author
+  // asked for beside the check, and publishes a beat — any of which can
+  // half-fail, and a partial save is an error carrying a populated report,
+  // never a silent shrug (SearchResponse's shape, for the same reasons).
+  //
+  // THEY ARE HERE THOUGH UnlockResponse CARRIES NEITHER. Unlock's omission is
+  // the older exception rather than the precedent a new verb inherits, and the
+  // law as this repo states it reaches every mutating verb here — Search,
+  // Activate, Cast, Loot and now this one.
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
+}
+
 // EndTurnResponse mirrors session.EndTurnOutput.
 message EndTurnResponse {
   // Who acts now.
@@ -1788,6 +1880,16 @@ service SessionService {
   // off the member's own turn, with the fight frozen on the answer. The
   // selector says which window; the choice is to strike or to hold.
   rpc React(ReactRequest) returns (ReactResponse);
+
+  // Intimidate threatens one creature as `member`: the server rolls the
+  // authored check against the target's own DC, and every member who can see
+  // the actor — the actor included — reads the numbers off one Intimidated
+  // beat, beaten or not. The response is an ack carrying only the caller's own
+  // offer window and the seam's two reports. Costs the action; refused
+  // FAILED_PRECONDITION off the actor's turn, with the action spent, or when
+  // the target cannot perceive the actor. What a beaten threat is WORTH is the
+  // target's mind's to decide, and arrives as its next turn on the stream.
+  rpc Intimidate(IntimidateRequest) returns (IntimidateResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

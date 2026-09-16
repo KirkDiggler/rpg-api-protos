@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-03
+updated: 2026-09-16
 confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
@@ -105,6 +105,80 @@ this PR does not change consumer pins. The released proto version remains
 pending merge/publication and must not be guessed from the previous tag.
 
 Preparation, monster stabilization, and timed natural recovery remain deferred.
+
+## Intimidate
+
+`service.proto` adds `rpc Intimidate(IntimidateRequest) returns
+(IntimidateResponse)`, `types.proto` adds `VERB_INTIMIDATE = 8`, and
+`events.proto` adds `EVENT_KIND_INTIMIDATED = 32` with the `Intimidated
+{ actor = 1, target = 2, dc = 3, total = 4, beaten = 5 }` body at `Event.body`
+arm 38. Design: [rpg-project#454](https://github.com/KirkDiggler/rpg-project/issues/454),
+`rpg-project/ideas/shenanigans/intimidate.md`.
+
+**It merges ahead of its SDK**, the way the combat turn did (see below), and
+for the stated reason rather than by accident: the design's order of work puts
+the contract first so the toolkit, `rpg-api` and web legs can draft against one
+agreed shape on pseudo-versions. Every field here has a named counterpart in
+that design's Components section; nothing was invented at this seam.
+
+`IntimidateRequest` is `{ session, member, target }` — `UnlockRequest`'s shape
+with a creature where the door was. It carries no `declaration_id`, unlike
+`Attack`, `Activate`, `Cast` and `React`: each of those echoes a selector
+because each picks from a set, and this verb has none. `Afford` still compiles
+and prices the row, which is what a `Verb` value has always meant. The caller
+names no approach either, the law `UnlockRequest` states (rpg-project#350).
+
+`IntimidateResponse` is `{ paused = 1, optional roll = 2, saved = 3,
+delivery = 4 }` — an ack carrying only what is the caller's alone, plus the
+seam's two S6 reports.
+
+**The response and the beat are not two copies of the truth.** The draft of
+this message was `UnlockResponse` field for field, with `beaten`, `total` and
+`dc` on it beside the same three numbers on the beat. Kirk cut them
+(rpg-api-protos#339): the outcome of this verb is the `Intimidated` beat on the
+log, the way a find is `DOOR_REVEALED` on the searcher's own stream and
+`SearchResponse` says nothing, and **everyone reads that beat, the actor
+included**. A response repeating the numbers would be a second, differently
+shaped account of one throw, and two accounts of one roll is how a client
+learns to disagree with the table about what was rolled. `UnlockResponse`'s
+`beaten` / `total` / `dc` are the older shape, not a precedent.
+
+`paused` and `roll` survive the cut because the offer window is the caller's
+alone: the question — spend a Bardic Inspiration on this? — is asked of them
+and nobody else, it exists *before* any beat is published, and no witness is
+entitled to know it was asked. `saved` and `delivery` stay at zero while
+`paused`, because nothing has been written yet (`CastResponse`'s law for the
+same pair).
+
+All the numbers live on the beat. `Intimidated.dc` is **the target's own**:
+authored on its placement when the author listed approaches, and otherwise
+derived as passive Insight — 10 + Wisdom modifier, plus proficiency when the
+definition lists Insight. That derivation is the living world's "passive is
+derived, never stored" rule applied to a monster; a goblin's is 9. A client
+renders the number and never derives it, and it never reads `beaten` off
+`total` against `dc` either — the law `Saved.succeeded` and
+`DeathSaveRolled.outcome` keep, because the day a rule changes what beating a
+DC means, every client that derived it is wrong at once.
+
+**Nothing says what the threat did.** A beaten check lands an intimidate deed
+on the witnesses and stops there; what the deed is worth belongs to the
+threatened creature's own mind, and the same threat sends a coward running and
+brings a berserker at you. The outcome therefore reaches clients as that
+creature's next turn — `Moved`, `Struck`, `TurnEnded`. The design records a
+"fleeing" flag on the response as a cut that broke, so it is not proposed
+again.
+
+The beat is published **beaten or not**, to every member whose sight reaches
+the actor's cell — exactly the set a beaten threat lands its deed on. That
+audience rule is `landAttack`'s, and the publish-either-way rule is `DOOR`'s.
+
+**The two reports are on, and Unlock's omission is not the precedent there
+either.** S6's law as this repo states it reaches *every* mutating verb at this
+seam, and `ActivateResponse`, `CastResponse`, `SearchResponse` and
+`LootResponse` all keep it. A beaten threat lands a deed on the witnesses,
+teaches the fact the author asked for, and publishes a beat — three writes, any
+of which can half-fail, which is exactly the case the law exists for
+(rpg-api-protos#339).
 
 ## Paid cast misses
 

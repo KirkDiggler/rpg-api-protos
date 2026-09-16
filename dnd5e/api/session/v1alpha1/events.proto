@@ -292,6 +292,21 @@ enum EventKind {
   // without an attack roll or a reason inferred from the target's location.
   EVENT_KIND_CAST_MISSED = 31;
 
+  // A member threatened a creature, and the table saw the die (design
+  // rpg-project#454). PUBLISHED BEATEN OR NOT: a missed threat is as much
+  // fiction as a beaten one, and the composition writes both through one path
+  // — DOOR's own law, for the same reason.
+  //
+  // Audience: every member whose sight reaches the actor's cell, which is
+  // exactly the set a beaten threat lands its deed on. Scoped to who could
+  // have witnessed it and no further; a threat nobody can see is not news.
+  //
+  // WHAT THE THREATENED CREATURE DOES ABOUT IT IS NOT THIS BEAT. That is its
+  // next turn, narrated from the beats that turn produces, and it differs by
+  // the mind behind the creature — the same threat sends one monster running
+  // and brings another one at you.
+  EVENT_KIND_INTIMIDATED = 32;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -404,6 +419,7 @@ message Event {
     ConcentrationEnded concentration_ended = 35;
     Sighted sighted = 36;
     CastMissed cast_missed = 37;
+    Intimidated intimidated = 38;
   }
 }
 
@@ -1461,4 +1477,43 @@ message RollWindowOpened {
   // Same provider token as AttackResponse, the shared throw and final outcome.
   // Empty on legacy windows; never reconstruct it from recipient-local seq.
   string presentation_id = 6;
+}
+
+// Intimidated: a member threatened a creature (EVENT_KIND_INTIMIDATED). The
+// facts the table needs to believe the moment — who leaned on whom, what the
+// check came to, what it had to reach, and the rulebook's own reading of the
+// two. Delivered on a missed threat as well as a beaten one.
+//
+// THE ONLY ACCOUNT OF THIS ROLL, AND THE ACTOR READS IT TOO. IntimidateResponse
+// carries no beaten, total or dc: a response that repeated them would be a
+// second, differently shaped copy of the same throw, and two copies of one
+// truth is how a client learns to disagree with the table about what was
+// rolled. Everyone sees the same die through this beat, and the person who
+// threw it is not a special case (ruled by Kirk on rpg-api-protos#339).
+//
+// THE READING IS THE PROVIDER'S, never a client's comparison of total against
+// dc — the law Saved.succeeded and DeathSaveRolled.outcome keep, for the same
+// reason: the day a rule changes what beating a DC means, every client that
+// derived it would be wrong at once.
+//
+// NOTHING ABOUT THE CONSEQUENCE. A beaten threat lands an intimidate deed on
+// this beat's audience and the threatened creature's mind decides what to do
+// with it; a client narrates that from the creature's next turn, not from
+// here. Deliberately unlike DoorChanged, which can report the state its own
+// check produced, because there is no state here to report — the outcome is a
+// decision somebody else has not made yet.
+message Intimidated {
+  // Who threatened. A member id, the same vocabulary every other body speaks.
+  string actor = 1;
+  // Who was threatened. A member id.
+  string target = 2;
+  // What the check had to reach — the DC of the one approach the resolver
+  // applied, authored on the target's placement or derived from its passive
+  // Insight. Always set: unlike DoorChanged.dc, which is zero on a plain open
+  // or close, every one of these beats is a check.
+  int32 dc = 3;
+  // What the check totalled.
+  int32 total = 4;
+  // The rulebook's own reading of total against dc.
+  bool beaten = 5;
 }

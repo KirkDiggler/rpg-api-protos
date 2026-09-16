@@ -31,7 +31,10 @@ enum ChoiceSource {
   CHOICE_SOURCE_SUBRACE = 3;
   CHOICE_SOURCE_CLASS = 4;
   CHOICE_SOURCE_BACKGROUND = 5;
-  CHOICE_SOURCE_LEVEL_UP = 6; // Choices made during level progression
+  // Deprecated: never written and never read. Level-up choices carry
+  // CHOICE_SOURCE_CLASS, because the level record already says which level
+  // they belong to.
+  CHOICE_SOURCE_LEVEL_UP = 6 [deprecated = true];
 }
 
 // Category of choice being made

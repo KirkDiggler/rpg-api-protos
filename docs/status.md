@@ -16,6 +16,19 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **The level-up wire contract (rpg-project#452, 2026-09-16)** — additive on
+  v1alpha1 `CharacterService`: `Character.entitled_level` and
+  `Character.next_level_threshold`, a read `GetNextLevel` and a write `LevelUp`,
+  and `CHOICE_SOURCE_LEVEL_UP` marked `[deprecated = true]`. Experience stays
+  **read-only over the wire** — no RPC writes it, deliberately, because the only
+  consumer of a mutator would be the host and a host must not grant a game
+  quantity. `GetNextLevel` returns the same `Choice` message creation renders,
+  so the level-up screen is the creation choice renderer pointed at a delta with
+  no class in it, and a level that asks nothing still has features, a hit die and
+  pool deltas to confirm. Merges first — the toolkit, `rpg-api` and web legs
+  follow on pseudo-versions. See
+  [the contract](architecture/components/character-service.md#level-progression-2-rpcs).
+
 - **A weapon list door for the dungeon builder palette (rpg-project#448,
   2026-09-16)** — additive `ListWeapons` on `AuthoringService`, with
   `WeaponDescriptor { ref, name, ranged, category }`. The palette writes

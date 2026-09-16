@@ -44,6 +44,17 @@ service CharacterService {
   rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
   rpc DeleteCharacter(DeleteCharacterRequest) returns (DeleteCharacterResponse);
 
+  // Level progression
+  //
+  // Experience is read-only over the wire. It reaches the client as
+  // Character.experience_points plus the derived Character.entitled_level, and
+  // no RPC here or anywhere else writes it: the first in-toolkit source of
+  // experience brings its own mutator with it, and a host never grants a game
+  // quantity. A levelled fixture is seeded on the persisted sheet, never called
+  // into existence through this service.
+  rpc GetNextLevel(GetNextLevelRequest) returns (GetNextLevelResponse);
+  rpc LevelUp(LevelUpRequest) returns (LevelUpResponse);
+
   // Data loading for character creation UI
   rpc ListRaces(ListRacesRequest) returns (ListRacesResponse);
   rpc ListClasses(ListClassesRequest) returns (ListClassesResponse);
@@ -153,7 +164,10 @@ message Character {
   // Character level (starts at 1)
   int32 level = 3;
 
-  // Experience points
+  // The toolkit's cumulative experience total, written by the API from the
+  // stored sheet. Cumulative and never debited: the total only grows.
+  //
+  // Read-only over the wire. No RPC on any service writes it.
   int32 experience_points = 4;
 
   // Character race
@@ -243,6 +257,26 @@ message Character {
   // The levelled spells this character knows, as canonical spell refs. Same
   // vocabulary and same law as known_cantrips: knowing is not casting.
   repeated string known_spells = 31;
+
+  // The level this character's experience entitles it to, derived by the API
+  // from the toolkit's threshold table (2014 PHB p.15: 0, 300, 900, 2700, ...).
+  //
+  // ENTITLEMENT IS NOT LEVEL. It is what the character MAY take, and the gap
+  // between it and `level` is the whole "level up available" signal: no flag,
+  // no stored state, nothing to keep in sync. An entitled character that keeps
+  // playing without levelling is one whose gap is simply still open.
+  //
+  // Derived and read-only; never stored, never sent by a client. A loaded
+  // character is always entitled to at least 1, so 0 means "not projected",
+  // never "level 0".
+  int32 entitled_level = 32;
+
+  // The cumulative experience total at which the next level becomes available,
+  // derived by the API from the same threshold table.
+  //
+  // Derived and read-only. 0 means there is no next level, because the
+  // character is at the top of the table — not that the next level is free.
+  int32 next_level_threshold = 33;
 }
 
 // Character appearance customization for visual rendering.
@@ -417,6 +451,117 @@ message DeleteCharacterRequest {
 message DeleteCharacterResponse {
   // Confirmation message
   string message = 1;
+}
+
+// Request for the level this character would take next
+message GetNextLevelRequest {
+  // The character to describe the next level for
+  string character_id = 1;
+}
+
+// What the character's next level brings.
+//
+// Everything a level-up screen needs to be either a form or a confirmation,
+// with no class-specific branch in it. A level that requires nothing is still
+// a correct screen: it has features, a hit die and pools to show, so a fighter
+// reads "Level 2: Action Surge" rather than a bare button.
+message GetNextLevelResponse {
+  // The class level the character would take, one above its current level
+  int32 level = 1;
+
+  // The class the level is taken in
+  Class class = 2;
+
+  // The choices this level requires, in the same Choice message character
+  // creation renders. A level that asks nothing returns none.
+  repeated Choice choices = 3;
+
+  // The features this level grants
+  repeated FeatureInfo features = 4;
+
+  // Hit die of the class the level is taken in (e.g., 10 for d10)
+  int32 hit_die = 5;
+}
+
+// How the hit points gained at a level are determined.
+//
+// The level-1-only "maximum hit die" method is deliberately absent: it is a
+// creation rule, and this enum is only ever read by a level-up.
+enum HitPointMethod {
+  HIT_POINT_METHOD_UNSPECIFIED = 0;
+
+  // Roll the class hit die
+  HIT_POINT_METHOD_ROLLED = 1;
+
+  // Take the hit die's fixed average
+  HIT_POINT_METHOD_AVERAGE = 2;
+}
+
+// Request to take the character's next level.
+//
+// One atomic call and no draft: the screen holds its own state until it sends
+// this. The engine validates the selections the way creation validates a draft
+// — count, options, category — and refuses a level the character's experience
+// does not entitle it to.
+message LevelUpRequest {
+  // The character taking the level
+  string character_id = 1;
+
+  // How the hit points for this level are determined
+  HitPointMethod hit_point_method = 2;
+
+  // The selections for the choices GetNextLevel asked for, and nothing else.
+  //
+  // Level-up choices carry CHOICE_SOURCE_CLASS. The level record already says
+  // which level a choice belongs to, so the source does not have to.
+  repeated ChoiceData choices = 3;
+}
+
+// Response from taking a level
+message LevelUpResponse {
+  // The character after the level was taken
+  Character character = 1;
+
+  // What the level brought
+  LevelGained gained = 2;
+}
+
+// What a level brought, as the engine reported it
+message LevelGained {
+  // The class level that was taken
+  int32 level = 1;
+
+  // Hit points this level added to the maximum
+  int32 hit_points_gained = 2;
+
+  // The features this level granted
+  repeated FeatureInfo features = 3;
+
+  // Every pool whose maximum this level changed. A pool that did not change is
+  // absent, so an empty list means the level changed no pool.
+  repeated ResourceMaximumChange resource_changes = 4;
+}
+
+// A pool whose maximum a level changed.
+//
+// Reported by the level-up rather than read back off the sheet, because spell
+// slots have no persistent representation on any wire: v1alpha1
+// Character.spell_slots is deprecated and unread, and
+// dnd5e.api.v1alpha2.encounter.ResourceView excludes slots by design. This is
+// what lets a confirmation say "1st-level spell slots 2 to 3".
+message ResourceMaximumChange {
+  // Opaque rulebook core/resources.ResourceKey, the same vocabulary
+  // dnd5e.api.v1alpha2.encounter.ResourceView.key carries
+  string key = 1;
+
+  // Display name for the pool
+  string name = 2;
+
+  // The maximum before the level was taken
+  int32 previous_maximum = 3;
+
+  // The maximum after the level was taken
+  int32 new_maximum = 4;
 }
 
 // Character draft data for storage - matches toolkit's DraftData structure

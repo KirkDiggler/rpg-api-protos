@@ -1630,6 +1630,11 @@ enum AnswerWord {
   // The witnesses learned an authored fact — the world journal's existing
   // path. A disposition's `until` predicate may then flip the pair, which
   // arrives separately as STANCE_CHANGED and is not this beat's claim.
+  //
+  // WHICH FACT IS NOT ON THIS BEAT. Answered.fact tried to carry it and is
+  // deprecated and never filled; see that field for why a learned fact cannot
+  // ride a broadcast body at all. This word says a fact was taught to whoever
+  // was there, and no more.
   ANSWER_WORD_FACT = 1;
   // The creature's mind received fear of the actor and it runs. NOT a flag on
   // the creature and not this beat's doing: the mind decides what running
@@ -1696,18 +1701,39 @@ message Answered {
   // means the creature said nothing, which is a real authoring choice and not
   // a string somebody forgot.
   string say = 8;
-  // The fact id taught, set when `word` is FACT and empty for every other
-  // word. It names the authored fact the witnesses learned, through the path
-  // an `until` disposition already reads — the flip, when one follows, arrives
-  // separately as STANCE_CHANGED and is not this beat's claim.
+  // DEPRECATED, NEVER FILLED. A FACT NEVER RIDES A BROADCAST BEAT (ruled by
+  // Kirk 2026-09-17, rpg-project#458). rpg-api leaves this empty on every
+  // Answered it publishes, and a client must read it as absent rather than as
+  // "no fact was taught".
   //
-  // A FACT IS AN ID AND NOTHING ELSE, which is why there is no truth bit
-  // beside it and why the design's separate `tell` word collapsed into FACT
-  // (see AnswerWord). What a fact MEANS is the world's, and whether the
-  // creature was lying when it taught one lives in the author's `say` line and
-  // in what the party finds when they walk into the room. A truth bit here
-  // would hand every client the answer to the bad directions the author wrote,
-  // and intel is testimony — held per observer, and a false one has to look
-  // exactly like a true one to whoever received it.
-  string fact = 9;
+  // It shipped one PR ago as "the fact id taught", and that was the mistake:
+  // a learned fact is PER-OBSERVER KNOWLEDGE. When the world's answer teaches
+  // one, the members who were there learn it and the members who were not do
+  // not, and the same is true of a member who arrives later or never looks.
+  // This beat has ONE body delivered to an audience, so a field on it can only
+  // say the same thing to everybody — which means it either tells a member
+  // something they have not learned, or it says nothing and a member who DID
+  // learn cannot tell that apart from a beat where no fact was taught. The
+  // knowledge laws this file keeps everywhere else (Seen, Sighting,
+  // Discovery — knowledge is addressed per recipient and never broadcast)
+  // were simply not applied here, and this field is where that shows.
+  //
+  // THE ONLY LAWFUL ROAD IS A PER-VIEWER "WHAT I KNOW" PROJECTION, and it is
+  // NOT BUILT. Facts a member has learned belong on a read addressed to that
+  // member, the way a sighting is, where absence means "I have not learned it"
+  // and presence means "I have" — two claims this field cannot make. Nothing
+  // is added here to stand in for it: a second broadcast field with a
+  // recipient list would be the same error with more wire, and the absence of
+  // the projection is a cost not yet paid rather than a gap to paper over.
+  //
+  // WHAT STILL WORKS WITHOUT IT. The fact is taught by the engine exactly as
+  // before, and a disposition's `until` predicate reads it exactly as before;
+  // when a pair flips, that arrives as STANCE_CHANGED, which is truth-grain
+  // and broadcast-safe because a stance is the run's own fold rather than
+  // anybody's knowledge. Nothing about the world stopped working — only this
+  // field's claim to describe it did.
+  //
+  // Deprecated rather than removed, and 9 is burnt: a field number is never
+  // reused and a type never changes in place on this seam.
+  string fact = 9 [deprecated = true];
 }

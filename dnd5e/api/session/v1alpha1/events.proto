@@ -316,26 +316,29 @@ enum EventKind {
   // exactly the set a beaten attempt lands its deed on.
   //
   // WHAT THE PERSUADED CREATURE DOES ABOUT IT IS NOT THIS BEAT. The world's
-  // answer is rolled off the author's reaction table and arrives as REACTED;
+  // answer is rolled off the author's answer table and arrives as ANSWERED;
   // the creature's own mind has the turn after that.
   EVENT_KIND_PERSUADED = 33;
 
-  // The world rolled the author's reaction table and a creature answered a
-  // social verb (design rpg-project#458, "The two rolls"). THE SECOND ROLL OF
-  // THE PAIR: the player's check published INTIMIDATED or PERSUADED, and this
-  // says which of the author's weighted entries the world then rolled, what
-  // the creature did, and what it said.
+  // THE CREATURE'S AUTHORED ANSWER TO A CHECK, ROLLED BY THE WORLD (design
+  // rpg-project#458, "The two rolls"). THE SECOND ROLL OF THE PAIR: the
+  // player's check published INTIMIDATED or PERSUADED, and this says which of
+  // the author's weighted entries the world then rolled, what the creature
+  // did, and what it said.
   //
-  // NOT THE React VERB, despite the stem. VERB_REACT and ReactRequest are the
-  // reaction WINDOW — an opportunity attack offered off your own turn and
-  // answered by a player, with the fight frozen on the answer. This is a
-  // creature reacting to being leaned on: rolled by the engine, answered by
-  // nobody, freezing nothing.
+  // NOT THE React VERB, WHICH IS THE D&D REACTION. VERB_REACT and ReactRequest
+  // are the rules' reaction — a window offered off your own turn, answered by
+  // a player, with the fight frozen on the answer. This is answered by nobody
+  // and freezes nothing. The design doc calls the author's list a "reaction
+  // table"; this seam deliberately says ANSWER instead, because Reaction is a
+  // rules term already spent on VERB_REACT and a beat named one letter from it
+  // would be read as an opportunity attack by every client switching on the
+  // body arm.
   //
   // R1 (Kirk, 2026-09-17): the die is on the beat and in the debug log; the
   // story shows the outcome and the creature's line. Full data down the log
   // until v1, which is what every beat here does.
-  EVENT_KIND_REACTED = 34;
+  EVENT_KIND_ANSWERED = 34;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -451,7 +454,7 @@ message Event {
     CastMissed cast_missed = 37;
     Intimidated intimidated = 38;
     Persuaded persuaded = 39;
-    Reacted reacted = 40;
+    Answered answered = 40;
   }
 }
 
@@ -1582,7 +1585,7 @@ message Intimidated {
 //
 // NOTHING ABOUT THE CONSEQUENCE. A beaten check lands a persuade deed on this
 // beat's audience and stops. What the creature does about it is the world's
-// own roll off the author's table — REACTED — and then that creature's mind on
+// own roll off the author's table — ANSWERED — and then that creature's mind on
 // its next turn. A "helping" field here would make the outcome this verb's
 // instead of the world's and the mind's, which is the first cut Intimidate's
 // design broke and recorded so it is not proposed again.
@@ -1601,8 +1604,8 @@ message Persuaded {
   bool beaten = 5;
 }
 
-// ReactionWord is WHAT A CREATURE DID when the world rolled the author's
-// reaction table (design rpg-project#458, "The outcome vocabulary"). One word
+// AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer
+// table (design rpg-project#458, "The outcome vocabulary"). One word
 // per table entry, and an entry carries exactly one of them — two words in one
 // entry is an authoring error the validator refuses, so this is a single value
 // and never a set.
@@ -1622,27 +1625,28 @@ message Persuaded {
 // lives in the author's `say` line and in what the party finds when they walk
 // into the room. Two words that produce one behaviour would have been a
 // distinction every consumer had to branch on and no engine could honour.
-enum ReactionWord {
-  REACTION_WORD_UNSPECIFIED = 0;
+enum AnswerWord {
+  ANSWER_WORD_UNSPECIFIED = 0;
   // The witnesses learned an authored fact — the world journal's existing
   // path. A disposition's `until` predicate may then flip the pair, which
   // arrives separately as STANCE_CHANGED and is not this beat's claim.
-  REACTION_WORD_FACT = 1;
+  ANSWER_WORD_FACT = 1;
   // The creature's mind received fear of the actor and it runs. NOT a flag on
   // the creature and not this beat's doing: the mind decides what running
   // looks like, and the steps arrive as MOVED on the creature's own turn.
-  REACTION_WORD_FLEE = 2;
+  ANSWER_WORD_FLEE = 2;
 }
 
-// Reacted: the world rolled the author's reaction table and a creature
-// answered a social verb (EVENT_KIND_REACTED). The second of the two rolls the
-// design names — the player's check published INTIMIDATED or PERSUADED, and
-// this says which of the author's weighted entries fired, what the creature
-// did about it, and what it said while doing it (design rpg-project#458, "The
-// two rolls").
+// Answered: the creature's authored answer to a check, rolled by the world
+// (EVENT_KIND_ANSWERED). The second of the two rolls the design names — the
+// player's check published INTIMIDATED or PERSUADED, and this says which of
+// the author's weighted entries fired, what the creature did about it, and
+// what it said while doing it (design rpg-project#458, "The two rolls").
 //
-// NOT THE React VERB. VERB_REACT is a window a player answers; this is a
-// creature answering, rolled by the engine. See EVENT_KIND_REACTED.
+// NOT THE React VERB, WHICH IS THE D&D REACTION. VERB_REACT is a window a
+// player answers with the fight frozen on it; this is a creature answering,
+// rolled by the world, freezing nothing. See EVENT_KIND_ANSWERED for why the
+// wire says ANSWER where the design doc says "reaction table".
 //
 // THE DIE IS ON THE BEAT (R1, Kirk 2026-09-17). roll, of and entry are the
 // world's own throw, carried so the debug log can show it and a run can be
@@ -1653,11 +1657,11 @@ enum ReactionWord {
 // ONE ENTRY FIRES. There is no list here because the table cannot produce one:
 // an entry is one word plus a line, and an author who wants two things to
 // happen cannot say so yet. A later slice that pays for it adds a list inside
-// an entry, not a second Reacted.
-message Reacted {
-  // Which creature reacted. A member id.
+// an entry, not a second Answered.
+message Answered {
+  // Which creature answered. A member id.
   string creature = 1;
-  // Which verb it is reacting to — VERB_INTIMIDATE or VERB_PERSUADE. The
+  // Which verb it is answering — VERB_INTIMIDATE or VERB_PERSUADE. The
   // seam's own verb vocabulary rather than a second copy of it, so a client
   // that already branches on Verb branches once.
   Verb verb = 2;
@@ -1684,8 +1688,8 @@ message Reacted {
   // that key. An index into the AUTHOR'S list, so a builder can highlight the
   // line that fired in the file the author is looking at.
   int32 entry = 6;
-  // What the creature did. One word, never a set — see ReactionWord.
-  ReactionWord word = 7;
+  // What the creature did. One word, never a set — see AnswerWord.
+  AnswerWord word = 7;
   // The author's line, VERBATIM, and empty when the author wrote none. THE
   // ENGINE NEVER COMPOSES IT: this is the one place on this seam where a
   // creature speaks, and it speaks because an author typed the sentence. Empty
@@ -1699,7 +1703,7 @@ message Reacted {
   //
   // A FACT IS AN ID AND NOTHING ELSE, which is why there is no truth bit
   // beside it and why the design's separate `tell` word collapsed into FACT
-  // (see ReactionWord). What a fact MEANS is the world's, and whether the
+  // (see AnswerWord). What a fact MEANS is the world's, and whether the
   // creature was lying when it taught one lives in the author's `say` line and
   // in what the party finds when they walk into the room. A truth bit here
   // would hand every client the answer to the bad directions the author wrote,

@@ -869,7 +869,7 @@ message PersuadeRequest {
 // IntimidateResponse field for field. The outcome reaches the actor the way
 // all world change reaches anybody — as a beat: Persuaded on the log, whose
 // audience is every member whose sight reaches the actor's cell, THE ACTOR
-// INCLUDED, and then Reacted when the world rolls the author's table.
+// INCLUDED, and then Answered when the world rolls the author's table.
 //
 // SO THERE IS NO beaten, total OR dc HERE. A response carrying them would be a
 // second, differently shaped account of numbers the actor is already reading
@@ -881,7 +881,7 @@ message PersuadeRequest {
 //
 // WHAT THE PERSUASION DID IS NOT HERE EITHER, and that absence is the design.
 // A beaten check lands a persuade deed on the witnesses and stops; the world
-// rolls one entry of the author's table and publishes Reacted, and what the
+// rolls one entry of the author's table and publishes Answered, and what the
 // deed is worth to the creature is its own mind's on its next turn. A
 // "helping" or "friendly" field here would make the outcome this verb's
 // instead of theirs.
@@ -911,7 +911,7 @@ message PersuadeResponse {
 
   // saved and delivery are S6's law, kept by every mutating verb at this seam:
   // a beaten persuasion lands a deed on every witness, may teach a fact, and
-  // publishes a beat and the world's Reacted after it — any of which can
+  // publishes a beat and the world's Answered after it — any of which can
   // half-fail, and a partial save is an error carrying a populated report,
   // never a silent shrug (IntimidateResponse's shape, for its reasons).
   SaveReport saved = 3;
@@ -1994,7 +1994,7 @@ service SessionService {
   // the actor, and off the actor's turn WHEN THERE IS A TURN — this verb is
   // offered on the world clock too (R3, rpg-project#458), which no verb above
   // it is. What a beaten persuasion is WORTH is the world's reaction table and
-  // then the target's mind: it arrives as a Reacted beat and that creature's
+  // then the target's mind: it arrives as an Answered beat and that creature's
   // next turn.
   rpc Persuade(PersuadeRequest) returns (PersuadeResponse);
 

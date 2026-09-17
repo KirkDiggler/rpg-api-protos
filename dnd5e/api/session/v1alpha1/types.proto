@@ -495,7 +495,7 @@ enum Verb {
   //
   // IT KEEPS INTIMIDATE'S LAW THAT THE OUTCOME IS NOT THIS SEAM'S. A beaten
   // persuasion lands a persuade deed on the witnesses and stops. The world
-  // then rolls the author's reaction table (EVENT_KIND_REACTED) and the
+  // then rolls the author's answer table (EVENT_KIND_ANSWERED) and the
   // creature's own mind has the turn after that, so the same words move one
   // creature to talk and another to walk away. What this enum claims is what
   // it has always claimed: what the SEAM gates and prices.

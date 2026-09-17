@@ -186,9 +186,9 @@ of which can half-fail, which is exactly the case the law exists for
 (PersuadeResponse)`, `types.proto` adds `VERB_PERSUADE = 9` and
 `Sighting.stance = 10`, and `events.proto` adds `EVENT_KIND_PERSUADED = 33`
 with `Persuaded { actor = 1, target = 2, dc = 3, total = 4, beaten = 5 }` at
-`Event.body` arm 39, plus `EVENT_KIND_REACTED = 34` with `Reacted { creature =
-1, verb = 2, beaten = 3, roll = 4, of = 5, entry = 6, word = 7, say = 8,
-fact = 9 }` at arm 40 and the `ReactionWord` enum it reads.
+`Event.body` arm 39, plus `EVENT_KIND_ANSWERED = 34` with `Answered { creature
+= 1, verb = 2, beaten = 3, roll = 4, of = 5, entry = 6, word = 7, say = 8,
+fact = 9 }` at arm 40 and the `AnswerWord` enum it reads.
 Design: [rpg-project#458](https://github.com/KirkDiggler/rpg-project/issues/458),
 `rpg-project/ideas/shenanigans/front-room-goblin.md` (rulings R1–R4 closed by
 Kirk 2026-09-17).
@@ -220,7 +220,7 @@ it matched, and against a shared body every consumer would branch twice — once
 to find the arm, once to read the discriminator. The cost of mirroring is five
 field numbers. A third social verb joins as a third body.
 
-**`Reacted` is the second of the design's two rolls.** The player's check
+**`Answered` is the second of the design's two rolls.** The player's check
 publishes `Intimidated` or `Persuaded`; the world then rolls one entry of the
 author's weighted table and publishes this. R1 puts the die on the beat: `roll`
 is the throw, `of` the summed weights it was thrown against (weights are
@@ -230,12 +230,18 @@ a builder can highlight the line that fired. A story renderer shows `word` and
 `say` and ignores the rest; the debug log shows all of it, which is the
 full-data-down-the-log rule every beat here keeps until v1.
 
-It is **not the `React` verb**, despite the stem. `VERB_REACT` is a reaction
-window a player answers with the fight frozen on it; this is a creature
-answering, rolled by the engine, freezing nothing. Both docs say so explicitly
-because the names are one letter apart on the wire.
+It is **not the `React` verb, which is the D&D reaction.** `VERB_REACT` is the
+rules' reaction — a window a player answers with the fight frozen on it; this
+is a creature answering, rolled by the world, freezing nothing.
 
-`ReactionWord` carries only the words that ship this slice — `FACT` and
+**The wire says "answer" where the design doc says "reaction table", and that
+is deliberate.** The beat was drafted as `Reacted` and renamed before merge:
+Reaction is a rules term this seam already spends on `VERB_REACT`, and a body
+arm named one letter from it would be read as an opportunity attack by every
+client that switched on the arm. The design's prose keeps its own word; the
+contract does not borrow it.
+
+`AnswerWord` carries only the words that ship this slice — `FACT` and
 `FLEE`. The design names `alarm`, `lure` and `pretend` as words the vocabulary
 will take and they are deliberately absent: a value arrives with the slice that
 can make a creature do it, the way a `Verb` value arrives the day the SDK gates
@@ -252,7 +258,7 @@ Whether a creature was lying lives in the author's `say` line and in what the
 party finds when they walk into the room — a truth bit on the beat would hand
 every client the answer to the bad directions the author wrote, and intel is
 testimony, held per observer, where a false one has to look exactly like a true
-one to whoever received it. `Reacted.fact` is therefore set when `word` is
+one to whoever received it. `Answered.fact` is therefore set when `word` is
 `FACT` and empty otherwise.
 
 **`Sighting.stance` is what one viewer believes, not what the roster says.**

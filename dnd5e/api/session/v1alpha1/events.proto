@@ -580,11 +580,35 @@ message DiceReroll {
   RollSource source = 4;
 }
 
+// KeepRule names the rule that decided DiceTrace.kept_indices.
+enum KeepRule {
+  KEEP_RULE_UNSPECIFIED = 0;
+  KEEP_RULE_ADVANTAGE = 1;
+  KEEP_RULE_DISADVANTAGE = 2;
+  // Granted and imposed sources met; the pool was rolled straight and the
+  // record says why. kept_indices is empty.
+  KEEP_RULE_CANCELLED = 3;
+}
+
+// DiceKeep records the rule that decided kept_indices and who brought it.
+// Absent when nothing touched the pool: a straight roll keeps every face.
+// The sibling of rerolls: rerolls explain final_rolls, keep explains
+// kept_indices.
+message DiceKeep {
+  KeepRule rule = 1;
+  // Sources that granted advantage. Each carries the granting entity in
+  // source_id (Help names the helper).
+  repeated RollSource granted = 2;
+  // Sources that imposed disadvantage (Untrained names the roller).
+  repeated RollSource imposed = 3;
+}
+
 // DiceTrace is one homogeneous physical dice group AS ACTUALLY ROLLED — the
 // physical faces AND the notation of that physical pool, not a rule's printed
 // pool: a critical whose printed domain dice are 2d6 records 4d6 here, the
 // printed 2d6 remaining a separate domain fact beside the trace, and an
-// advantaged d20 carries two physical faces plus the one kept.
+// advantaged d20 carries two physical faces, the one kept, and the keep
+// record naming the rule that kept it.
 //
 // The face fields are one ordered story over the same stable die indices:
 // original_rolls is what each index first showed; rerolls rewrite individual
@@ -615,6 +639,12 @@ message DiceTrace {
   // The authoritative sum of the kept final faces, as the producing rulebook
   // asserts it. Receivers must not recompute it from the faces.
   int32 subtotal = 7;
+  // The rule that decided kept_indices, and who granted or imposed it. Absent
+  // when nothing touched the pool — a straight roll keeps every face and has
+  // no rule to name. Present with KEEP_RULE_CANCELLED on a single-die pool
+  // whose granted and imposed sources met: the faces look straight and this
+  // record is the only account of why.
+  DiceKeep keep = 8;
 }
 
 // RollComponent is one sourced input to a domain's roll calculation: who
@@ -720,8 +750,13 @@ message Struck {
   AttackRef attack = 7;
   bool critical = 8;
   repeated DamageComponent damage_components = 9;
-  repeated AttackModifierSource advantage_sources = 10;
-  repeated AttackModifierSource disadvantage_sources = 11;
+  // DEPRECATED. Superseded by calculation.components[0].dice.keep, which
+  // carries the same sources on the trace of the dice they decided, so the two
+  // cannot disagree (rpg-project#463). Never filled from session v0.94 on.
+  repeated AttackModifierSource advantage_sources = 10 [deprecated = true];
+  // DEPRECATED. Superseded by calculation.components[0].dice.keep
+  // (rpg-project#463). Never filled from session v0.94 on.
+  repeated AttackModifierSource disadvantage_sources = 11 [deprecated = true];
   // Set when this strike was a reaction rather than a declared action — an
   // opportunity attack lands here, during somebody else's turn. Absent on an
   // ordinary swing, which is how a witness tells the two apart.
@@ -1176,6 +1211,11 @@ message DoorChanged {
   int32 dc = 4;
   int32 total = 5;
   bool beaten = 6;
+  // The authoritative sourced calculation behind total. Its first component is
+  // the d20 as actually rolled, both faces under advantage or disadvantage,
+  // with the keep record. Set only on unlock-attempt beats, like dc, total and
+  // beaten — a plain open or close carries no calculation.
+  RollCalculation calculation = 7;
 }
 
 // DoorRevealed: a door entered the recipient's knowledge
@@ -1560,6 +1600,10 @@ message Intimidated {
   int32 total = 4;
   // The rulebook's own reading of total against dc.
   bool beaten = 5;
+  // The authoritative sourced calculation behind total. Its first component is
+  // the d20 as actually rolled, both faces under advantage or disadvantage,
+  // with the keep record.
+  RollCalculation calculation = 6;
 }
 
 // Persuaded: a member talked a creature round (EVENT_KIND_PERSUADED).
@@ -1602,6 +1646,10 @@ message Persuaded {
   int32 total = 4;
   // The rulebook's own reading of total against dc.
   bool beaten = 5;
+  // The authoritative sourced calculation behind total. Its first component is
+  // the d20 as actually rolled, both faces under advantage or disadvantage,
+  // with the keep record.
+  RollCalculation calculation = 6;
 }
 
 // AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer

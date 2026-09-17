@@ -1330,6 +1330,15 @@ message GetAtlasResponse {
   // either behaves exactly as it does today. Presentation only: nothing here
   // gates movement, sight, or any rule.
   AtlasStart start = 13;
+  // Optional presentation snapshot: versioned JSON of the toolkit's canonical
+  // RoomScenePresentation, including its source coordinate frame, workspace,
+  // and complete visual scene (groups, supports, lights and per-piece height).
+  // Preserve JSON numbers without narrowing through legacy float pose fields.
+  // No author monster/start markers or substitute gameplay state live here;
+  // atlas/session mechanical channels remain authoritative.
+  // Empty means absent/legacy. Consumers must refuse malformed or unsupported
+  // nonempty payloads rather than silently falling back to legacy rendering.
+  string room_scene_json = 14;
 }
 
 // =============================================================================

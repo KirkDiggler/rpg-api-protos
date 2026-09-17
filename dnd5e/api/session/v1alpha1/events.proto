@@ -1534,6 +1534,7 @@ message RollWindowOpened {
 // here. Deliberately unlike DoorChanged, which can report the state its own
 // check produced, because there is no state here to report — the outcome is a
 // decision somebody else has not made yet.
+//
 // IT AND Persuaded MIRROR EACH OTHER ON PURPOSE. The two carry the same five
 // fields, and one shared "skill check beat" with a verb field to discriminate
 // on was considered and rejected: a client switching on Event.body gets a
@@ -1542,7 +1543,6 @@ message RollWindowOpened {
 // mirroring is five field numbers; the cost of sharing is every consumer
 // branching twice. A third social verb joins as a third body, not as a third
 // value of a discriminator.
-//
 message Intimidated {
   // Who threatened. A member id, the same vocabulary every other body speaks.
   string actor = 1;

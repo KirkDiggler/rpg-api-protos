@@ -486,6 +486,35 @@ enum Verb {
   // a weapon offer, an ability list, a known spell, an open window — and this
   // verb has none.
   VERB_INTIMIDATE = 8;
+
+  // Persuade — talking one creature that can see you round to your side, on
+  // the action (design rpg-project#458). Intimidate's twin on the same
+  // machine: Charisma (Persuasion) against the DC the author wrote on the
+  // target's placement, or the target's derived passive Insight when the
+  // author wrote none.
+  //
+  // IT KEEPS INTIMIDATE'S LAW THAT THE OUTCOME IS NOT THIS SEAM'S. A beaten
+  // persuasion lands a persuade deed on the witnesses and stops. The world
+  // then rolls the author's reaction table (EVENT_KIND_REACTED) and the
+  // creature's own mind has the turn after that, so the same words move one
+  // creature to talk and another to walk away. What this enum claims is what
+  // it has always claimed: what the SEAM gates and prices.
+  //
+  // THE FIRST VERB OFFERED ON THE WORLD CLOCK AS WELL AS THE TURN CLOCK
+  // (R3, rpg-project#458). Every value above is a turn-clock row — Afford
+  // compiles it for the member whose turn it is and answers
+  // SHORTFALL_REASON_NOT_YOUR_TURN to everybody else. The front room has no
+  // fight and therefore no turn, and talking to the goblin standing in it is
+  // the entire scenario, so this row is compiled and priced on the world
+  // clock too, where Search and Unlock already spend. Inside a fight nothing
+  // changes: the turn gate and the action gate are Intimidate's, unchanged.
+  //
+  // THE REQUEST NAMES ITS TARGET DIRECTLY — {session, member, target}, and
+  // carries no declaration_id, for Intimidate's reason: Afford still compiles
+  // and prices the row, and there is simply nothing for a selector to have
+  // chosen between. Its target kind is MEMBER, which Attack and Help already
+  // had; no new TargetKind arrives with this verb.
+  VERB_PERSUADE = 9;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -903,6 +932,44 @@ message Sighting {
   // subject id (rpg-dnd5e-web#792). Mirrors session.Sighting.Kind
   // (rpg-toolkit#1230); a memory keeps its kind exactly as it keeps its name.
   MemberKind kind = 9;
+
+  // What THIS VIEWER BELIEVES the sighted creature's stance toward the party
+  // to be: `hostile`, `neutral` or `allied` — the dungeon file's own closed
+  // vocabulary, carried as the author's word exactly as StanceChanged.stance
+  // carries it, and a string here for that same reason (design
+  // rpg-project#458).
+  //
+  // PER OBSERVER, NEVER THE ROSTER'S TRUTH, which is why it rides here and
+  // NOT on PublicMemberInfo. The ring a client draws under a token today is
+  // read off the roster and is therefore the same colour for everybody in the
+  // run. This field is the perception law applied to a stance: the seam must
+  // not state a fact a viewer's own view could be wrong about, "because the
+  // fact is exactly what an illusion has to be able to lie about" — this
+  // file's own rule for what a sighting may claim.
+  //
+  // BESIDE name AND kind RATHER THAN INSIDE Seen, and the line is not the one
+  // ADR-0041 draws for `standing` and `equipment`. Those are facts OF THE
+  // SIGHT CHANNEL — what the eye caught. This is a fact of the OBSERVER: what
+  // they have concluded about the creature, from whatever they have. A memory
+  // keeps its believed stance the way it keeps its name, and a channel that is
+  // not sight can still leave a viewer with an opinion.
+  //
+  // BY DEFAULT IT EQUALS THE DERIVED STANCE. With no deception in play every
+  // viewer believes what the creature shows, so every viewer's word here is
+  // the pair's folded stance and the ring matches the colour drawn today. An
+  // authored `pretend` — a creature showing one stance while holding another,
+  // seen through for a viewer whose Insight beats its Deception, a later
+  // slice — is where belief and truth diverge, and it needs no new field when
+  // it lands: it changes what this one says for one viewer and not another.
+  //
+  // PRESENTATION ONLY, exactly as the existing ring says of itself. It decides
+  // nothing about who may be attacked: who is opposed to whom is the run's own
+  // fold, answered per pair by the engine, and a client that gated a target on
+  // a belief would refuse a swing the rules allow.
+  //
+  // Empty on a sighting produced before this field and on anything the
+  // observer has no opinion about. Empty is "no word for it", NOT `neutral`.
+  string stance = 10;
 }
 
 // =============================================================================

@@ -824,6 +824,100 @@ message IntimidateResponse {
   DeliveryReport delivery = 4;
 }
 
+// PersuadeRequest talks one creature that can see the member do it round to
+// their side: the member's own Persuasion, the target's authored approaches,
+// the whole table watching the die. Intimidate's twin on the same machine —
+// the same check, the same audience, the opposite intent (design
+// rpg-project#458).
+//
+// ONE TARGET, AND IT MUST BE ABLE TO PERCEIVE THE ACTOR. The audience is every
+// member whose sight reaches the actor's cell — the same set a swing lands its
+// deed on — and the named target must be in it or the call is refused
+// FAILED_PRECONDITION with ErrOutOfReach. There is no distance cap beyond
+// sight. Everyone in that set learns what happened, not only the target.
+//
+// PRICED AS AN ACTION (VERB_PERSUADE), AND OFFERED ON THE WORLD CLOCK AS WELL
+// AS THE TURN CLOCK (R3, rpg-project#458). This is the first verb that is.
+// Inside a fight it is Intimidate's gate exactly: refused off the actor's turn
+// and when the action is spent, each of which Afford announces first. Outside
+// one — the front room, no fight, no turn — the row is still compiled and
+// still priced, because talking to the creature standing in the doorway is the
+// whole scenario and there is no turn to wait for.
+//
+// THE CALLER NAMES NO APPROACH. The resolver applies the character's best
+// listed route against the ones authored on the target, exactly as Unlock and
+// Intimidate do (approach choice is postponed by ruling, rpg-project#350). A
+// target with no authored `persuade:` list is checked against its derived
+// passive Insight — see Persuaded.dc, which is where every number this verb
+// produces is read.
+//
+// A CHARACTER WITHOUT THE SKILL MAY STILL TRY, AND ROLLS AT DISADVANTAGE (R2,
+// rpg-project#458). That is a rule the resolver applies as one named source on
+// the roll, not a gate at this seam and not a field on this message: the
+// attempt is open to everyone, and the log says which source imposed what.
+message PersuadeRequest {
+  string session = 1;
+  // Who talks. Bound to the authenticated caller by the host — the same
+  // acting-as gate every verb has.
+  string member = 2;
+  // Who is talked to: a monster member id. A member who cannot perceive the
+  // actor is refused, never silently missed.
+  string target = 3;
+}
+
+// PersuadeResponse carries only what is the CALLER'S ALONE, and is
+// IntimidateResponse field for field. The outcome reaches the actor the way
+// all world change reaches anybody — as a beat: Persuaded on the log, whose
+// audience is every member whose sight reaches the actor's cell, THE ACTOR
+// INCLUDED, and then Reacted when the world rolls the author's table.
+//
+// SO THERE IS NO beaten, total OR dc HERE. A response carrying them would be a
+// second, differently shaped account of numbers the actor is already reading
+// off their own stream, and two accounts of one roll is how a client learns to
+// disagree with the table about what was rolled. UnlockResponse's
+// beaten/total/dc are the OLDER SHAPE, not a precedent; Intimidate was cut
+// back to this one by ruling (rpg-api-protos#339) and this verb is drafted
+// from the cut version rather than from the draft that needed cutting.
+//
+// WHAT THE PERSUASION DID IS NOT HERE EITHER, and that absence is the design.
+// A beaten check lands a persuade deed on the witnesses and stops; the world
+// rolls one entry of the author's table and publishes Reacted, and what the
+// deed is worth to the creature is its own mind's on its next turn. A
+// "helping" or "friendly" field here would make the outcome this verb's
+// instead of theirs.
+message PersuadeResponse {
+  // True when the attempt stopped to ask the member whether to spend a held
+  // offer (Bardic Inspiration, Guidance) before the verdict is settled —
+  // IntimidateResponse.paused's own shape. While true, saved and delivery stay
+  // at their zero value: nothing has been written yet, because there is no
+  // verdict yet, only a question (CastResponse's law for the same pair).
+  // Answered via the session's generic React verb.
+  //
+  // THE OFFER WINDOW IS WHY THIS MESSAGE IS NOT EMPTY. It is the one moment of
+  // this verb that belongs to the caller alone and to nobody else at the
+  // table: the question is asked of them, it exists before any beat is
+  // published, and no witness is entitled to know it was asked.
+  bool paused = 1;
+  // The d20 as rolled, present only when paused — IntimidateResponse.roll's
+  // own shape, a pointer meaningful only mid-question rather than a number
+  // always present. The member cannot decide whether an offer is worth
+  // spending without seeing the face it would join, and the settled roll
+  // reaches them on the beat like everyone else's.
+  //
+  // The target's DC is deliberately not surfaced alongside it: a player who
+  // could see it would be deciding whether the die closes the gap rather than
+  // whether the offer is worth spending.
+  optional int32 roll = 2;
+
+  // saved and delivery are S6's law, kept by every mutating verb at this seam:
+  // a beaten persuasion lands a deed on every witness, may teach a fact, and
+  // publishes a beat and the world's Reacted after it — any of which can
+  // half-fail, and a partial save is an error carrying a populated report,
+  // never a silent shrug (IntimidateResponse's shape, for its reasons).
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
+}
+
 // EndTurnResponse mirrors session.EndTurnOutput.
 message EndTurnResponse {
   // Who acts now.
@@ -1890,6 +1984,19 @@ service SessionService {
   // the target cannot perceive the actor. What a beaten threat is WORTH is the
   // target's mind's to decide, and arrives as its next turn on the stream.
   rpc Intimidate(IntimidateRequest) returns (IntimidateResponse);
+
+  // Persuade talks one creature round as `member`: the server rolls the
+  // authored check against the target's own DC, and every member who can see
+  // the actor — the actor included — reads the numbers off one Persuaded beat,
+  // beaten or not. The response is an ack carrying only the caller's own offer
+  // window and the seam's two reports. Costs the action; refused
+  // FAILED_PRECONDITION when the action is spent or the target cannot perceive
+  // the actor, and off the actor's turn WHEN THERE IS A TURN — this verb is
+  // offered on the world clock too (R3, rpg-project#458), which no verb above
+  // it is. What a beaten persuasion is WORTH is the world's reaction table and
+  // then the target's mind: it arrives as a Reacted beat and that creature's
+  // next turn.
+  rpc Persuade(PersuadeRequest) returns (PersuadeResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

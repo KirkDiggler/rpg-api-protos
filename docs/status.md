@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-16
+updated: 2026-09-17
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,30 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **The front room goblin (rpg-project#458, 2026-09-17)** — additive on the
+  v1alpha1 session surface: `rpc Persuade` with `PersuadeRequest
+  { session, member, target }` and `PersuadeResponse { paused, roll, saved,
+  delivery }`, `VERB_PERSUADE = 9`, `EVENT_KIND_PERSUADED = 33` with
+  `Persuaded { actor, target, dc, total, beaten }` at `Event.body` arm 39,
+  `EVENT_KIND_ANSWERED = 34` with `Answered { creature, verb, beaten, roll, of,
+  entry, word, say, fact }` at arm 40 and its `AnswerWord` enum (`FACT` and
+  `FLEE` only — the design's `tell` collapsed into `FACT`, because a fact is an
+  id and nothing else and there is no truth bit for a second word to set), and
+  `Sighting.stance = 10`. Persuade is Intimidate field for field — **the
+  response never duplicates the beat**, so the numbers live only on `Persuaded`
+  — and is the first verb offered on the **world clock** as well as the turn
+  clock (R3): the front room has no fight and therefore no turn. `Answered` is
+  the design's second roll, the world picking one entry of the author's
+  weighted table; R1 puts the die, the summed weights and the entry index on
+  the beat for the debug log while the story shows the word and the creature's
+  line. It is **not** the `React` verb, which is the D&D reaction — the beat
+  was drafted as `Reacted` and renamed before merge so a body arm one letter
+  from `VERB_REACT` could not be read as an opportunity attack. `Sighting.stance` is what THAT VIEWER
+  believes, never the roster's truth, and nothing was added to
+  `PublicMemberInfo`. Merges first — toolkit, `rpg-api` and web follow on
+  pseudo-versions. See
+  [the contract](architecture/components/session-service.md#the-front-room-goblin).
 
 - **Intimidate, the first shenanigan (rpg-project#454, 2026-09-16)** — additive
   on the v1alpha1 session surface: `rpc Intimidate`, `IntimidateRequest

@@ -307,6 +307,39 @@ enum EventKind {
   // and brings another one at you.
   EVENT_KIND_INTIMIDATED = 32;
 
+  // A member talked a creature round, and the table saw the die (design
+  // rpg-project#458). INTIMIDATED's twin, and published BEATEN OR NOT for the
+  // same reason: a missed attempt is as much fiction as a beaten one, and one
+  // composition path writes both.
+  //
+  // Audience: every member whose sight reaches the actor's cell, which is
+  // exactly the set a beaten attempt lands its deed on.
+  //
+  // WHAT THE PERSUADED CREATURE DOES ABOUT IT IS NOT THIS BEAT. The world's
+  // answer is rolled off the author's answer table and arrives as ANSWERED;
+  // the creature's own mind has the turn after that.
+  EVENT_KIND_PERSUADED = 33;
+
+  // THE CREATURE'S AUTHORED ANSWER TO A CHECK, ROLLED BY THE WORLD (design
+  // rpg-project#458, "The two rolls"). THE SECOND ROLL OF THE PAIR: the
+  // player's check published INTIMIDATED or PERSUADED, and this says which of
+  // the author's weighted entries the world then rolled, what the creature
+  // did, and what it said.
+  //
+  // NOT THE React VERB, WHICH IS THE D&D REACTION. VERB_REACT and ReactRequest
+  // are the rules' reaction — a window offered off your own turn, answered by
+  // a player, with the fight frozen on the answer. This is answered by nobody
+  // and freezes nothing. The design doc calls the author's list a "reaction
+  // table"; this seam deliberately says ANSWER instead, because Reaction is a
+  // rules term already spent on VERB_REACT and a beat named one letter from it
+  // would be read as an opportunity attack by every client switching on the
+  // body arm.
+  //
+  // R1 (Kirk, 2026-09-17): the die is on the beat and in the debug log; the
+  // story shows the outcome and the creature's line. Full data down the log
+  // until v1, which is what every beat here does.
+  EVENT_KIND_ANSWERED = 34;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -420,6 +453,8 @@ message Event {
     Sighted sighted = 36;
     CastMissed cast_missed = 37;
     Intimidated intimidated = 38;
+    Persuaded persuaded = 39;
+    Answered answered = 40;
   }
 }
 
@@ -1502,6 +1537,15 @@ message RollWindowOpened {
 // here. Deliberately unlike DoorChanged, which can report the state its own
 // check produced, because there is no state here to report — the outcome is a
 // decision somebody else has not made yet.
+//
+// IT AND Persuaded MIRROR EACH OTHER ON PURPOSE. The two carry the same five
+// fields, and one shared "skill check beat" with a verb field to discriminate
+// on was considered and rejected: a client switching on Event.body gets a
+// TYPED VERB out of the arm it matched, and against a shared body it would
+// have to read a discriminator before it could write a sentence. The cost of
+// mirroring is five field numbers; the cost of sharing is every consumer
+// branching twice. A third social verb joins as a third body, not as a third
+// value of a discriminator.
 message Intimidated {
   // Who threatened. A member id, the same vocabulary every other body speaks.
   string actor = 1;
@@ -1516,4 +1560,154 @@ message Intimidated {
   int32 total = 4;
   // The rulebook's own reading of total against dc.
   bool beaten = 5;
+}
+
+// Persuaded: a member talked a creature round (EVENT_KIND_PERSUADED).
+// Intimidate's twin on the same machine — who leaned on whom, what the check
+// came to, what it had to reach, and the rulebook's own reading of the two.
+// Delivered on a missed attempt as well as a beaten one, to every member whose
+// sight reaches the actor's cell.
+//
+// IT AND Intimidated MIRROR EACH OTHER ON PURPOSE — see Intimidated's own doc
+// for why this is two bodies and not one "skill check beat" with a verb field
+// on it.
+//
+// THE ONLY ACCOUNT OF THIS ROLL, AND THE ACTOR READS IT TOO. PersuadeResponse
+// carries no beaten, total or dc, for the reason Kirk ruled on
+// rpg-api-protos#339: a response repeating them would be a second, differently
+// shaped copy of one throw, and two copies of one truth is how a client learns
+// to disagree with the table about what was rolled.
+//
+// THE READING IS THE PROVIDER'S, never a client's comparison of total against
+// dc — the law Saved.succeeded and DeathSaveRolled.outcome keep, for the same
+// reason: the day a rule changes what beating a DC means, every client that
+// derived it would be wrong at once.
+//
+// NOTHING ABOUT THE CONSEQUENCE. A beaten check lands a persuade deed on this
+// beat's audience and stops. What the creature does about it is the world's
+// own roll off the author's table — ANSWERED — and then that creature's mind on
+// its next turn. A "helping" field here would make the outcome this verb's
+// instead of the world's and the mind's, which is the first cut Intimidate's
+// design broke and recorded so it is not proposed again.
+message Persuaded {
+  // Who talked. A member id, the same vocabulary every other body speaks.
+  string actor = 1;
+  // Who was talked to. A member id.
+  string target = 2;
+  // What the check had to reach — the DC of the one approach the resolver
+  // applied, authored on the target's placement or derived from its passive
+  // Insight. Always set: every one of these beats is a check.
+  int32 dc = 3;
+  // What the check totalled.
+  int32 total = 4;
+  // The rulebook's own reading of total against dc.
+  bool beaten = 5;
+}
+
+// AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer
+// table (design rpg-project#458, "The outcome vocabulary"). One word
+// per table entry, and an entry carries exactly one of them — two words in one
+// entry is an authoring error the validator refuses, so this is a single value
+// and never a set.
+//
+// THE ENUM GROWS A VALUE PER SLICE, never ahead of one. The design names
+// `alarm`, `lure` and `pretend` as words this vocabulary will take, and they
+// are deliberately NOT here: each arrives with the slice that can actually
+// make a creature do it, the way a Verb value arrives the day the SDK gates
+// the verb. A value no engine could produce would be a promise this contract
+// cannot keep, and a client would grow a branch for it that never runs.
+//
+// `tell` IS NOT A DEFERRED WORD — IT COLLAPSED INTO FACT. The design lists it
+// separately as "the party learns a fact, possibly false", but teaching a fact
+// is exactly what FACT already does, and the "possibly false" half has no
+// engine meaning: a fact is an ID and nothing else, so there is no truth bit
+// for a second word to set differently. Whether what a creature says is a lie
+// lives in the author's `say` line and in what the party finds when they walk
+// into the room. Two words that produce one behaviour would have been a
+// distinction every consumer had to branch on and no engine could honour.
+enum AnswerWord {
+  ANSWER_WORD_UNSPECIFIED = 0;
+  // The witnesses learned an authored fact — the world journal's existing
+  // path. A disposition's `until` predicate may then flip the pair, which
+  // arrives separately as STANCE_CHANGED and is not this beat's claim.
+  ANSWER_WORD_FACT = 1;
+  // The creature's mind received fear of the actor and it runs. NOT a flag on
+  // the creature and not this beat's doing: the mind decides what running
+  // looks like, and the steps arrive as MOVED on the creature's own turn.
+  ANSWER_WORD_FLEE = 2;
+}
+
+// Answered: the creature's authored answer to a check, rolled by the world
+// (EVENT_KIND_ANSWERED). The second of the two rolls the design names — the
+// player's check published INTIMIDATED or PERSUADED, and this says which of
+// the author's weighted entries fired, what the creature did about it, and
+// what it said while doing it (design rpg-project#458, "The two rolls").
+//
+// NOT THE React VERB, WHICH IS THE D&D REACTION. VERB_REACT is a window a
+// player answers with the fight frozen on it; this is a creature answering,
+// rolled by the world, freezing nothing. See EVENT_KIND_ANSWERED for why the
+// wire says ANSWER where the design doc says "reaction table".
+//
+// THE DIE IS ON THE BEAT (R1, Kirk 2026-09-17). roll, of and entry are the
+// world's own throw, carried so the debug log can show it and a run can be
+// read back; a story renderer shows `word` and `say` and ignores the rest.
+// That is the full-data-down-the-log rule every beat here keeps until v1, not
+// an exposure special to this one.
+//
+// ONE ENTRY FIRES. There is no list here because the table cannot produce one:
+// an entry is one word plus a line, and an author who wants two things to
+// happen cannot say so yet. A later slice that pays for it adds a list inside
+// an entry, not a second Answered.
+message Answered {
+  // Which creature answered. A member id.
+  string creature = 1;
+  // Which verb it is answering — VERB_INTIMIDATE or VERB_PERSUADE. The
+  // seam's own verb vocabulary rather than a second copy of it, so a client
+  // that already branches on Verb branches once.
+  Verb verb = 2;
+  // Whether the player's check was beaten, which is WHICH TABLE the world
+  // rolled on: true is the success table the author wrote under `intimidated`
+  // or `persuaded`, false the failure table under `intimidate_failed` or
+  // `persuade_failed`. Failure has a table on purpose — a failed threat that
+  // raises the alarm is what makes attempting worse than not attempting, and
+  // it is what gives the untrained rule its teeth.
+  //
+  // It is the same reading the INTIMIDATED or PERSUADED beat published a
+  // moment earlier, and it is repeated because this beat has to stand alone: a
+  // reader needs to know which table `entry` is an index INTO, and pairing two
+  // beats to find out would assume an ordering the stream does not promise.
+  bool beaten = 3;
+  // The world's die, as rolled.
+  int32 roll = 4;
+  // What it was rolled against: the summed weights of the entries under the
+  // key that fired. Weights are relative and an author writes whatever reads
+  // well — 3 and 1, or 70 and 30 — so the total is the engine's own sum and is
+  // carried rather than assumed to be 100.
+  int32 of = 5;
+  // Which entry fired, ZERO-BASED, in the order the author wrote them under
+  // that key. An index into the AUTHOR'S list, so a builder can highlight the
+  // line that fired in the file the author is looking at.
+  int32 entry = 6;
+  // What the creature did. One word, never a set — see AnswerWord.
+  AnswerWord word = 7;
+  // The author's line, VERBATIM, and empty when the author wrote none. THE
+  // ENGINE NEVER COMPOSES IT: this is the one place on this seam where a
+  // creature speaks, and it speaks because an author typed the sentence. Empty
+  // means the creature said nothing, which is a real authoring choice and not
+  // a string somebody forgot.
+  string say = 8;
+  // The fact id taught, set when `word` is FACT and empty for every other
+  // word. It names the authored fact the witnesses learned, through the path
+  // an `until` disposition already reads — the flip, when one follows, arrives
+  // separately as STANCE_CHANGED and is not this beat's claim.
+  //
+  // A FACT IS AN ID AND NOTHING ELSE, which is why there is no truth bit
+  // beside it and why the design's separate `tell` word collapsed into FACT
+  // (see AnswerWord). What a fact MEANS is the world's, and whether the
+  // creature was lying when it taught one lives in the author's `say` line and
+  // in what the party finds when they walk into the room. A truth bit here
+  // would hand every client the answer to the bad directions the author wrote,
+  // and intel is testimony — held per observer, and a false one has to look
+  // exactly like a true one to whoever received it.
+  string fact = 9;
 }

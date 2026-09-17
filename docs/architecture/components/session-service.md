@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-16
+updated: 2026-09-17
 confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
@@ -179,6 +179,102 @@ seam, and `ActivateResponse`, `CastResponse`, `SearchResponse` and
 teaches the fact the author asked for, and publishes a beat — three writes, any
 of which can half-fail, which is exactly the case the law exists for
 (rpg-api-protos#339).
+
+## The front room goblin
+
+`service.proto` adds `rpc Persuade(PersuadeRequest) returns
+(PersuadeResponse)`, `types.proto` adds `VERB_PERSUADE = 9` and
+`Sighting.stance = 10`, and `events.proto` adds `EVENT_KIND_PERSUADED = 33`
+with `Persuaded { actor = 1, target = 2, dc = 3, total = 4, beaten = 5 }` at
+`Event.body` arm 39, plus `EVENT_KIND_ANSWERED = 34` with `Answered { creature
+= 1, verb = 2, beaten = 3, roll = 4, of = 5, entry = 6, word = 7, say = 8,
+fact = 9 }` at arm 40 and the `AnswerWord` enum it reads.
+Design: [rpg-project#458](https://github.com/KirkDiggler/rpg-project/issues/458),
+`rpg-project/ideas/shenanigans/front-room-goblin.md` (rulings R1–R4 closed by
+Kirk 2026-09-17).
+
+**It merges ahead of its SDK**, as Intimidate did and for the stated reason:
+the design's order of work puts the contract first so the toolkit, `rpg-api`
+and web legs draft against one agreed shape on pseudo-versions.
+
+`PersuadeRequest` is `{ session, member, target }` and `PersuadeResponse` is
+`{ paused = 1, optional roll = 2, saved = 3, delivery = 4 }` — Intimidate's
+two messages field for field, with Persuasion where Intimidation was. Nothing
+was reconsidered at this seam: **the response never duplicates the beat**, so
+`beaten`, `total` and `dc` are on `Persuaded` alone, and what survives on the
+response is the offer window, which is the caller's and nobody else's, plus the
+two S6 reports.
+
+**`VERB_PERSUADE` is the first verb offered on the world clock as well as the
+turn clock** (R3). Every value above it is a turn-clock row, and Afford answers
+`SHORTFALL_REASON_NOT_YOUR_TURN` to everyone else. The front room has no fight
+and therefore no turn, so the row is compiled and priced on the world clock
+too, where Search and Unlock already spend. No new `ShortfallReason` value was
+needed: `NOT_YOUR_TURN` is the refusal for a verb that wants a turn the member
+does not have, and a member on the world clock has none.
+
+**`Persuaded` and `Intimidated` mirror each other on purpose.** One shared
+"skill check beat" with a verb field to discriminate on was considered and
+rejected: a client switching on `Event.body` gets a typed verb out of the arm
+it matched, and against a shared body every consumer would branch twice — once
+to find the arm, once to read the discriminator. The cost of mirroring is five
+field numbers. A third social verb joins as a third body.
+
+**`Answered` is the second of the design's two rolls.** The player's check
+publishes `Intimidated` or `Persuaded`; the world then rolls one entry of the
+author's weighted table and publishes this. R1 puts the die on the beat: `roll`
+is the throw, `of` the summed weights it was thrown against (weights are
+relative and an author writes 3 and 1 or 70 and 30, so the total is the
+engine's sum), and `entry` the zero-based index into the author's own list, so
+a builder can highlight the line that fired. A story renderer shows `word` and
+`say` and ignores the rest; the debug log shows all of it, which is the
+full-data-down-the-log rule every beat here keeps until v1.
+
+It is **not the `React` verb, which is the D&D reaction.** `VERB_REACT` is the
+rules' reaction — a window a player answers with the fight frozen on it; this
+is a creature answering, rolled by the world, freezing nothing.
+
+**The wire says "answer" where the design doc says "reaction table", and that
+is deliberate.** The beat was drafted as `Reacted` and renamed before merge:
+Reaction is a rules term this seam already spends on `VERB_REACT`, and a body
+arm named one letter from it would be read as an opportunity attack by every
+client that switched on the arm. The design's prose keeps its own word; the
+contract does not borrow it.
+
+`AnswerWord` carries only the words that ship this slice — `FACT` and
+`FLEE`. The design names `alarm`, `lure` and `pretend` as words the vocabulary
+will take and they are deliberately absent: a value arrives with the slice that
+can make a creature do it, the way a `Verb` value arrives the day the SDK gates
+the verb. `say` is the author's line carried verbatim; the engine never
+composes it, and empty means the author wrote none.
+
+**`tell` collapsed into `FACT` rather than being deferred.** The design lists
+it separately as "the party learns a fact, possibly false", but teaching a fact
+is exactly what `FACT` already does, and the "possibly false" half has no
+engine meaning: **a fact is an id and nothing else**, so there is no truth bit
+for a second word to set differently. Two words producing one behaviour would
+have been a distinction every consumer branched on and no engine could honour.
+Whether a creature was lying lives in the author's `say` line and in what the
+party finds when they walk into the room — a truth bit on the beat would hand
+every client the answer to the bad directions the author wrote, and intel is
+testimony, held per observer, where a false one has to look exactly like a true
+one to whoever received it. `Answered.fact` is therefore set when `word` is
+`FACT` and empty otherwise.
+
+**`Sighting.stance` is what one viewer believes, not what the roster says.**
+The ring a client draws today is read off the roster and is the same colour for
+everybody; this field is the perception law applied to a stance, and it rides
+the per-viewer sighting for the reason the sighting doc already gives — the
+seam must not state a fact a viewer's stale view could be wrong about, because
+that is exactly what an illusion has to be able to lie about. It sits beside
+`name` and `kind` rather than inside `Seen`: `standing` and `equipment` are
+facts of the sight channel, and a belief is a fact of the observer. By default
+it equals the derived stance, so with no deception in play every viewer's word
+is the pair's folded stance and the ring is unchanged. An authored `pretend`, a
+later slice, is where belief and truth diverge, and it adds no field. It is
+presentation only and decides nothing about who may be attacked. Empty means
+the observer has no word for it, which is not `neutral`. **Nothing was added to
+`PublicMemberInfo`**, which is the whole point.
 
 ## Paid cast misses
 

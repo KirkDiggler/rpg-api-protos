@@ -235,18 +235,25 @@ window a player answers with the fight frozen on it; this is a creature
 answering, rolled by the engine, freezing nothing. Both docs say so explicitly
 because the names are one letter apart on the wire.
 
-`ReactionWord` carries only the words that ship this slice — `FACT`, `FLEE`,
-`TELL`. The design names `alarm`, `lure` and `pretend` as words the vocabulary
+`ReactionWord` carries only the words that ship this slice — `FACT` and
+`FLEE`. The design names `alarm`, `lure` and `pretend` as words the vocabulary
 will take and they are deliberately absent: a value arrives with the slice that
 can make a creature do it, the way a `Verb` value arrives the day the SDK gates
 the verb. `say` is the author's line carried verbatim; the engine never
 composes it, and empty means the author wrote none.
 
-**Whether a told fact is true is not on the beat.** `TELL` teaches the party a
-fact through a creature's own telling, and a false one has to look exactly like
-a true one to whoever was told it — intel is testimony, held per observer. A
-truth bit here would hand every client the answer to the bad directions the
-author wrote.
+**`tell` collapsed into `FACT` rather than being deferred.** The design lists
+it separately as "the party learns a fact, possibly false", but teaching a fact
+is exactly what `FACT` already does, and the "possibly false" half has no
+engine meaning: **a fact is an id and nothing else**, so there is no truth bit
+for a second word to set differently. Two words producing one behaviour would
+have been a distinction every consumer branched on and no engine could honour.
+Whether a creature was lying lives in the author's `say` line and in what the
+party finds when they walk into the room — a truth bit on the beat would hand
+every client the answer to the bad directions the author wrote, and intel is
+testimony, held per observer, where a false one has to look exactly like a true
+one to whoever received it. `Reacted.fact` is therefore set when `word` is
+`FACT` and empty otherwise.
 
 **`Sighting.stance` is what one viewer believes, not what the roster says.**
 The ring a client draws today is read off the roster and is the same colour for

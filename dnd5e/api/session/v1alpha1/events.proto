@@ -1613,6 +1613,15 @@ message Persuaded {
 // make a creature do it, the way a Verb value arrives the day the SDK gates
 // the verb. A value no engine could produce would be a promise this contract
 // cannot keep, and a client would grow a branch for it that never runs.
+//
+// `tell` IS NOT A DEFERRED WORD — IT COLLAPSED INTO FACT. The design lists it
+// separately as "the party learns a fact, possibly false", but teaching a fact
+// is exactly what FACT already does, and the "possibly false" half has no
+// engine meaning: a fact is an ID and nothing else, so there is no truth bit
+// for a second word to set differently. Whether what a creature says is a lie
+// lives in the author's `say` line and in what the party finds when they walk
+// into the room. Two words that produce one behaviour would have been a
+// distinction every consumer had to branch on and no engine could honour.
 enum ReactionWord {
   REACTION_WORD_UNSPECIFIED = 0;
   // The witnesses learned an authored fact — the world journal's existing
@@ -1623,9 +1632,6 @@ enum ReactionWord {
   // the creature and not this beat's doing: the mind decides what running
   // looks like, and the steps arrive as MOVED on the creature's own turn.
   REACTION_WORD_FLEE = 2;
-  // The creature told the party something; `fact` names what. WHETHER WHAT IT
-  // SAID IS TRUE IS NOT ON THIS BEAT — see Reacted.fact.
-  REACTION_WORD_TELL = 3;
 }
 
 // Reacted: the world rolled the author's reaction table and a creature
@@ -1686,14 +1692,18 @@ message Reacted {
   // means the creature said nothing, which is a real authoring choice and not
   // a string somebody forgot.
   string say = 8;
-  // The fact id taught, for FACT and TELL, and empty for every other word.
-  // FACT teaches the witnesses through the path an `until` disposition already
-  // reads; TELL teaches the party through a creature's own telling.
+  // The fact id taught, set when `word` is FACT and empty for every other
+  // word. It names the authored fact the witnesses learned, through the path
+  // an `until` disposition already reads — the flip, when one follows, arrives
+  // separately as STANCE_CHANGED and is not this beat's claim.
   //
-  // WHETHER A TOLD FACT IS TRUE IS DELIBERATELY NOT HERE. Intel is testimony,
-  // held per observer, and a false fact has to look exactly like a true one to
-  // whoever was told it — a truth bit on the beat would hand every client the
-  // answer to the bad directions the author wrote. What is actually true is the
-  // world's, and the party finds out by walking into the room.
+  // A FACT IS AN ID AND NOTHING ELSE, which is why there is no truth bit
+  // beside it and why the design's separate `tell` word collapsed into FACT
+  // (see ReactionWord). What a fact MEANS is the world's, and whether the
+  // creature was lying when it taught one lives in the author's `say` line and
+  // in what the party finds when they walk into the room. A truth bit here
+  // would hand every client the answer to the bad directions the author wrote,
+  // and intel is testimony — held per observer, and a false one has to look
+  // exactly like a true one to whoever received it.
   string fact = 9;
 }

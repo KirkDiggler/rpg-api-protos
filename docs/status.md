@@ -22,7 +22,9 @@ shape and consumer drift, it shows up here as a "rough edge."
   delivery }`, `VERB_PERSUADE = 9`, `EVENT_KIND_PERSUADED = 33` with
   `Persuaded { actor, target, dc, total, beaten }` at `Event.body` arm 39,
   `EVENT_KIND_REACTED = 34` with `Reacted { creature, verb, beaten, roll, of,
-  entry, word, say, fact }` at arm 40 and its `ReactionWord` enum, and
+  entry, word, say, fact }` at arm 40 and its `ReactionWord` enum (`FACT` and
+  `FLEE` only — the design's `tell` collapsed into `FACT`, because a fact is an
+  id and nothing else and there is no truth bit for a second word to set), and
   `Sighting.stance = 10`. Persuade is Intimidate field for field — **the
   response never duplicates the beat**, so the numbers live only on `Persuaded`
   — and is the first verb offered on the **world clock** as well as the turn

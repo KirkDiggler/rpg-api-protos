@@ -16,13 +16,28 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **`Answered.fact` deprecated (rpg-project#458, 2026-09-17)** — **a fact never
+  rides a broadcast beat** (Kirk's ruling). The field shipped one PR earlier as
+  "the fact id taught"; a learned fact is **per-observer knowledge**, and
+  `Answered` has one body delivered to an audience, so the field either tells a
+  member something they never learned or stays empty in a way a member who
+  *did* learn cannot distinguish from "no fact was taught". It now carries
+  `[deprecated = true]`, `rpg-api` leaves it empty, and clients read it as
+  absent. Not removed and **9 is burnt** — a number is never reused here. The
+  only lawful road is a **per-viewer "what I know" projection**, which is **not
+  built**; nothing was added to stand in for it. The engine still teaches the
+  fact and `until` still reads it, and a resulting flip still arrives as
+  `STANCE_CHANGED`, which is truth-grain and broadcast-safe. See
+  [the contract](architecture/components/session-service.md#answeredfact-is-deprecated-and-never-filled).
+
 - **The front room goblin (rpg-project#458, 2026-09-17)** — additive on the
   v1alpha1 session surface: `rpc Persuade` with `PersuadeRequest
   { session, member, target }` and `PersuadeResponse { paused, roll, saved,
   delivery }`, `VERB_PERSUADE = 9`, `EVENT_KIND_PERSUADED = 33` with
   `Persuaded { actor, target, dc, total, beaten }` at `Event.body` arm 39,
   `EVENT_KIND_ANSWERED = 34` with `Answered { creature, verb, beaten, roll, of,
-  entry, word, say, fact }` at arm 40 and its `AnswerWord` enum (`FACT` and
+  entry, word, say, fact }` at arm 40 (`fact` since deprecated, see above) and
+  its `AnswerWord` enum (`FACT` and
   `FLEE` only — the design's `tell` collapsed into `FACT`, because a fact is an
   id and nothing else and there is no truth bit for a second word to set), and
   `Sighting.stance = 10`. Persuade is Intimidate field for field — **the

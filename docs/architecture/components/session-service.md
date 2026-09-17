@@ -188,7 +188,8 @@ of which can half-fail, which is exactly the case the law exists for
 with `Persuaded { actor = 1, target = 2, dc = 3, total = 4, beaten = 5 }` at
 `Event.body` arm 39, plus `EVENT_KIND_ANSWERED = 34` with `Answered { creature
 = 1, verb = 2, beaten = 3, roll = 4, of = 5, entry = 6, word = 7, say = 8,
-fact = 9 }` at arm 40 and the `AnswerWord` enum it reads.
+fact = 9 }` at arm 40 and the `AnswerWord` enum it reads. `fact` is
+**deprecated and never filled** — see below.
 Design: [rpg-project#458](https://github.com/KirkDiggler/rpg-project/issues/458),
 `rpg-project/ideas/shenanigans/front-room-goblin.md` (rulings R1–R4 closed by
 Kirk 2026-09-17).
@@ -258,8 +259,42 @@ Whether a creature was lying lives in the author's `say` line and in what the
 party finds when they walk into the room — a truth bit on the beat would hand
 every client the answer to the bad directions the author wrote, and intel is
 testimony, held per observer, where a false one has to look exactly like a true
-one to whoever received it. `Answered.fact` is therefore set when `word` is
-`FACT` and empty otherwise.
+one to whoever received it.
+
+### `Answered.fact` is deprecated and never filled
+
+**A fact never rides a broadcast beat** (Kirk, 2026-09-17, rpg-project#458).
+The field shipped one PR ago as "the fact id taught", and that was the mistake:
+a learned fact is **per-observer knowledge**. When the world's answer teaches
+one, the members who were there learn it and the members who were not do not,
+and the same holds for a member who arrives later or never looks. `Answered`
+has one body delivered to an audience, so a field on it can only say the same
+thing to everybody — it either tells a member something they have not learned,
+or it says nothing and a member who *did* learn cannot tell that apart from a
+beat where no fact was taught. The knowledge laws this contract keeps
+everywhere else (`Seen`, `Sighting`, `Discovery` — knowledge addressed per
+recipient, never broadcast) were not applied here, and this field is where that
+shows.
+
+`rpg-api` leaves it empty on every `Answered` it publishes, and a client reads
+it as absent rather than as "no fact was taught". The field carries
+`[deprecated = true]`; it is **not removed and 9 is burnt**, because a field
+number is never reused and a type never changes in place on this seam.
+
+**The only lawful road is a per-viewer "what I know" projection, and it is not
+built.** Facts a member has learned belong on a read addressed to that member,
+the way a sighting is, where absence means "I have not learned it" and presence
+means "I have" — two claims this field cannot make. Nothing is added to stand
+in for it: a second broadcast field with a recipient list would be the same
+error with more wire, and the missing projection is a cost not yet paid rather
+than a gap to paper over.
+
+**Nothing about the world stopped working.** The engine teaches the fact
+exactly as before and a disposition's `until` predicate reads it exactly as
+before; when a pair flips, that arrives as `STANCE_CHANGED`, which is
+truth-grain and broadcast-safe because a stance is the run's own fold rather
+than anybody's knowledge. `ANSWER_WORD_FACT` still says a fact was taught to
+whoever was there — only *which* one is no longer claimed.
 
 **`Sighting.stance` is what one viewer believes, not what the roster says.**
 The ring a client draws today is read off the roster and is the same colour for

@@ -340,6 +340,17 @@ enum EventKind {
   // until v1, which is what every beat here does.
   EVENT_KIND_ANSWERED = 34;
 
+  // An attack a Sanctuary-style ward stopped before any roll against the
+  // target — the ATTACKER's own failed save against the warding caster's
+  // DC, not a fact about the target. No attack roll happened at all.
+  EVENT_KIND_WARDED = 35;
+
+  // A cast a Sanctuary-style ward stopped before it reached one named
+  // recipient — the CASTER's own failed save against the warding caster's
+  // DC, EVENT_KIND_WARDED's Cast sibling. A different target in the same
+  // multi-target cast is unaffected and gets its own ordinary beat.
+  EVENT_KIND_CAST_WARDED = 36;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -455,6 +466,8 @@ message Event {
     Intimidated intimidated = 38;
     Persuaded persuaded = 39;
     Answered answered = 40;
+    Warded warded = 41;
+    CastWarded cast_warded = 42;
   }
 }
 
@@ -1006,6 +1019,51 @@ message CastMissed {
   string actor = 1;
   string target = 2;
   SpellRef spell = 3;
+}
+
+// Warded: a Sanctuary-style ward stopped an attack before any roll against
+// the target (EVENT_KIND_WARDED). No roll/total/against/damage/critical
+// facts about the attack itself exist here — unlike Missed, there was no
+// attack roll at all. What happened instead is the ATTACKER's own failed
+// save against the warding caster's DC.
+//
+// NO SEPARATE SAVER FIELD: the saver of a ward's own save IS the attacker —
+// nobody else rolls to break through somebody else's ward — so a second
+// field naming them would be one that could disagree with `attacker`.
+message Warded {
+  string attacker = 1;
+  string target = 2;
+  AttackRef attack = 3;
+  // The caster whose ward blocked this attempt.
+  string source = 4;
+  // The attacker's own failed save: which ability, what was rolled, what it
+  // came to, and what it had to beat — the warding caster's DC.
+  string ability = 5;
+  int32 roll = 6;
+  int32 total = 7;
+  int32 dc = 8;
+  // The authoritative sourced calculation behind that save.
+  RollCalculation calculation = 9;
+}
+
+// CastWarded: a Sanctuary-style ward stopped a cast from reaching one named
+// recipient (EVENT_KIND_CAST_WARDED). Warded's Cast sibling — the CASTER's
+// own failed save, not a fact about the target. A different target in the
+// same multi-target cast is unaffected and gets its own ordinary beat.
+message CastWarded {
+  string actor = 1;
+  string target = 2;
+  SpellRef spell = 3;
+  // The caster whose ward blocked this attempt.
+  string source = 4;
+  // The caster's own failed save: which ability, what was rolled, what it
+  // came to, and what it had to beat — the warding caster's DC.
+  string ability = 5;
+  int32 roll = 6;
+  int32 total = 7;
+  int32 dc = 8;
+  // The authoritative sourced calculation behind that save.
+  RollCalculation calculation = 9;
 }
 
 // Saved: one creature's saving throw, whole (EVENT_KIND_SAVED). The facts a

@@ -410,6 +410,47 @@ the thrower could not say which mix produced it.
 **`EVENT_KIND_TICK = 7` is untouched and stays body-less.** The world clock is
 the toolkit's to advance; nothing on this seam changed to carry it.
 
+### The `Stayed` beat — a routed walk that moved nobody
+
+`EVENT_KIND_STAYED = 38` arrives with `Stayed { member = 1, cause = 2,
+why = 3 }` at `Event.body` arm 44. It is appended when a creature is sent
+somewhere and does not move: the ordered cell was unreachable, or the creature
+was already standing where it was sent, so the route came back with no path and
+the turn ended where it began. From Kirk's walk of the front room.
+
+**The silence was costing a round.** The world clock charges a round per driven
+creature whether or not anybody moves, and a walk that moved nobody used to
+produce nothing at all — so the log could not tell a creature that was never
+asked from one that refused from one sent somewhere it could not reach. The
+bandits spent rounds and narrated none of them. Every one of those cases now
+says so.
+
+**A fact about the world, not a malfunction**, which is why it is a beat rather
+than an error: a creature with a wall at its back has obeyed its orders, and
+the turn is over.
+
+**`cause` is the engine's own reference string** — `<module>:<type>:<id>` — so a
+creature walking under its own orders is distinguishable from one being shoved,
+commanded or routed by a spell. It is a ref rather than a sentence because it
+is the same question every routed walk already answers, required exactly so an
+observer is never told a creature walked for no reason. This beat says it did
+not walk; `cause` is why it was trying.
+
+**`why` is the route's own refusal phrase, verbatim** ("is blocked by
+dnd5e:props:pillar"), for the debug log — the engine still composes no prose for
+a story renderer. **Empty is an answer, not a missing one**, and it is the
+commonest case: the route had nowhere strictly nearer to offer, which is its own
+reason rather than a blocker it could name.
+
+**No cells on it, deliberately.** Nothing moved, so there is no from and no to;
+where the creature stands is what the roster and the atlas already answer, and a
+position here would be a second copy of a fact nothing changed.
+
+Placement-scoped like `ARRIVED` and audienced the same way, everyone in the
+run: a creature standing still is not anybody's private knowledge, and the
+party's reading of the world clock depends on knowing a round went by with
+nothing in it.
+
 ## Paid cast misses
 
 `events.proto` adds `EVENT_KIND_CAST_MISSED = 31` and the `Event.body`

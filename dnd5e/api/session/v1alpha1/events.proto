@@ -369,6 +369,28 @@ enum EventKind {
   // multi-target cast is unaffected and gets its own ordinary beat.
   EVENT_KIND_CAST_WARDED = 37;
 
+  // A CREATURE'S ROUTED WALK WENT NOWHERE: it was sent somewhere and did not
+  // move (design rpg-project#465, from Kirk's walk). The ordered cell was
+  // unreachable, or the creature was already standing where it was sent, so
+  // the route came back with no path and the turn ended where it began.
+  //
+  // A FACT ABOUT THE WORLD, NOT A MALFUNCTION, which is why it is a beat and
+  // not an error: a creature with a wall at its back has obeyed its orders,
+  // and the turn is over.
+  //
+  // IT EXISTS BECAUSE THE SILENCE COST A ROUND. The world spends a round per
+  // driven creature whether or not anybody moves, and a walk that moved
+  // nobody used to produce nothing at all — so the log could not tell a
+  // creature that was never asked from one that refused from one sent
+  // somewhere it could not reach. A spent round that moved nobody has to be
+  // visible, and this is it.
+  //
+  // Placement-scoped like ARRIVED, and audienced the same way: everyone in
+  // the run. A creature standing still is not anybody's private knowledge,
+  // and the party's own reading of the world clock depends on knowing that a
+  // round went by with nothing in it.
+  EVENT_KIND_STAYED = 38;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -487,6 +509,7 @@ message Event {
     Tempered tempered = 41;
     Warded warded = 42;
     CastWarded cast_warded = 43;
+    Stayed stayed = 44;
   }
 }
 
@@ -2167,4 +2190,47 @@ message Tempered {
   // deliberately separate fields because the thrower and the subject of a
   // throw are different questions everywhere else on this seam too.
   string faction = 5;
+}
+
+// Stayed: a creature's routed walk moved nobody (EVENT_KIND_STAYED). It was
+// sent somewhere — by its own table, or by whatever else routes a walk — and
+// the route came back with no path, so the turn ended on the cell it started
+// on (design rpg-project#465, from Kirk's walk).
+//
+// THE BEAT IS THE WHOLE ACCOUNT OF A SPENT ROUND. The world clock charges a
+// round per driven creature whether or not anybody moves; before this, a walk
+// that moved nobody was narrated as nothing, and a reader could not tell a
+// creature nobody asked from one that refused from one sent somewhere
+// unreachable. Every one of those now says so, with the cause that routed it
+// and the route's own sentence about where it stopped.
+//
+// NO CELLS ON IT, DELIBERATELY. Nothing moved, so there is no from and no to;
+// where the creature is standing is what the roster and the atlas already
+// answer, and a position here would be a second copy of a fact nothing
+// changed. A client narrates the round and re-reads nothing.
+message Stayed {
+  // Which creature stayed. A member id.
+  string member = 1;
+  // WHAT ROUTED IT, as the engine's own reference string —
+  // `<module>:<type>:<id>`, so a creature walking under its own orders
+  // (`encounter:table:...`) is distinguishable from one being shoved,
+  // commanded, or routed by a spell.
+  //
+  // A ref rather than a free sentence because this is the same question
+  // every routed walk answers, and it is required precisely so an observer is
+  // never told a creature walked for no reason. This beat says it did not
+  // walk; the cause is why it was trying.
+  string cause = 2;
+  // THE ROUTE'S OWN SENTENCE ABOUT WHY IT STOPPED, VERBATIM, for the debug
+  // log — the fold's refusal phrase, such as "is blocked by
+  // dnd5e:props:pillar". The engine never composes prose for a story
+  // renderer, and this is not that: a story shows that the creature stayed,
+  // and the debug log shows this line.
+  //
+  // EMPTY IS AN ANSWER, NOT A MISSING ONE. The route had nowhere strictly
+  // nearer to offer, which is its own reason and not a blocker it could name
+  // — a creature already standing where it was sent, or one with no cell
+  // closer than the one it is on. A reader must not treat empty as "the
+  // producer forgot"; it is the commonest case.
+  string why = 3;
 }

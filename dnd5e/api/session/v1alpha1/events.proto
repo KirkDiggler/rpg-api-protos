@@ -1792,6 +1792,46 @@ enum AnswerKey {
   ANSWER_KEY_TIME = 5;
 }
 
+// Temper is A CREATURE'S TEMPERAMENT: a weight profile and nothing else — a
+// map from table word to multiplier, applied to every weighted pick the
+// creature makes (design rpg-project#465 §3, R5). Four goblins handed one
+// table and one faction mix answer it four different ways, and this is the
+// only thing that differs between them.
+//
+// SEALED, AND AN ENUM FOR THE REASON AnswerWord AND AnswerKey ARE. The design
+// seals the set at three words and says in as many words that there is no
+// fourth, so the vocabulary is this contract's to carry and a client switches
+// on it exhaustively rather than string-matching content.
+//
+// THE NUMBERS ARE NOT HERE AND NEVER WILL BE. Which multiplier a profile gives
+// each word is CONTENT, held in the rulebook beside the default tables and
+// tuned by a walk; this enum names the profile and does not describe it. What
+// a profile did to a particular roll is already carried on that roll, exactly
+// and per line, as AnswerCandidate.percent — which is where a reader looks for
+// arithmetic, rather than joining against a copy of the table kept here.
+//
+// A TEMPERAMENT ADDS NOTHING AND REMEMBERS NOTHING: no entries where a table
+// is silent, no triggers of its own, no memory. The moment it grew any of
+// those it would be the retired mind under a new name (§7).
+enum Temper {
+  // NO TEMPERAMENT — a soldier's factors, every AnswerCandidate.percent 100.
+  // What an untempered creature carries on Answered.temper, and never what
+  // Tempered publishes.
+  TEMPER_UNSPECIFIED = 0;
+  // Every word weighted 1: the profile that multiplies nothing. DISTINCT FROM
+  // UNSPECIFIED BY PROVENANCE, NOT BY ARITHMETIC — this word was named, by a
+  // placement or by a faction's mix, and a reader that wants to know whether
+  // anybody chose it can tell.
+  TEMPER_SOLDIER = 1;
+  // Runs sooner and fights later: `away` and `flee` weighted up, `attack` and
+  // `toward` weighted down. The multipliers are content and a walk tunes them.
+  TEMPER_COWARD = 2;
+  // Fights sooner and runs later: `attack` and `toward` weighted up, `away`
+  // and `flee` weighted down. The multipliers are content and a walk tunes
+  // them.
+  TEMPER_AGGRESSIVE = 3;
+}
+
 // AnswerCandidate is ONE LINE OF THE TABLE AS THE DIE SAW IT — what the author
 // wrote, what the creature's temperament did to it, and the share it therefore
 // held of the roll (design rpg-project#465 §3, §6).
@@ -1986,16 +2026,20 @@ message Answered {
   // `when` held has nothing on the table, the creature holds, and this beat
   // carries ANSWER_WORD_HOLD with no candidates and `of` zero.
   repeated AnswerCandidate candidates = 11;
-  // The creature's temperament word, EMPTY WHEN IT HAS NONE — which is a
-  // soldier, the profile that multiplies nothing (design §3). The rulebook's
-  // own word, carried verbatim: today `coward` or `aggressive`, and `soldier`
-  // when a placement named that word or a faction's mix dealt it.
+  // The creature's temperament, UNSPECIFIED WHEN IT HAS NONE: a soldier's
+  // factors, every candidate's `percent` 100 (design §3).
+  //
+  // AN UNTEMPERED CREATURE IS LEFT UNSPECIFIED, NEVER FILLED WITH
+  // TEMPER_SOLDIER. The two multiply identically, so this costs a reader
+  // nothing arithmetically, and it keeps the one thing they do not share:
+  // SOLDIER means a placement or a faction's mix NAMED that word, and
+  // UNSPECIFIED means nobody did.
   //
   // Here on every pick because temperament is what loaded THIS die: a reader
   // holding one beat can say why the coward ran without joining back to the
   // TEMPERED beat that dealt it, and a creature whose temperament was authored
   // rather than dealt raised no such beat to join to.
-  string temper = 12;
+  Temper temper = 12;
 }
 
 // Tempered: a creature's temperament was dealt from its faction's mix at spawn
@@ -2008,6 +2052,10 @@ message Answered {
 // run. What a creature is made of is not anybody's private knowledge, and the
 // deal happens at spawn, before a member could have perceived anything.
 //
+// THE DIE NAMES ITS ENTITY, like every other pool on this seam: the mix is the
+// faction's, so `faction` is who threw, and `member` is who the word landed
+// on.
+//
 // A TEMPERAMENT IS A WEIGHT PROFILE AND NOTHING ELSE. It adds no entry where a
 // table is silent, it has no triggers of its own, and it holds no memory; it
 // multiplies the weights of the words the author already wrote. The moment it
@@ -2018,18 +2066,30 @@ message Tempered {
   // Which creature was dealt one. A member id, and the same placement id
   // Arrived names for a monster.
   string member = 1;
-  // The dealt word: one of the rulebook's sealed temperament words, carried
-  // verbatim — today `soldier`, `coward` or `aggressive`.
+  // The dealt temperament. NEVER UNSPECIFIED HERE: this beat exists because a
+  // mix was rolled and produced a word, so an unset one would be a producer
+  // defect rather than a creature with no temperament — such a creature raises
+  // no TEMPERED at all.
   //
   // AN AUTHORED `temper:` ON THE PLACEMENT IS NOT DEALT AND RAISES NO BEAT.
   // Nothing was rolled, so there is nothing for the table to watch; that
   // creature's word still reaches every reader on Answered.temper, on every
   // pick it makes.
-  string temper = 2;
+  Temper temper = 2;
   // The world's die, as rolled, on the faction's mix.
   int32 roll = 3;
   // What it was rolled against: the summed weights of the mix the faction
   // wrote. Weights are relative and an author writes whatever reads well, so
   // the total is the engine's own sum and is never assumed to be 100.
   int32 of = 4;
+  // THE FACTION WHOSE MIX WAS DEALT — THE DIE'S ENTITY (rpg-project#463: every
+  // dice pool names the entity whose rule threw it). The mix belongs to the
+  // faction, so the faction threw this die, and without it a reader holding
+  // the roll cannot say which mix produced it or check the sum against
+  // anything.
+  //
+  // Not the creature: `member` is who RECEIVED the word, and the two are
+  // deliberately separate fields because the thrower and the subject of a
+  // throw are different questions everywhere else on this seam too.
+  string faction = 5;
 }

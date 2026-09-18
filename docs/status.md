@@ -20,11 +20,13 @@ shape and consumer drift, it shows up here as a "rough edge."
   v1alpha1 session surface: `AnswerWord` gains the time words `HOLD = 3`,
   `ATTACK = 4`, `TOWARD = 5`, `AWAY = 6`; `AnswerKey
   { UNSPECIFIED, INTIMIDATED, INTIMIDATE_FAILED, PERSUADED, PERSUADE_FAILED,
-  TIME }` names which table the world rolled on; `AnswerCandidate
-  { entry, weight, percent, loaded }` carries one line of the loaded table;
-  `Answered` gains `key = 10`, `candidates = 11`, `temper = 12` and deprecates
-  `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35` arrives with
-  `Tempered { member, temper, roll, of }` at `Event.body` arm 41. The table is
+  TIME }` names which table the world rolled on; `Temper
+  { UNSPECIFIED, SOLDIER, COWARD, AGGRESSIVE }` names the weight profile;
+  `AnswerCandidate { entry, weight, percent, loaded }` carries one line of the
+  loaded table; `Answered` gains `key = 10`, `candidates = 11`, `temper = 12`
+  and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
+  arrives with `Tempered { member, temper, roll, of, faction }` at `Event.body`
+  arm 41. The table is
   now rolled whenever a creature **has time**, not only when a social verb
   resolves against it, which is what `verb` plus `beaten` could not spell — the
   pair multiplied to exactly four keys and a time pick would have read as a
@@ -33,7 +35,14 @@ shape and consumer drift, it shows up here as a "rough edge."
   reused. A creature's **temperament loads the die**, so `of` is the sum of
   `loaded` (`weight × percent`, undivided, hence hundredths of a weight) and the
   face grew two digits for every creature, tempered or not. `EVENT_KIND_TICK`
-  is untouched and stays body-less. Merges first — toolkit, `rpg-api` and web
+  is untouched and stays body-less. **`Temper` is an enum, not a string**, for
+  the reason `AnswerWord` and `AnswerKey` are — the design seals the set at
+  three words and says there is no fourth — and the multipliers stay off the
+  wire as content; an untempered creature is `UNSPECIFIED`, never `SOLDIER`,
+  which differ by provenance rather than arithmetic. `Tempered.faction` names
+  **the die's entity** (rpg-project#463: every dice pool names the entity whose
+  rule threw it); the mix is the faction's, so the faction threw it. Merges
+  first — toolkit, `rpg-api` and web
   follow on pseudo-versions. See
   [the contract](architecture/components/session-service.md#the-creatures-table).
 

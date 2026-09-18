@@ -319,11 +319,13 @@ pick: which table was rolled, what the roll was thrown against once the
 creature's temperament had loaded it, and every line that was eligible.
 `AnswerWord` gains `HOLD = 3`, `ATTACK = 4`, `TOWARD = 5` and `AWAY = 6`; a new
 `AnswerKey` enum carries `UNSPECIFIED 0, INTIMIDATED 1, INTIMIDATE_FAILED 2,
-PERSUADED 3, PERSUADE_FAILED 4, TIME 5`; a new `AnswerCandidate { entry = 1,
-weight = 2, percent = 3, loaded = 4 }` carries one line of the loaded table;
-`Answered` gains `key = 10`, `candidates = 11` and `temper = 12` and deprecates
-`verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35` arrives with
-`Tempered { member = 1, temper = 2, roll = 3, of = 4 }` at `Event.body` arm 41.
+PERSUADED 3, PERSUADE_FAILED 4, TIME 5`; a new `Temper` enum carries
+`UNSPECIFIED 0, SOLDIER 1, COWARD 2, AGGRESSIVE 3`; a new `AnswerCandidate
+{ entry = 1, weight = 2, percent = 3, loaded = 4 }` carries one line of the
+loaded table; `Answered` gains `key = 10`, `candidates = 11` and `temper = 12`
+and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
+arrives with `Tempered { member = 1, temper = 2, roll = 3, of = 4,
+faction = 5 }` at `Event.body` arm 41.
 Design: [rpg-project#465](https://github.com/KirkDiggler/rpg-project/issues/465),
 `rpg-project/ideas/creature-table/design.md` (rulings R1–R8 closed by Kirk
 2026-09-18).
@@ -350,8 +352,23 @@ already narrates a creature's turn, and `key` is how it tells them apart.
 temperament is a weight profile and nothing else — a map from table word to
 multiplier — so a reader holding one `Answered` can say why the coward ran
 without joining back to `Tempered`, and a creature whose `temper:` was authored
-rather than dealt raised no `Tempered` to join to. Empty means none, which is a
-soldier: the profile that multiplies nothing.
+rather than dealt raised no `Tempered` to join to.
+
+**It is an enum, for the reason `AnswerWord` and `AnswerKey` are.** The design
+seals the set at three words and says in as many words that there is no fourth,
+so the vocabulary is the contract's to carry and a client switches on it
+exhaustively rather than string-matching content. **The multipliers are not on
+the wire and never will be**: which factor a profile gives each word is content
+the rulebook holds beside the default tables and a walk tunes, and what a
+profile did to a particular roll is already carried exactly, per line, as
+`AnswerCandidate.percent`. The enum names the profile; it does not describe it.
+
+**An untempered creature is `UNSPECIFIED`, never `SOLDIER`.** The two multiply
+identically, so the distinction costs a reader nothing arithmetically, and it
+keeps the one thing they do not share: `SOLDIER` means a placement or a
+faction's mix named that word, and `UNSPECIFIED` means nobody did. On
+`Tempered` the dealt word is never `UNSPECIFIED` — that beat exists because a
+mix was rolled and produced one.
 
 **`candidates` carries the arithmetic, not the result alone.** Each line has the
 author's `weight`, the temperament's `percent` factor for that line's word, and
@@ -375,6 +392,12 @@ perceived anything. **Only a dealt temperament raises it**: a placement that
 names `temper:` outright rolled nothing, so absence means "not dealt" rather
 than "no temperament", and that creature's word still reaches every reader on
 `Answered.temper`.
+
+**The beat names the die's entity.** `faction = 5` is whose mix was dealt, and
+it is there because every dice pool on this seam names the entity whose rule
+threw it (rpg-project#463). The mix belongs to the faction, so the faction
+threw; `member` is who the word landed on. A reader holding the roll without
+the thrower could not say which mix produced it.
 
 **`EVENT_KIND_TICK = 7` is untouched and stays body-less.** The world clock is
 the toolkit's to advance; nothing on this seam changed to carry it.

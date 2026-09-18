@@ -168,6 +168,16 @@ message SpellOptions {
   // grows without this contract changing, and a client that cannot resolve a
   // ref shows the ref rather than mistaking it for SPELL_UNSPECIFIED.
   repeated string available_refs = 4;
+  // Automatically granted access, shown as locked options with source labels.
+  // These refs are not selectable, do not consume choose_count, and must not
+  // be submitted as selections. Producers omit them from available_refs.
+  repeated GrantedSpell grants = 5;
+}
+
+// Provider-authored spell or cantrip grant for a displayed choice.
+message GrantedSpell {
+  string spell_ref = 1; // Canonical dnd5e:spells:<id> reference.
+  string source_name = 2; // Display name, e.g. "Life Domain".
 }
 
 // Skills/tools that can gain expertise

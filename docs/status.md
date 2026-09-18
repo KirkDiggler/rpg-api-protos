@@ -16,6 +16,23 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **The `Stayed` beat (rpg-project#465, 2026-09-18)** — additive, from Kirk's
+  walk: `EVENT_KIND_STAYED = 38` with `Stayed { member, cause, why }` at
+  `Event.body` arm 44, appended when a creature's routed walk moves nobody
+  because the ordered cell was unreachable or it already stood there. **The
+  silence was costing a round** — the world clock charges one per driven
+  creature whether or not anybody moves, and a walk that moved nobody used to
+  narrate nothing, so the log could not tell a creature nobody asked from one
+  that refused from one sent somewhere it could not reach. A beat rather than
+  an error, because a creature with a wall at its back has obeyed. `cause` is
+  the engine's ref string (`<module>:<type>:<id>`), which separates a creature
+  under its own orders from one shoved, commanded or routed by a spell; `why`
+  is the route's refusal phrase verbatim for the debug log, and **empty is the
+  commonest answer** — the route had nowhere strictly nearer to offer. No cells
+  on it: nothing moved, and the roster and atlas already say where it stands.
+  Audience is everyone in the run, like `ARRIVED`. See
+  [the contract](architecture/components/session-service.md#the-stayed-beat--a-routed-walk-that-moved-nobody).
+
 - **The creature's table (rpg-project#465, 2026-09-18)** — additive on the
   v1alpha1 session surface: `AnswerWord` gains the time words `HOLD = 3`,
   `ATTACK = 4`, `TOWARD = 5`, `AWAY = 6`; `AnswerKey

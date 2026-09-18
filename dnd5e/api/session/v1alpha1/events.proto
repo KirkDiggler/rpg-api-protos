@@ -350,7 +350,7 @@ enum EventKind {
   // ONLY A DEALT ONE RAISES IT. A placement that names `temper:` outright was
   // not dealt: nothing was rolled, there is nothing to watch, and no beat is
   // published. Absence here therefore means "not dealt", never "no
-  // temperament" — the creature's word is on ANSWERED.temper on every pick it
+  // temperament" — the creature's word is on Answered.temper on every pick it
   // makes, which is where a reader that only wants to know the word looks.
   //
   // Placement-scoped like ARRIVED, and audienced the same way: everyone in the
@@ -1989,7 +1989,7 @@ message Answered {
   // The creature's temperament word, EMPTY WHEN IT HAS NONE — which is a
   // soldier, the profile that multiplies nothing (design §3). The rulebook's
   // own word, carried verbatim: today `coward` or `aggressive`, and `soldier`
-  // when a placement or a faction mix named it outright.
+  // when a placement named that word or a faction's mix dealt it.
   //
   // Here on every pick because temperament is what loaded THIS die: a reader
   // holding one beat can say why the coward ran without joining back to the

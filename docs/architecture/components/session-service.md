@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-17
+updated: 2026-09-18
 confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
@@ -224,10 +224,11 @@ field numbers. A third social verb joins as a third body.
 **`Answered` is the second of the design's two rolls.** The player's check
 publishes `Intimidated` or `Persuaded`; the world then rolls one entry of the
 author's weighted table and publishes this. R1 puts the die on the beat: `roll`
-is the throw, `of` the summed weights it was thrown against (weights are
-relative and an author writes 3 and 1 or 70 and 30, so the total is the
-engine's sum), and `entry` the zero-based index into the author's own list, so
-a builder can highlight the line that fired. A story renderer shows `word` and
+is the throw, `of` what it was thrown against (weights are relative and an
+author writes 3 and 1 or 70 and 30, so the total is the engine's sum — since
+the creature's table below, that sum is over the temperament-loaded weights),
+and `entry` the zero-based index into the author's own list, so a builder can
+highlight the line that fired. A story renderer shows `word` and
 `say` and ignores the rest; the debug log shows all of it, which is the
 full-data-down-the-log rule every beat here keeps until v1.
 
@@ -242,11 +243,11 @@ arm named one letter from it would be read as an opportunity attack by every
 client that switched on the arm. The design's prose keeps its own word; the
 contract does not borrow it.
 
-`AnswerWord` carries only the words that ship this slice — `FACT` and
-`FLEE`. The design names `alarm`, `lure` and `pretend` as words the vocabulary
-will take and they are deliberately absent: a value arrives with the slice that
-can make a creature do it, the way a `Verb` value arrives the day the SDK gates
-the verb. `say` is the author's line carried verbatim; the engine never
+`AnswerWord` carried only the words that shipped in this slice — `FACT` and
+`FLEE`; the creature's table below adds the four time words. The design names
+`alarm`, `lure`, `pretend` and `patrol` as words the vocabulary will take and
+they are deliberately absent: a value arrives with the slice that can make a
+creature do it, the way a `Verb` value arrives the day the SDK gates the verb. `say` is the author's line carried verbatim; the engine never
 composes it, and empty means the author wrote none.
 
 **`tell` collapsed into `FACT` rather than being deferred.** The design lists
@@ -310,6 +311,104 @@ later slice, is where belief and truth diverge, and it adds no field. It is
 presentation only and decides nothing about who may be attacked. Empty means
 the observer has no word for it, which is not `neutral`. **Nothing was added to
 `PublicMemberInfo`**, which is the whole point.
+
+## The creature's table
+
+`events.proto` turns the answer beat into the whole picture of a creature's
+pick: which table was rolled, what the roll was thrown against once the
+creature's temperament had loaded it, and every line that was eligible.
+`AnswerWord` gains `HOLD = 3`, `ATTACK = 4`, `TOWARD = 5` and `AWAY = 6`; a new
+`AnswerKey` enum carries `UNSPECIFIED 0, INTIMIDATED 1, INTIMIDATE_FAILED 2,
+PERSUADED 3, PERSUADE_FAILED 4, TIME 5`; a new `Temper` enum carries
+`UNSPECIFIED 0, NONE 1, SOLDIER 2, COWARD 3, AGGRESSIVE 4`; a new `AnswerCandidate
+{ entry = 1, weight = 2, percent = 3, loaded = 4 }` carries one line of the
+loaded table; `Answered` gains `key = 10`, `candidates = 11` and `temper = 12`
+and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
+arrives with `Tempered { member = 1, temper = 2, roll = 3, of = 4,
+faction = 5 }` at `Event.body` arm 41.
+Design: [rpg-project#465](https://github.com/KirkDiggler/rpg-project/issues/465),
+`rpg-project/ideas/creature-table/design.md` (rulings R1–R8 closed by Kirk
+2026-09-18).
+
+**It merges ahead of its SDK**, as Intimidate and the front room goblin did and
+for the stated reason: the contract goes first so the toolkit, `rpg-api` and web
+legs draft against one agreed shape on pseudo-versions.
+
+**The table is rolled when a creature merely has time, which is why `verb` plus
+`beaten` had to go.** Those two fields multiplied to exactly the four social
+keys, and there is no `(verb, beaten)` pair meaning "it was this creature's
+turn": a time pick would have arrived as an unspecified verb with `beaten`
+false, which reads as a threat that failed and never happened. `AnswerKey` says
+all five with one field. Both deprecated fields are **still filled on every
+answer to a social key**, so a reader written against the shipped shape keeps
+working, and **never filled for `TIME`**. Neither is removed and neither number
+is reused.
+
+**A time pick rides the same beat as a social answer** rather than getting a
+second one. One table, one roll, one body: a client that narrates an answer
+already narrates a creature's turn, and `key` is how it tells them apart.
+
+**`temper` is on every pick, not only on the beat that dealt it.** A
+temperament is a weight profile and nothing else — a map from table word to
+multiplier — so a reader holding one `Answered` can say why the coward ran
+without joining back to `Tempered`, and a creature whose `temper:` was authored
+rather than dealt raised no `Tempered` to join to.
+
+**It is an enum, for the reason `AnswerWord` and `AnswerKey` are.** The design
+seals the set at three words and says in as many words that there is no fourth,
+so the vocabulary is the contract's to carry and a client switches on it
+exhaustively rather than string-matching content. **The multipliers are not on
+the wire and never will be**: which factor a profile gives each word is content
+the rulebook holds beside the default tables and a walk tunes, and what a
+profile did to a particular roll is already carried exactly, per line, as
+`AnswerCandidate.percent`. The enum names the profile; it does not describe it.
+
+**An untempered creature is `NONE`, never `SOLDIER` and never `UNSPECIFIED`.**
+`NONE` and `SOLDIER` multiply identically, so that distinction costs a reader
+nothing arithmetically and keeps the one thing they do not share: `SOLDIER`
+means a placement or a faction's mix named that word, and `NONE` means nobody
+did. **Having no temperament is a real answer, so it gets its own word** and
+zero keeps the meaning it has everywhere in this file — the producer failed to
+set one, a defect. That is the shape `Slot` already uses for the same reason,
+`SLOT_NONE` beside `SLOT_UNSPECIFIED`, with the projection mapping the empty
+value to `NONE` explicitly rather than letting it fall through. A rulebook word
+the projecting build cannot name is **a refusal, never a quiet demotion to
+`NONE`**: demoting would publish a claim about the world where the truth is an
+admission about the build, and that creature's picks would read as a soldier's
+forever after. On `Tempered` the dealt word is never `NONE` or `UNSPECIFIED` —
+that beat exists because a mix was rolled and produced one.
+
+**`candidates` carries the arithmetic, not the result alone.** Each line has the
+author's `weight`, the temperament's `percent` factor for that line's word, and
+their product `loaded`; `of` is the sum of `loaded` and `entry` names the line
+that fired. An entry whose `when` did not hold is **absent from the list, not
+present with weight zero** — "was never on the table" and "was on it and lost"
+are different facts, and a reader has to be able to tell a goblin with nothing
+to run from apart from a goblin that rolled badly.
+
+**`loaded` is `weight × percent` undivided, so the die's scale moved.** Dividing
+by 100 would turn a coward's half-weighted `1` into `0` and drop the line out of
+its own table, so the scale is hundredths of a weight and `roll` and `of` live
+on it too: an untempered 70-and-30 table now rolls against 10000 rather than
+100. The ratios were always the meaning and the absolute number never was a
+percentage, but a consumer printing the face should know it grew two digits.
+
+**`EVENT_KIND_TEMPERED` is placement-scoped like `ARRIVED`** and audienced the
+same way — everyone in the run. What a creature is made of is not anybody's
+private knowledge, and the deal happens at spawn, before a member could have
+perceived anything. **Only a dealt temperament raises it**: a placement that
+names `temper:` outright rolled nothing, so absence means "not dealt" rather
+than "no temperament", and that creature's word still reaches every reader on
+`Answered.temper`.
+
+**The beat names the die's entity.** `faction = 5` is whose mix was dealt, and
+it is there because every dice pool on this seam names the entity whose rule
+threw it (rpg-project#463). The mix belongs to the faction, so the faction
+threw; `member` is who the word landed on. A reader holding the roll without
+the thrower could not say which mix produced it.
+
+**`EVENT_KIND_TICK = 7` is untouched and stays body-less.** The world clock is
+the toolkit's to advance; nothing on this seam changed to carry it.
 
 ## Paid cast misses
 

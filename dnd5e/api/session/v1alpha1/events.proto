@@ -340,16 +340,34 @@ enum EventKind {
   // until v1, which is what every beat here does.
   EVENT_KIND_ANSWERED = 34;
 
+  // A CREATURE'S TEMPERAMENT WAS DEALT FROM ITS FACTION'S MIX AT SPAWN
+  // (design rpg-project#465 §3, R5). A temperament is a weight profile and
+  // nothing else — a map from table word to multiplier, applied to every
+  // weighted pick the creature makes — so four goblins given one table and
+  // one faction mix answer it four different ways. This beat is how the table
+  // learns which goblin came out the coward.
+  //
+  // ONLY A DEALT ONE RAISES IT. A placement that names `temper:` outright was
+  // not dealt: nothing was rolled, there is nothing to watch, and no beat is
+  // published. Absence here therefore means "not dealt", never "no
+  // temperament" — the creature's word is on Answered.temper on every pick it
+  // makes, which is where a reader that only wants to know the word looks.
+  //
+  // Placement-scoped like ARRIVED, and audienced the same way: everyone in the
+  // run. What a creature is made of is not anybody's private knowledge, and
+  // the deal happens at spawn, before any member could have perceived it.
+  EVENT_KIND_TEMPERED = 35;
+
   // An attack a Sanctuary-style ward stopped before any roll against the
   // target — the ATTACKER's own failed save against the warding caster's
   // DC, not a fact about the target. No attack roll happened at all.
-  EVENT_KIND_WARDED = 35;
+  EVENT_KIND_WARDED = 36;
 
   // A cast a Sanctuary-style ward stopped before it reached one named
   // recipient — the CASTER's own failed save against the warding caster's
   // DC, EVENT_KIND_WARDED's Cast sibling. A different target in the same
   // multi-target cast is unaffected and gets its own ordinary beat.
-  EVENT_KIND_CAST_WARDED = 36;
+  EVENT_KIND_CAST_WARDED = 37;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -466,8 +484,9 @@ message Event {
     Intimidated intimidated = 38;
     Persuaded persuaded = 39;
     Answered answered = 40;
-    Warded warded = 41;
-    CastWarded cast_warded = 42;
+    Tempered tempered = 41;
+    Warded warded = 42;
+    CastWarded cast_warded = 43;
   }
 }
 
@@ -1711,17 +1730,31 @@ message Persuaded {
 }
 
 // AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer
-// table (design rpg-project#458, "The outcome vocabulary"). One word
-// per table entry, and an entry carries exactly one of them — two words in one
-// entry is an authoring error the validator refuses, so this is a single value
-// and never a set.
+// table (design rpg-project#458, "The outcome vocabulary"; extended by
+// rpg-project#465, "The creature's table"). One word per table entry, and an
+// entry carries exactly one of them — two words in one entry is an authoring
+// error the validator refuses, so this is a single value and never a set.
 //
-// THE ENUM GROWS A VALUE PER SLICE, never ahead of one. The design names
-// `alarm`, `lure` and `pretend` as words this vocabulary will take, and they
-// are deliberately NOT here: each arrives with the slice that can actually
-// make a creature do it, the way a Verb value arrives the day the SDK gates
-// the verb. A value no engine could produce would be a promise this contract
-// cannot keep, and a client would grow a branch for it that never runs.
+// THE ENUM GROWS A VALUE PER SLICE, never ahead of one, AND THIS SLICE BRINGS
+// `time`. The table is no longer rolled only when a social verb resolves
+// against a creature: it is also rolled whenever the creature HAS TIME — its
+// turn in a fight, or a round of the world clock — and HOLD, ATTACK, TOWARD
+// and AWAY are what a creature can do with one turn's worth of doing (design
+// rpg-project#465 §2). FACT and FLEE remain event words; the four arriving
+// here are time words.
+//
+// WHICH WORD IS LEGAL ON WHICH KEY IS THE AUTHOR'S TABLE'S PROBLEM, NOT A
+// SECOND ENUM. `attack` under `intimidated` is refused where the table is
+// compiled, so a word on the wrong key never reaches this wire and a client
+// never has to reject one. Splitting the vocabulary in two here would make
+// every consumer carry the legality rule as well.
+//
+// STILL DELIBERATELY NOT HERE: `alarm`, `lure`, `pretend` and `patrol`. The
+// design names all four as words this vocabulary will take, and each arrives
+// with the slice that can actually make a creature do it, the way a Verb value
+// arrives the day the SDK gates the verb. A value no engine could produce
+// would be a promise this contract cannot keep, and a client would grow a
+// branch for it that never runs.
 //
 // `tell` IS NOT A DEFERRED WORD — IT COLLAPSED INTO FACT. The design lists it
 // separately as "the party learns a fact, possibly false", but teaching a fact
@@ -1742,10 +1775,174 @@ enum AnswerWord {
   // ride a broadcast body at all. This word says a fact was taught to whoever
   // was there, and no more.
   ANSWER_WORD_FACT = 1;
-  // The creature's mind received fear of the actor and it runs. NOT a flag on
-  // the creature and not this beat's doing: the mind decides what running
-  // looks like, and the steps arrive as MOVED on the creature's own turn.
+  // The creature holds `fled` from the actor, at now. NOT a flag on the
+  // creature, and IT DOES NOT STEP ON THIS BEAT: the verb pays its round on
+  // the world clock, and the creature's own `time` table — reading that deed
+  // through `fled: {within: N}` — does the running, so the steps arrive as
+  // MOVED.
+  //
+  // NO MIND DECIDES WHAT RUNNING LOOKS LIKE. The mind is retired
+  // (rpg-project#465 §7); what a frightened creature does is its author's
+  // table, loaded by its temperament, rolled when it next has time.
   ANSWER_WORD_FLEE = 2;
+  // Pass — one turn's worth of doing spent standing there. Also what a TIME
+  // roll with no eligible entry produces: when every entry's `when` failed,
+  // the table was silent, the creature holds, and the beat says so with an
+  // empty `candidates` rather than by omitting a word (design §2, "fail
+  // closed loudly").
+  ANSWER_WORD_HOLD = 3;
+  // Strike the selected member. A TIME WORD ONLY: off the turn clock it is
+  // refused, because an enemy within reach is a fight sight that has already
+  // formed, and the fight's own machinery swings there.
+  ANSWER_WORD_ATTACK = 4;
+  // Walk toward the selected member's BELIEVED position, or toward an authored
+  // cell — the turn's movement. Believed, never actual: where a creature
+  // thinks somebody is comes from perception, per observer, and the table only
+  // reads it.
+  ANSWER_WORD_TOWARD = 5;
+  // Walk away from the selected member — the turn's movement. The coward's
+  // run, and what a creature holding `fled` does with the time after it.
+  //
+  // NOT THE COMPELLED WALKS. Command and Dissonant Whispers drive a member
+  // through the engine's own Routed path and do not pass through the table at
+  // all; this word is a creature choosing to go, not a creature being sent.
+  ANSWER_WORD_AWAY = 6;
+}
+
+// AnswerKey is WHICH TABLE THE WORLD ROLLED ON — the author's own spelling
+// under `on:` in the dungeon file, carried so the beat stands alone (design
+// rpg-project#465 §2, "Triggers").
+//
+// TWO KINDS OF KEY, AND THE DIFFERENCE IS WHEN THE ROLL HAPPENS. The four
+// social keys are EVENT keys: the verb resolved against this creature and the
+// pick executes now, inside it. TIME is a TIME key: the creature has time —
+// its turn in a fight, or a round of the world clock — and the pick is one
+// turn's worth of doing. A client that narrates them the same way is right to;
+// a client that wants to know why a creature acted reads this field.
+//
+// IT REPLACES `verb` PLUS `beaten`, WHICH COULD ONLY SPELL FOUR. Two fields
+// multiplied to exactly the four social keys, and there is no (verb, beaten)
+// pair that means "it was this creature's turn": the old shape would have had
+// to answer a TIME pick with an unset verb and a false `beaten`, which reads
+// as a failed something. One field naming the key can say all five, and the
+// two it supersedes are deprecated rather than removed — see Answered.
+//
+// SEALED, AND IT GROWS ONE VALUE PER USE CASE, the law AnswerWord keeps. The
+// design names no sixth trigger: there is deliberately no `attacked` key
+// (what a creature does about being hit is decided when it next has time, off
+// the deed it holds) and no `arrived` key (an arrival that should go somewhere
+// is a TIME entry with a `when`, a standing order rather than a memory).
+enum AnswerKey {
+  ANSWER_KEY_UNSPECIFIED = 0;
+  // The author's `intimidated` list: a threat that beat the creature's DC.
+  ANSWER_KEY_INTIMIDATED = 1;
+  // The author's `intimidate_failed` list: a threat that did not. Failure has
+  // a table on purpose — a failed threat that raises the alarm is what makes
+  // attempting worse than not attempting.
+  ANSWER_KEY_INTIMIDATE_FAILED = 2;
+  // The author's `persuaded` list: an attempt that beat the creature's DC.
+  ANSWER_KEY_PERSUADED = 3;
+  // The author's `persuade_failed` list: an attempt that did not.
+  ANSWER_KEY_PERSUADE_FAILED = 4;
+  // The author's `time` list: the creature had time and this is what it did
+  // with it. No verb and no check stand behind a pick on this key, which is
+  // why Answered.verb and Answered.beaten are never filled for it.
+  ANSWER_KEY_TIME = 5;
+}
+
+// Temper is A CREATURE'S TEMPERAMENT: a weight profile and nothing else — a
+// map from table word to multiplier, applied to every weighted pick the
+// creature makes (design rpg-project#465 §3, R5). Four goblins handed one
+// table and one faction mix answer it four different ways, and this is the
+// only thing that differs between them.
+//
+// SEALED, AND AN ENUM FOR THE REASON AnswerWord AND AnswerKey ARE. The design
+// seals the set at three words and says in as many words that there is no
+// fourth, so the vocabulary is this contract's to carry and a client switches
+// on it exhaustively rather than string-matching content.
+//
+// THE NUMBERS ARE NOT HERE AND NEVER WILL BE. Which multiplier a profile gives
+// each word is CONTENT, held in the rulebook beside the default tables and
+// tuned by a walk; this enum names the profile and does not describe it. What
+// a profile did to a particular roll is already carried on that roll, exactly
+// and per line, as AnswerCandidate.percent — which is where a reader looks for
+// arithmetic, rather than joining against a copy of the table kept here.
+//
+// A TEMPERAMENT ADDS NOTHING AND REMEMBERS NOTHING: no entries where a table
+// is silent, no triggers of its own, no memory. The moment it grew any of
+// those it would be the retired mind under a new name (§7).
+//
+// NONE IS A VALUE, NOT THE ZERO. Having no temperament is a real answer about
+// a creature, so it gets its own word and UNSPECIFIED keeps its meaning across
+// this file: the producer failed to set one, a defect (see the EventKind
+// comment). This is the shape Slot already uses for the same reason —
+// SLOT_NONE beside SLOT_UNSPECIFIED, with the projection mapping the empty
+// value to NONE explicitly rather than letting it fall through.
+enum Temper {
+  // THE PRODUCER FAILED TO SET ONE. A defect, never a creature with no
+  // temperament — that is TEMPER_NONE. A well-formed beat never carries this.
+  TEMPER_UNSPECIFIED = 0;
+  // NO TEMPERAMENT: nobody named a word for this creature, and every
+  // AnswerCandidate.percent on its picks is 100. What an untempered creature
+  // carries on Answered.temper, and never what Tempered publishes.
+  TEMPER_NONE = 1;
+  // Every word weighted 1: the profile that multiplies nothing. DISTINCT FROM
+  // NONE BY PROVENANCE, NOT BY ARITHMETIC — this word was named, by a
+  // placement or by a faction's mix, and a reader that wants to know whether
+  // anybody chose it can tell.
+  TEMPER_SOLDIER = 2;
+  // Runs sooner and fights later: `away` and `flee` weighted up, `attack` and
+  // `toward` weighted down. The multipliers are content and a walk tunes them.
+  TEMPER_COWARD = 3;
+  // Fights sooner and runs later: `attack` and `toward` weighted up, `away`
+  // and `flee` weighted down. The multipliers are content and a walk tunes
+  // them.
+  TEMPER_AGGRESSIVE = 4;
+}
+
+// AnswerCandidate is ONE LINE OF THE TABLE AS THE DIE SAW IT — what the author
+// wrote, what the creature's temperament did to it, and the share it therefore
+// held of the roll (design rpg-project#465 §3, §6).
+//
+// EVERY ENTRY WHOSE `when` HELD FOR THIS ROLL, AND ONLY THOSE. Entries whose
+// `when` did not hold are ABSENT from this list, not present with a zero
+// weight (design §2, and "zero values tell the truth"): an entry that was not
+// on the table is a different fact from an entry that was on it and lost, and
+// a reader must be able to tell a goblin with nothing to run from apart from a
+// goblin that rolled badly.
+//
+// THE ARITHMETIC IS CARRIED, NOT THE RESULT ALONE, so a debug log can show
+// authored × temper for every line and a reader can redo the sum the engine
+// did. That is the full-data-down-the-log rule every beat here keeps until
+// v1; a story renderer shows the word and the line and ignores all of this.
+message AnswerCandidate {
+  // Which entry this is, ZERO-BASED, in the order the author wrote them under
+  // the key — the SAME index space as Answered.entry, so the line that fired
+  // is always one of these and a builder can highlight it in the file the
+  // author is looking at. The list is in the author's order, and its indices
+  // are not contiguous when a `when` filtered a line out.
+  int32 entry = 1;
+  // What the author wrote, verbatim. A weight the author omitted is 1 here,
+  // because 1 is what it means; it is never 0, because an ineligible entry is
+  // absent rather than zero-weighted.
+  int32 weight = 2;
+  // The creature's temperament factor FOR THIS ENTRY'S WORD, IN PERCENT: 100
+  // when the creature has no temperament (a soldier) or when the profile does
+  // not weight this word, and otherwise the profile's multiplier — the
+  // design's ½ and ¼ are 50 and 25, its 3 is 300.
+  //
+  // Percent rather than a float so this beat's arithmetic is exact integer
+  // arithmetic a reader can repeat and get the engine's own answer.
+  int32 percent = 3;
+  // weight × percent: the share the die was actually rolled against, and what
+  // Answered.of sums.
+  //
+  // IN HUNDREDTHS OF A WEIGHT, deliberately undivided. Dividing by 100 here
+  // would turn a coward's half-weighted 1 into 0 and drop the line out of its
+  // own table, so the scale is kept and Answered.roll and Answered.of live on
+  // it too. Nothing here is a percentage: the ratios between `loaded` values
+  // are the whole meaning.
+  int32 loaded = 4;
 }
 
 // Answered: the creature's authored answer to a check, rolled by the world
@@ -1759,23 +1956,51 @@ enum AnswerWord {
 // rolled by the world, freezing nothing. See EVENT_KIND_ANSWERED for why the
 // wire says ANSWER where the design doc says "reaction table".
 //
-// THE DIE IS ON THE BEAT (R1, Kirk 2026-09-17). roll, of and entry are the
-// world's own throw, carried so the debug log can show it and a run can be
-// read back; a story renderer shows `word` and `say` and ignores the rest.
-// That is the full-data-down-the-log rule every beat here keeps until v1, not
-// an exposure special to this one.
+// THE DIE IS ON THE BEAT (R1, Kirk 2026-09-17), AND NOW SO IS ITS ARITHMETIC
+// (rpg-project#465 §6). `roll` is the world's own throw against `of`, which is
+// the sum of `loaded` over `candidates` — every entry whose `when` held, each
+// one's authored weight times its temperament factor. The whole loaded table
+// is carried rather than the total alone, so a debug log can show authored ×
+// temper line by line and a reader can redo the engine's sum. A story renderer
+// shows `word` and `say` and ignores all of it. That is the
+// full-data-down-the-log rule every beat here keeps until v1, not an exposure
+// special to this one.
 //
-// ONE ENTRY FIRES. There is no list here because the table cannot produce one:
-// an entry is one word plus a line, and an author who wants two things to
-// happen cannot say so yet. A later slice that pays for it adds a list inside
-// an entry, not a second Answered.
+// TIME PICKS RIDE THIS SAME BEAT (design §6). A creature that acts because it
+// HAD TIME — its turn in a fight, or a round of the world clock — rolls the
+// same authored table through the same dice and publishes the same body, with
+// `key` naming ANSWER_KEY_TIME. There is no second beat for what a creature
+// does on its own initiative: one table, one roll, one shape, and a client
+// that narrates an answer already narrates a turn.
+//
+// ONE ENTRY FIRES. There is no list of OUTCOMES here because the table cannot
+// produce one: an entry is one word plus a line, and an author who wants two
+// things to happen cannot say so yet. A later slice that pays for it adds a
+// list inside an entry, not a second Answered. `candidates` is not that list —
+// it is what was ELIGIBLE, of which exactly one fired.
 message Answered {
   // Which creature answered. A member id.
   string creature = 1;
-  // Which verb it is answering — VERB_INTIMIDATE or VERB_PERSUADE. The
-  // seam's own verb vocabulary rather than a second copy of it, so a client
-  // that already branches on Verb branches once.
-  Verb verb = 2;
+  // DEPRECATED — SUPERSEDED BY `key` (rpg-project#465). Which verb it is
+  // answering: VERB_INTIMIDATE or VERB_PERSUADE.
+  //
+  // STILL FILLED ON EVERY ANSWER TO ONE OF THE FOUR SOCIAL KEYS, so a reader
+  // written against the shipped shape keeps working unchanged. NEVER FILLED
+  // ON A TIME ANSWER, because no verb stands behind one: the creature rolled
+  // because it had time, and an unset verb there is the truth rather than a
+  // hole a producer forgot to fill.
+  //
+  // Deprecated because this field and `beaten` together could spell exactly
+  // four keys and the table now has five. A reader that switches on the pair
+  // reads every time pick as an unspecified verb with a failed check, which is
+  // a sentence about a threat that never happened. Read `key`.
+  Verb verb = 2 [deprecated = true];
+  // DEPRECATED — SUPERSEDED BY `key` (rpg-project#465), on the same terms as
+  // `verb`: still filled on every answer to one of the four social keys so
+  // existing readers keep working, and NEVER filled on a TIME answer, where
+  // there is no check to have beaten and `false` would read as a failure that
+  // never happened.
+  //
   // Whether the player's check was beaten, which is WHICH TABLE the world
   // rolled on: true is the success table the author wrote under `intimidated`
   // or `persuaded`, false the failure table under `intimidate_failed` or
@@ -1787,17 +2012,30 @@ message Answered {
   // moment earlier, and it is repeated because this beat has to stand alone: a
   // reader needs to know which table `entry` is an index INTO, and pairing two
   // beats to find out would assume an ordering the stream does not promise.
-  bool beaten = 3;
-  // The world's die, as rolled.
+  bool beaten = 3 [deprecated = true];
+  // The world's die, as rolled — a face on `of`'s scale, which since
+  // rpg-project#465 is hundredths of a weight rather than the author's raw
+  // weights. See `of`, and never read this as a percentage.
   int32 roll = 4;
-  // What it was rolled against: the summed weights of the entries under the
-  // key that fired. Weights are relative and an author writes whatever reads
-  // well — 3 and 1, or 70 and 30 — so the total is the engine's own sum and is
-  // carried rather than assumed to be 100.
+  // What it was rolled against: THE SUM OF `loaded` OVER `candidates`, which
+  // is every entry whose `when` held, each authored weight times its
+  // temperament factor. Weights are relative and an author writes whatever
+  // reads well — 3 and 1, or 70 and 30 — so the total is the engine's own sum
+  // and is carried rather than assumed to be 100.
+  //
+  // THE SCALE MOVED WITH TEMPERAMENT (rpg-project#465). `loaded` is in
+  // hundredths of a weight, undivided so a half-weighted 1 does not round to
+  // nothing, so this sum is too: an untempered 70-and-30 table rolls against
+  // 10000, and the same table under a coward against 16000. The ratios are the
+  // meaning; the absolute number is not, and a renderer that showed it as a
+  // percentage was reading it wrong before this slice as well.
   int32 of = 5;
   // Which entry fired, ZERO-BASED, in the order the author wrote them under
   // that key. An index into the AUTHOR'S list, so a builder can highlight the
   // line that fired in the file the author is looking at.
+  //
+  // Always one of `candidates`, which carries every entry eligible for this
+  // roll under the same index space.
   int32 entry = 6;
   // What the creature did. One word, never a set — see AnswerWord.
   AnswerWord word = 7;
@@ -1842,4 +2080,91 @@ message Answered {
   // Deprecated rather than removed, and 9 is burnt: a field number is never
   // reused and a type never changes in place on this seam.
   string fact = 9 [deprecated = true];
+  // WHICH KEY THE WORLD ROLLED ON — the one field that replaces `verb` plus
+  // `beaten` (rpg-project#465 §2). The four social keys say the same thing the
+  // deprecated pair says; ANSWER_KEY_TIME says the creature acted because it
+  // had time, and for it `verb` and `beaten` are both unset.
+  AnswerKey key = 10;
+  // THE LOADED TABLE AS ROLLED: every entry whose `when` held, in the author's
+  // order, each with its authored weight, its temperament factor and their
+  // product. `of` is the sum of `loaded` across this list, and `entry` names
+  // the one that fired.
+  //
+  // Empty is a real answer, not a missing one: a TIME roll where no entry's
+  // `when` held has nothing on the table, the creature holds, and this beat
+  // carries ANSWER_WORD_HOLD with no candidates and `of` zero.
+  repeated AnswerCandidate candidates = 11;
+  // The creature's temperament, TEMPER_NONE WHEN IT HAS NONE: every
+  // candidate's `percent` on this pick is 100 (design §3).
+  //
+  // AN UNTEMPERED CREATURE IS TEMPER_NONE, NEVER TEMPER_SOLDIER. The two
+  // multiply identically, so this costs a reader nothing arithmetically, and
+  // it keeps the one thing they do not share: SOLDIER means a placement or a
+  // faction's mix NAMED that word, and NONE means nobody did.
+  //
+  // AND NEVER UNSPECIFIED ON A WELL-FORMED BEAT. Zero is the producer's
+  // failure, not a creature's answer, which is why NONE exists at all. A
+  // rulebook word the projecting build cannot name is A REFUSAL, never
+  // quietly demoted to NONE: demoting would publish "this creature has no
+  // temperament", which is a claim about the world rather than an admission
+  // about the build, and the creature's picks would read as a soldier's
+  // forever after.
+  //
+  // Here on every pick because temperament is what loaded THIS die: a reader
+  // holding one beat can say why the coward ran without joining back to the
+  // TEMPERED beat that dealt it, and a creature whose temperament was authored
+  // rather than dealt raised no such beat to join to.
+  Temper temper = 12;
+}
+
+// Tempered: a creature's temperament was dealt from its faction's mix at spawn
+// (EVENT_KIND_TEMPERED, design rpg-project#465 §3, R5). A faction that writes
+// `temper: { coward: 1, soldier: 2, aggressive: 1 }` hands every placement in
+// it the same orders and a different die, and this beat is how the table sees
+// which goblin came out the coward.
+//
+// PLACEMENT-SCOPED LIKE ARRIVED, and audienced the same way — everyone in the
+// run. What a creature is made of is not anybody's private knowledge, and the
+// deal happens at spawn, before a member could have perceived anything.
+//
+// THE DIE NAMES ITS ENTITY, like every other pool on this seam: the mix is the
+// faction's, so `faction` is who threw, and `member` is who the word landed
+// on.
+//
+// A TEMPERAMENT IS A WEIGHT PROFILE AND NOTHING ELSE. It adds no entry where a
+// table is silent, it has no triggers of its own, and it holds no memory; it
+// multiplies the weights of the words the author already wrote. The moment it
+// grew any of those it would be the retired mind under a new name (§3, and §7
+// for what was retired). What it did to a particular roll is visible on that
+// roll, as AnswerCandidate.percent.
+message Tempered {
+  // Which creature was dealt one. A member id, and the same placement id
+  // Arrived names for a monster.
+  string member = 1;
+  // The dealt temperament. NEVER TEMPER_NONE AND NEVER UNSPECIFIED HERE: this
+  // beat exists because a mix was rolled and produced a word. A creature with
+  // no temperament raises no TEMPERED at all, so NONE could not arrive; and
+  // UNSPECIFIED would be a producer defect, as everywhere else on this seam.
+  //
+  // AN AUTHORED `temper:` ON THE PLACEMENT IS NOT DEALT AND RAISES NO BEAT.
+  // Nothing was rolled, so there is nothing for the table to watch; that
+  // creature's word still reaches every reader on Answered.temper, on every
+  // pick it makes.
+  Temper temper = 2;
+  // The world's die, as rolled, on the faction's mix.
+  int32 roll = 3;
+  // What it was rolled against: the summed weights of the mix the faction
+  // wrote. Weights are relative and an author writes whatever reads well, so
+  // the total is the engine's own sum and is never assumed to be 100.
+  int32 of = 4;
+  // THE FACTION WHOSE MIX WAS DEALT — THE DIE'S ENTITY (rpg-project#463: every
+  // dice pool names the entity whose rule threw it). The mix belongs to the
+  // faction, so the faction threw this die, and without it a reader holding
+  // the roll cannot say which mix produced it or check the sum against
+  // anything.
+  //
+  // Not the creature: `member` is who RECEIVED the word, and the two are
+  // deliberately separate fields because the thrower and the subject of a
+  // throw are different questions everywhere else on this seam too.
+  string faction = 5;
 }

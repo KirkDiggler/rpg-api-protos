@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-17
+updated: 2026-09-18
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,40 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **The creature's table (rpg-project#465, 2026-09-18)** — additive on the
+  v1alpha1 session surface: `AnswerWord` gains the time words `HOLD = 3`,
+  `ATTACK = 4`, `TOWARD = 5`, `AWAY = 6`; `AnswerKey
+  { UNSPECIFIED, INTIMIDATED, INTIMIDATE_FAILED, PERSUADED, PERSUADE_FAILED,
+  TIME }` names which table the world rolled on; `Temper
+  { UNSPECIFIED, NONE, SOLDIER, COWARD, AGGRESSIVE }` names the weight profile;
+  `AnswerCandidate { entry, weight, percent, loaded }` carries one line of the
+  loaded table; `Answered` gains `key = 10`, `candidates = 11`, `temper = 12`
+  and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
+  arrives with `Tempered { member, temper, roll, of, faction }` at `Event.body`
+  arm 41. The table is
+  now rolled whenever a creature **has time**, not only when a social verb
+  resolves against it, which is what `verb` plus `beaten` could not spell — the
+  pair multiplied to exactly four keys and a time pick would have read as a
+  threat that failed and never happened. Both stay filled for the four social
+  keys and are never filled for `TIME`; neither is removed and neither number is
+  reused. A creature's **temperament loads the die**, so `of` is the sum of
+  `loaded` (`weight × percent`, undivided, hence hundredths of a weight) and the
+  face grew two digits for every creature, tempered or not. `EVENT_KIND_TICK`
+  is untouched and stays body-less. **`Temper` is an enum, not a string**, for
+  the reason `AnswerWord` and `AnswerKey` are — the design seals the set at
+  three words and says there is no fourth — and the multipliers stay off the
+  wire as content; an untempered creature is `NONE`, never `SOLDIER` (they
+  differ by provenance rather than arithmetic) and never `UNSPECIFIED` — having
+  no temperament is a real answer, so it gets its own word and zero keeps its
+  meaning as a producer defect, the shape `Slot` already uses with `SLOT_NONE`
+  beside `SLOT_UNSPECIFIED`. A word the projecting build cannot name is a
+  refusal, never a quiet demotion to `NONE`. `Tempered.faction` names
+  **the die's entity** (rpg-project#463: every dice pool names the entity whose
+  rule threw it); the mix is the faction's, so the faction threw it. Merges
+  first — toolkit, `rpg-api` and web
+  follow on pseudo-versions. See
+  [the contract](architecture/components/session-service.md#the-creatures-table).
 
 - **`Answered.fact` deprecated (rpg-project#458, 2026-09-17)** — **a fact never
   rides a broadcast beat** (Kirk's ruling). The field shipped one PR earlier as
@@ -38,8 +72,9 @@ shape and consumer drift, it shows up here as a "rough edge."
   `EVENT_KIND_ANSWERED = 34` with `Answered { creature, verb, beaten, roll, of,
   entry, word, say, fact }` at arm 40 (`fact` since deprecated, see above) and
   its `AnswerWord` enum (`FACT` and
-  `FLEE` only — the design's `tell` collapsed into `FACT`, because a fact is an
-  id and nothing else and there is no truth bit for a second word to set), and
+  `FLEE` in that slice, joined by the four time words in the creature's table
+  above — the design's `tell` collapsed into `FACT`, because a fact is an id
+  and nothing else and there is no truth bit for a second word to set), and
   `Sighting.stance = 10`. Persuade is Intimidate field for field — **the
   response never duplicates the beat**, so the numbers live only on `Persuaded`
   — and is the first verb offered on the **world clock** as well as the turn

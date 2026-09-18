@@ -1813,23 +1813,33 @@ enum AnswerKey {
 // A TEMPERAMENT ADDS NOTHING AND REMEMBERS NOTHING: no entries where a table
 // is silent, no triggers of its own, no memory. The moment it grew any of
 // those it would be the retired mind under a new name (§7).
+//
+// NONE IS A VALUE, NOT THE ZERO. Having no temperament is a real answer about
+// a creature, so it gets its own word and UNSPECIFIED keeps its meaning across
+// this file: the producer failed to set one, a defect (see the EventKind
+// comment). This is the shape Slot already uses for the same reason —
+// SLOT_NONE beside SLOT_UNSPECIFIED, with the projection mapping the empty
+// value to NONE explicitly rather than letting it fall through.
 enum Temper {
-  // NO TEMPERAMENT — a soldier's factors, every AnswerCandidate.percent 100.
-  // What an untempered creature carries on Answered.temper, and never what
-  // Tempered publishes.
+  // THE PRODUCER FAILED TO SET ONE. A defect, never a creature with no
+  // temperament — that is TEMPER_NONE. A well-formed beat never carries this.
   TEMPER_UNSPECIFIED = 0;
+  // NO TEMPERAMENT: nobody named a word for this creature, and every
+  // AnswerCandidate.percent on its picks is 100. What an untempered creature
+  // carries on Answered.temper, and never what Tempered publishes.
+  TEMPER_NONE = 1;
   // Every word weighted 1: the profile that multiplies nothing. DISTINCT FROM
-  // UNSPECIFIED BY PROVENANCE, NOT BY ARITHMETIC — this word was named, by a
+  // NONE BY PROVENANCE, NOT BY ARITHMETIC — this word was named, by a
   // placement or by a faction's mix, and a reader that wants to know whether
   // anybody chose it can tell.
-  TEMPER_SOLDIER = 1;
+  TEMPER_SOLDIER = 2;
   // Runs sooner and fights later: `away` and `flee` weighted up, `attack` and
   // `toward` weighted down. The multipliers are content and a walk tunes them.
-  TEMPER_COWARD = 2;
+  TEMPER_COWARD = 3;
   // Fights sooner and runs later: `attack` and `toward` weighted up, `away`
   // and `flee` weighted down. The multipliers are content and a walk tunes
   // them.
-  TEMPER_AGGRESSIVE = 3;
+  TEMPER_AGGRESSIVE = 4;
 }
 
 // AnswerCandidate is ONE LINE OF THE TABLE AS THE DIE SAW IT — what the author
@@ -2026,14 +2036,21 @@ message Answered {
   // `when` held has nothing on the table, the creature holds, and this beat
   // carries ANSWER_WORD_HOLD with no candidates and `of` zero.
   repeated AnswerCandidate candidates = 11;
-  // The creature's temperament, UNSPECIFIED WHEN IT HAS NONE: a soldier's
-  // factors, every candidate's `percent` 100 (design §3).
+  // The creature's temperament, TEMPER_NONE WHEN IT HAS NONE: every
+  // candidate's `percent` on this pick is 100 (design §3).
   //
-  // AN UNTEMPERED CREATURE IS LEFT UNSPECIFIED, NEVER FILLED WITH
-  // TEMPER_SOLDIER. The two multiply identically, so this costs a reader
-  // nothing arithmetically, and it keeps the one thing they do not share:
-  // SOLDIER means a placement or a faction's mix NAMED that word, and
-  // UNSPECIFIED means nobody did.
+  // AN UNTEMPERED CREATURE IS TEMPER_NONE, NEVER TEMPER_SOLDIER. The two
+  // multiply identically, so this costs a reader nothing arithmetically, and
+  // it keeps the one thing they do not share: SOLDIER means a placement or a
+  // faction's mix NAMED that word, and NONE means nobody did.
+  //
+  // AND NEVER UNSPECIFIED ON A WELL-FORMED BEAT. Zero is the producer's
+  // failure, not a creature's answer, which is why NONE exists at all. A
+  // rulebook word the projecting build cannot name is A REFUSAL, never
+  // quietly demoted to NONE: demoting would publish "this creature has no
+  // temperament", which is a claim about the world rather than an admission
+  // about the build, and the creature's picks would read as a soldier's
+  // forever after.
   //
   // Here on every pick because temperament is what loaded THIS die: a reader
   // holding one beat can say why the coward ran without joining back to the
@@ -2066,10 +2083,10 @@ message Tempered {
   // Which creature was dealt one. A member id, and the same placement id
   // Arrived names for a monster.
   string member = 1;
-  // The dealt temperament. NEVER UNSPECIFIED HERE: this beat exists because a
-  // mix was rolled and produced a word, so an unset one would be a producer
-  // defect rather than a creature with no temperament — such a creature raises
-  // no TEMPERED at all.
+  // The dealt temperament. NEVER TEMPER_NONE AND NEVER UNSPECIFIED HERE: this
+  // beat exists because a mix was rolled and produced a word. A creature with
+  // no temperament raises no TEMPERED at all, so NONE could not arrive; and
+  // UNSPECIFIED would be a producer defect, as everywhere else on this seam.
   //
   // AN AUTHORED `temper:` ON THE PLACEMENT IS NOT DEALT AND RAISES NO BEAT.
   // Nothing was rolled, so there is nothing for the table to watch; that

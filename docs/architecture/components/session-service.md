@@ -320,7 +320,7 @@ creature's temperament had loaded it, and every line that was eligible.
 `AnswerWord` gains `HOLD = 3`, `ATTACK = 4`, `TOWARD = 5` and `AWAY = 6`; a new
 `AnswerKey` enum carries `UNSPECIFIED 0, INTIMIDATED 1, INTIMIDATE_FAILED 2,
 PERSUADED 3, PERSUADE_FAILED 4, TIME 5`; a new `Temper` enum carries
-`UNSPECIFIED 0, SOLDIER 1, COWARD 2, AGGRESSIVE 3`; a new `AnswerCandidate
+`UNSPECIFIED 0, NONE 1, SOLDIER 2, COWARD 3, AGGRESSIVE 4`; a new `AnswerCandidate
 { entry = 1, weight = 2, percent = 3, loaded = 4 }` carries one line of the
 loaded table; `Answered` gains `key = 10`, `candidates = 11` and `temper = 12`
 and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
@@ -363,12 +363,20 @@ the rulebook holds beside the default tables and a walk tunes, and what a
 profile did to a particular roll is already carried exactly, per line, as
 `AnswerCandidate.percent`. The enum names the profile; it does not describe it.
 
-**An untempered creature is `UNSPECIFIED`, never `SOLDIER`.** The two multiply
-identically, so the distinction costs a reader nothing arithmetically, and it
-keeps the one thing they do not share: `SOLDIER` means a placement or a
-faction's mix named that word, and `UNSPECIFIED` means nobody did. On
-`Tempered` the dealt word is never `UNSPECIFIED` — that beat exists because a
-mix was rolled and produced one.
+**An untempered creature is `NONE`, never `SOLDIER` and never `UNSPECIFIED`.**
+`NONE` and `SOLDIER` multiply identically, so that distinction costs a reader
+nothing arithmetically and keeps the one thing they do not share: `SOLDIER`
+means a placement or a faction's mix named that word, and `NONE` means nobody
+did. **Having no temperament is a real answer, so it gets its own word** and
+zero keeps the meaning it has everywhere in this file — the producer failed to
+set one, a defect. That is the shape `Slot` already uses for the same reason,
+`SLOT_NONE` beside `SLOT_UNSPECIFIED`, with the projection mapping the empty
+value to `NONE` explicitly rather than letting it fall through. A rulebook word
+the projecting build cannot name is **a refusal, never a quiet demotion to
+`NONE`**: demoting would publish a claim about the world where the truth is an
+admission about the build, and that creature's picks would read as a soldier's
+forever after. On `Tempered` the dealt word is never `NONE` or `UNSPECIFIED` —
+that beat exists because a mix was rolled and produced one.
 
 **`candidates` carries the arithmetic, not the result alone.** Each line has the
 author's `weight`, the temperament's `percent` factor for that line's word, and

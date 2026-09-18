@@ -21,7 +21,7 @@ shape and consumer drift, it shows up here as a "rough edge."
   `ATTACK = 4`, `TOWARD = 5`, `AWAY = 6`; `AnswerKey
   { UNSPECIFIED, INTIMIDATED, INTIMIDATE_FAILED, PERSUADED, PERSUADE_FAILED,
   TIME }` names which table the world rolled on; `Temper
-  { UNSPECIFIED, SOLDIER, COWARD, AGGRESSIVE }` names the weight profile;
+  { UNSPECIFIED, NONE, SOLDIER, COWARD, AGGRESSIVE }` names the weight profile;
   `AnswerCandidate { entry, weight, percent, loaded }` carries one line of the
   loaded table; `Answered` gains `key = 10`, `candidates = 11`, `temper = 12`
   and deprecates `verb = 2` and `beaten = 3`; and `EVENT_KIND_TEMPERED = 35`
@@ -38,8 +38,12 @@ shape and consumer drift, it shows up here as a "rough edge."
   is untouched and stays body-less. **`Temper` is an enum, not a string**, for
   the reason `AnswerWord` and `AnswerKey` are — the design seals the set at
   three words and says there is no fourth — and the multipliers stay off the
-  wire as content; an untempered creature is `UNSPECIFIED`, never `SOLDIER`,
-  which differ by provenance rather than arithmetic. `Tempered.faction` names
+  wire as content; an untempered creature is `NONE`, never `SOLDIER` (they
+  differ by provenance rather than arithmetic) and never `UNSPECIFIED` — having
+  no temperament is a real answer, so it gets its own word and zero keeps its
+  meaning as a producer defect, the shape `Slot` already uses with `SLOT_NONE`
+  beside `SLOT_UNSPECIFIED`. A word the projecting build cannot name is a
+  refusal, never a quiet demotion to `NONE`. `Tempered.faction` names
   **the die's entity** (rpg-project#463: every dice pool names the entity whose
   rule threw it); the mix is the faction's, so the faction threw it. Merges
   first — toolkit, `rpg-api` and web

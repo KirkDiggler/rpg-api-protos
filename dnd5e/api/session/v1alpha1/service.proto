@@ -324,6 +324,15 @@ message AttackResponse {
   // Answered via the session's generic React verb; finishing the attack
   // writes the beat this response did not.
   bool paused = 13;
+  // True when a Sanctuary-style ward on the target stopped this attack
+  // before any roll — against, hit, critical, and damage all stay at their
+  // zero value, the same "these are not answers" shape paused documents
+  // above. The full facts (the attacker's own failed save against the
+  // ward) arrive as a Warded story beat, not here — this is a summary flag
+  // for the caller, not a second copy of the beat.
+  bool warded = 14;
+  // The caster whose ward blocked this attempt, present only when warded.
+  string warded_by = 15;
 }
 
 // DeathSaveRequest executes the active Dying character's current explicit
@@ -679,6 +688,13 @@ message CastResponse {
   optional int32 roll = 5;
   // The number the offer would join, present only when paused.
   optional int32 total = 6;
+  // Names attempted recipients a Sanctuary-style ward stopped before any
+  // save or effect ran against them, in caller order — caught's sibling
+  // for this specific reason. A different target in the same multi-target
+  // cast is unaffected and never appears here. The full facts (the
+  // caster's own failed save against each ward) arrive as CastWarded story
+  // beats, one per name here, not as a second copy of them in this list.
+  repeated string warded_targets = 7;
 }
 
 // ReactRequest answers one open reaction window (rpg-project#316, the

@@ -1121,6 +1121,9 @@ enum FootprintOrigin {
   // from the caster and its width is perpendicular to that bearing.
   // The aimed cell supplies direction, not the box's centre or far edge.
   FOOTPRINT_ORIGIN_CASTER_EDGE = 2;
+  // The selected map cell is the centre, including the caster's own cell.
+  // Range and placement legality remain authoritative provider decisions.
+  FOOTPRINT_ORIGIN_POINT = 3;
 }
 
 // Footprint is provider-authored area presentation copied from the content's
@@ -1133,7 +1136,7 @@ message Footprint {
   // Positive extent in feet: a radius for RADIUS, one full edge for BOX.
   int32 size_feet = 2;
   // A supported anchor; UNSPECIFIED is invalid on a present footprint.
-  // Current provider combinations are RADIUS/CASTER and BOX/CASTER_EDGE.
+  // Supported combinations include RADIUS/CASTER, RADIUS/POINT, and BOX/CASTER_EDGE.
   FootprintOrigin origin = 3;
 }
 
@@ -1270,9 +1273,9 @@ message Declaration {
   // Generic display price copied from the same spend profile execution charges.
   // This is not authorization and carries no private resource key.
   repeated CostComponent cost = 18;
-  // The menu of choices this cast offers, when the spell has one — the word a
-  // Command speaks. Empty on a cast that offers no choice, and on every verb
-  // that is not VERB_CAST.
+  // Provider-authored choices for a cast or reaction. Empty when no choice
+  // is offered. Cast echoes the ID on CastRequest.option; taking a reaction
+  // echoes it on ReactRequest.option. Declining a reaction leaves it empty.
   //
   // A CAST-TIME INPUT, THE WAY `cell` IS ONE, rather than a row of its own. One
   // spell stays one declaration with one selector, and the client echoes the id
@@ -1984,4 +1987,15 @@ message DoorInfo {
   DoorState state = 2;
   // Set only while state is LOCKED.
   DoorLock lock = 3;
+}
+
+// SightArea is the public footprint of a persistent sight obstruction.
+// The opaque ID carries no source member identity. Rules and remaining
+// concentration are authoritative on the provider; clients only render it.
+message SightArea {
+  string id = 1;
+  string name = 2;
+  string source_ref = 3;
+  Position center = 4;
+  int32 radius_feet = 5;
 }

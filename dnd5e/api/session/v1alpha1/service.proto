@@ -1346,15 +1346,36 @@ message GetAtlasResponse {
   // either behaves exactly as it does today. Presentation only: nothing here
   // gates movement, sight, or any rule.
   AtlasStart start = 13;
-  // Optional presentation snapshot: versioned JSON of the toolkit's canonical
-  // RoomScenePresentation, including its source coordinate frame, workspace,
-  // and complete visual scene (groups, supports, lights and per-piece height).
-  // Preserve JSON numbers without narrowing through legacy float pose fields.
-  // No author monster/start markers or substitute gameplay state live here;
-  // atlas/session mechanical channels remain authoritative.
-  // Empty means absent/legacy. Consumers must refuse malformed or unsupported
-  // nonempty payloads rather than silently falling back to legacy rendering.
-  string room_scene_json = 14;
+  // The key of the authored dungeon this session was launched from, as the
+  // content registry knows it.
+  //
+  // THE SCENE IS SERVED BY KEY, NOT BY THE ENCOUNTER (rpg-project#479). What a
+  // room looks like — its assets, transforms, lights and labels — is content
+  // the World Builder owns, and the registry already hands back the authored
+  // file verbatim. So a client fetches the room's presentation with this key
+  // through `AuthoringService.GetDungeon` — ungated, because reading content
+  // mutates nothing — and reads it with its own codec. The scene a player sees
+  // and the field the engine compiled come from the same bytes, because the
+  // registry compiled that entry from them; the engine keeps only the numbers
+  // it places a footprint from and carries no document it does not read.
+  //
+  // Empty means the session predates this field — a saved session launched
+  // before it existed. A client reads empty as NO AUTHORED SCENE and draws
+  // what it drew before, never as an error: everything above is the whole
+  // mechanical truth either way, and presentation is the only thing missing.
+  string dungeon_key = 15;
+  // DEPRECATED. Superseded by `dungeon_key` above (rpg-project#479). The
+  // engine no longer carries the World Builder's scene, so a server stops
+  // filling this field and a client stops reading it. Kept — never removed,
+  // never retyped, and 14 is burnt — so a client built against it keeps
+  // decoding; it simply finds it empty from every producer that has dropped
+  // the presentation.
+  //
+  // It held a versioned JSON snapshot of the toolkit's canonical
+  // RoomScenePresentation: the source coordinate frame, the workspace, and the
+  // complete visual scene. That document is content, and content reaches a
+  // client by key from the registry rather than riding every atlas.
+  string room_scene_json = 14 [deprecated = true];
 }
 
 // =============================================================================

@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-18
+updated: 2026-09-19
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,22 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **Presentation is content (rpg-project#479, 2026-09-19)** — additive on
+  `GetAtlasResponse`: `dungeon_key = 15` names the authored dungeon the session
+  was launched from, and `room_scene_json = 14` gains `[deprecated = true]`.
+  What a room looks like is the World Builder's content, served by key from the
+  registry through the ungated `AuthoringService.GetDungeon` and decoded by the
+  client's own codec — not a JSON scene the engine validates, stores and
+  re-marshals on every save to read three numbers per prop out of. One string
+  on the wire: no scene RPC and no scene DTO, so nothing on this contract models
+  a visual scene. Empty `dungeon_key` means a session saved before the field
+  existed and reads as *no authored scene*, never as an error. Tag 14 is burnt
+  and the field is never removed; a producer that has dropped the presentation
+  leaves it empty. **Merges first** — toolkit `encounter`, toolkit `session`,
+  `rpg-api` and web follow in that order on pseudo-versions, and the wave is
+  walked on the workshop room and one v2 dungeon before any of it merges. See
+  [the contract](architecture/components/session-service.md#the-scene-is-served-by-key-not-by-the-encounter).
 
 - **The `Stayed` beat (rpg-project#465, 2026-09-18)** — additive, from Kirk's
   walk: `EVENT_KIND_STAYED = 38` with `Stayed { member, cause, why }` at

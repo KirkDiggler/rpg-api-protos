@@ -762,6 +762,51 @@ the old shape wearing a new type.
 Construction truth: unchanged by movement, joins, exits or endings. Fetch it
 once per encounter and cache it; never per frame.
 
+### The scene is served by key, not by the encounter
+
+**`dungeon_key` arrived 2026-09-19 (tag 15), and `room_scene_json` (tag 14) is
+deprecated the same day** (rpg-project#479). The two are one change: what a room
+*looks like* — assets, transforms, lights, labels — is content the World Builder
+owns, and it stops riding the atlas.
+
+`room_scene_json` shipped two days earlier carrying a versioned JSON snapshot of
+the toolkit's `RoomScenePresentation` on every atlas, which meant the engine
+validated, stored and re-marshalled on every save a document from which play
+reads **three numbers per prop** (`transform.x`, `transform.z`,
+`transform.rotationY`, joined to the gameplay block's footprint). The rest — the
+frame words, the lights, the labels, the height scales — was judged by an engine
+that never reads it, and the editor's scalar bounds had to be mirrored in Go and
+TypeScript in lockstep. That is a downstream consumer's document living inside
+the engine, which is the coupling the toolkit's composability rule exists to
+prevent.
+
+`dungeon_key` is the whole replacement: the key of the authored dungeon the
+session was launched from, as the content registry knows it. A client fetches
+the room's presentation with it through `AuthoringService.GetDungeon`
+([authoring-service.md](authoring-service.md)), which is ungated because reading
+content mutates nothing, and reads the file with its own codec — the same codec
+that authored it. **The scene a player sees and the field the engine compiled
+come from the same bytes**, because the registry compiled that entry from them.
+One string on the wire: no scene RPC, no scene DTO, nothing on this contract that
+models a visual scene.
+
+Empty means the session predates the field — a session saved before it existed.
+A client reads empty as *no authored scene* and draws what it drew before, never
+as an error: everything else on this message is the whole mechanical truth
+either way.
+
+`room_scene_json` carries `[deprecated = true]` and **14 is burnt** — never
+removed, never retyped, the discipline `occluders` and `Answered.fact` set here.
+A producer that has dropped the presentation leaves it empty and a client built
+against it keeps decoding.
+
+**What this forecloses, stated rather than papered over:** a running session no
+longer carries its own visuals, so a file re-`Put` under the same key while a
+session is live changes the scene under geometry that was compiled at launch.
+Pre-v1 that is acceptable and visible. Kirk's ruling names the fix when it stops
+being: an immutable scene revision pinned on the session, which is the
+*registry's* noun, never the encounter's.
+
 ## The event spine
 
 `Event` (`events.proto`) mirrors `session.Event` exactly — `session`, `seq`,

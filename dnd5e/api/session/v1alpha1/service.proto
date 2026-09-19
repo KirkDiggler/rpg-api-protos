@@ -726,6 +726,11 @@ message ReactRequest {
   // and "the player chose to hold" must not be the same bytes, because one of
   // them declines a swing on the player's behalf.
   ReactChoice choice = 4;
+  // Provider-authored option ID from the selected reaction declaration's
+  // options. Required when taking a reaction that offers a menu; empty when
+  // holding or when the reaction has no menu. The server validates the choice
+  // against the persisted window before spending any resource.
+  string option = 5;
 }
 
 // ReactResponse is an acknowledgement, the same shape as ActivateResponse and
@@ -1105,6 +1110,9 @@ message GetViewRequest {
 // replay for position. That is closed — see GetWhereRequest below.
 message GetViewResponse {
   repeated Sighting sightings = 1;
+  // Current sight-obscuring areas observable by this authenticated member.
+  // This is member-local geometry, not a list of all effects in the world.
+  repeated SightArea areas = 2;
 }
 
 // GetWhereRequest asks where one member stands.

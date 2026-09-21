@@ -519,8 +519,8 @@ message Event {
     Exited exited = 18;
     Ended ended = 19;
     DoorChanged door = 20;
-    DoorRevealed door_revealed = 21;
-    RegionRevealed region_revealed = 22;
+    DoorRevealed door_revealed = 21 [deprecated = true];
+    RegionRevealed region_revealed = 22 [deprecated = true];
     Activated activated = 23;
     ActivationResult activation_result = 24;
     DeathSaveRolled death_save_rolled = 25;
@@ -1610,6 +1610,32 @@ message ConcealmentRevealed {
   // still floor: it is drawn and it is lit, and what sight does at it is the
   // wall's business, not this list's.
   repeated Position sealed = 8;
+  // Every region the reveal TOUCHES, WHOLE, as this recipient now sees it —
+  // exactly as GetAtlasResponse.regions would carry it now.
+  //
+  // A REPLACEMENT, the same law as `sealed` above: an entry here replaces the
+  // entry of that id in the recipient's cached `regions` outright, and a
+  // client swaps rather than merges. Merging is not available, because what a
+  // non-knower held was not a smaller list — it was a SHORTER REGION. A region
+  // is a name over a set of cells, and the concealment's cells cannot appear
+  // in it without naming the secret, so a touched region reaches a non-knower
+  // with those cells dropped from its own `cells`, or reaches them not at all
+  // when every cell of the region is hidden. A client that merged would keep
+  // the short cell list sitting beside the true one.
+  //
+  // A REGION'S OWN FACTS RIDE WITH IT — archetype and lighting — which is how
+  // a room withheld entirely gets dressed and lit the way its author dressed
+  // and lit it the moment it arrives, instead of rendering as bare floor until
+  // the next GetAtlas.
+  //
+  // Apply this beat WHOLE and nothing here can disagree with anything above:
+  // every cell an entry names is in the recipient's patched `cells` once
+  // `cells` is applied, same absolute frame and same comparator.
+  //
+  // EMPTY IS LEGAL and means the reveal touched no region — a cell-less
+  // concealment, or cells belonging to no region at all, which are SCENERY
+  // (see GetAtlasResponse.regions).
+  repeated AtlasRegion regions = 9;
 }
 
 // Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted

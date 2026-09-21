@@ -155,7 +155,12 @@ enum EventKind {
   // load-once, beat-refreshed law (rpg-project#264). This is
   // rpg-toolkit#1020's shelf coming due for doors, per the standing ruling
   // that detection beats are per-player from birth.
-  EVENT_KIND_DOOR_REVEALED = 15;
+  //
+  // DEPRECATED: superseded by ConcealmentRevealed (rpg-project#490). A door is
+  // not a thing that hides on its own — it is a member of a concealment, and
+  // the concealment is the one knowledge moment. Still delivered until nothing
+  // emits it; a client reads CONCEALMENT_REVEALED instead.
+  EVENT_KIND_DOOR_REVEALED = 15 [deprecated = true];
   // A concealed region entered THIS RECIPIENT'S knowledge: they perceived
   // its concealed door OPEN — present at the opening, or walking up later
   // (present state; the same exemplary-causes law as DOOR_REVEALED).
@@ -164,7 +169,13 @@ enum EventKind {
   // seeing what is behind it, so DOOR_REVEALED carries the door alone and
   // this beat carries the room. Recipient-scoped like DOOR_REVEALED, for
   // the same reasons, patching the same cached atlas.
-  EVENT_KIND_REGION_REVEALED = 16;
+  //
+  // DEPRECATED: superseded by ConcealmentRevealed (rpg-project#490). The split
+  // this kind exists to keep — knowing where a door is is not seeing what is
+  // behind it — was a split between two flags; one concealment holds its cells
+  // and its doors together and reveals them together. Still delivered until
+  // nothing emits it; a client reads CONCEALMENT_REVEALED instead.
+  EVENT_KIND_REGION_REVEALED = 16 [deprecated = true];
   // A member successfully used an authored ability. This precedes every
   // ACTIVATION_RESULT produced by that activation. From rpg-toolkit#1433,
   // Session v0.48.0, via rpg-api-protos#275.
@@ -391,6 +402,28 @@ enum EventKind {
   // round went by with nothing in it.
   EVENT_KIND_STAYED = 38;
 
+  // A CONCEALMENT ENTERED THIS RECIPIENT'S KNOWLEDGE (design rpg-project#490).
+  // One authored secret — its floor, its props, its doors, its walls — arrives
+  // as ONE beat, superseding DOOR_REVEALED and REGION_REVEALED above, which
+  // split one hidden thing into two kinds because the engine hid doors and
+  // regions with two separate flags. A concealment is the single noun an author
+  // hides, so knowledge of it arrives once.
+  //
+  // Recipient-scoped by design, for the reasons the two superseded kinds give:
+  // an unknown concealment is absent from this recipient's door lists and
+  // atlas, and its member doors are masked as ordinary wall in their geometry
+  // (see GetAtlasResponse), so the beat that introduces it carries everything
+  // the client needs to patch its cached view — the load-once, beat-refreshed
+  // law (rpg-project#264), under the standing ruling that detection beats are
+  // per-player from birth.
+  //
+  // THE CAUSES ARE EXAMPLES OF KNOWLEDGE ARRIVING, NOT A CLOSED SET (the same
+  // law DOOR_REVEALED carries): a search that found it, crossing into its
+  // cells, perceiving one of its member doors standing open, perceiving a
+  // creature standing on its cells, or looted or held intel that names it. The
+  // full trigger set is owned where perception lives.
+  EVENT_KIND_CONCEALMENT_REVEALED = 39;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -486,8 +519,8 @@ message Event {
     Exited exited = 18;
     Ended ended = 19;
     DoorChanged door = 20;
-    DoorRevealed door_revealed = 21;
-    RegionRevealed region_revealed = 22;
+    DoorRevealed door_revealed = 21 [deprecated = true];
+    RegionRevealed region_revealed = 22 [deprecated = true];
     Activated activated = 23;
     ActivationResult activation_result = 24;
     DeathSaveRolled death_save_rolled = 25;
@@ -510,6 +543,7 @@ message Event {
     Warded warded = 42;
     CastWarded cast_warded = 43;
     Stayed stayed = 44;
+    ConcealmentRevealed concealment_revealed = 45;
   }
 }
 
@@ -1347,7 +1381,12 @@ message DoorChanged {
 // segment the recipient already holds. RegionRevealed carries segments
 // because a hidden ROOM's walls were withheld outright; a hidden DOOR's
 // never were.
+//
+// DEPRECATED: superseded by ConcealmentRevealed (rpg-project#490). Kept, tag
+// for tag, until nothing emits EVENT_KIND_DOOR_REVEALED.
 message DoorRevealed {
+  option deprecated = true;
+
   // The door's identity and live state, exactly as this recipient's
   // GetDoors would now list it.
   DoorInfo door = 1;
@@ -1397,7 +1436,15 @@ message DoorRevealed {
 // region is itself a concealed door (authoring refuses anything else),
 // and doors keep their own law — DoorRevealed, the masquerade wall, the
 // probe law. A door never rides a room's reveal.
+//
+// DEPRECATED: superseded by ConcealmentRevealed (rpg-project#490), where a
+// door DOES ride its concealment's reveal — the two knowledge moments this
+// message's neighbour kept apart were an artefact of two authored flags, and
+// one concealment has one. Kept, tag for tag, until nothing emits
+// EVENT_KIND_REGION_REVEALED.
 message RegionRevealed {
+  option deprecated = true;
+
   // The AtlasRegion entry the recipient's `regions` was missing. Its own
   // `cells` list IS the patch for the cached `cells` — same absolute
   // frame, same comparator (see AtlasRegion.cells) — so this message
@@ -1443,6 +1490,152 @@ message RegionRevealed {
   // floor is still floor: it is drawn and it is lit, and what sight does at
   // it is the wall's business, not this list's.
   repeated Position sealed = 5;
+}
+
+// ConcealmentRevealed: one concealment entered the recipient's knowledge
+// (EVENT_KIND_CONCEALMENT_REVEALED) — by their own search, by crossing into
+// its cells, by perceiving one of its member doors standing open, by
+// perceiving a creature standing on its cells, or by intel that names it. The
+// causes are exemplary, not a closed set, as DoorRevealed's and
+// RegionRevealed's are.
+//
+// ONE NOUN, ONE REVEAL (design rpg-project#490). The two messages above split
+// one authored secret across two kinds and two payloads because the engine hid
+// doors and regions with two separate flags; a concealment is the one thing an
+// author hides, and its cells, props, member doors, boundaries and walls
+// arrive together here. Both are deprecated and retire when nothing emits
+// them.
+//
+// PER-RECIPIENT, NOT PER-OCCURRENCE, like every Event: one reveal becomes one
+// Event per member it reached, and their payloads differ because what each
+// member held beforehand differs. Projection is decided where perception
+// lives, inside the toolkit; rpg-api neither filters nor re-derives it (see
+// Event).
+//
+// THE PAYLOAD IS BUILT FOR ITS RECIPIENT rather than shared. A non-knower held
+// no honest wire trace of this concealment — its cells absent from GetAtlas,
+// its props absent, its member doors absent from GetDoors and masked as
+// ordinary wall in its geometry (see GetAtlasResponse) — so the beat carries
+// everything the client needs to patch its cached GetAtlas and GetDoors views
+// in place: the load-once, beat-refreshed law (rpg-project#264). Once applied,
+// a patched atlas and a fresh GetAtlas answer the same thing.
+//
+// STILL DELIBERATELY NARROW — one concealment's own slice, never a sweep. The
+// repo-wide GeometryRevealed this repo removed in #197/#198 stays dead, and a
+// wider reveal (a scried map, a lit floor) is its own design round.
+//
+// KNOWLEDGE, NOT STATE, and it arrives once. A member who already holds the
+// concealment hears the ordinary beats of whatever happened — DoorChanged for
+// a door's state, Sighted for who came into view — and never a second reveal.
+message ConcealmentRevealed {
+  // The author's id for the concealment — the dungeon file's
+  // `concealments[].id`, which is what intel binds to with
+  // `reveals: { concealment }` and what a client keys its patch on.
+  string concealment = 1;
+  // The concealment's own floor cells, absolute axial (q, r) — exactly the
+  // cells this recipient's GetAtlasResponse.cells withheld, and the patch for
+  // it. Same absolute frame and the same comparator as
+  // GetAtlasResponse.cells, so a client appends and never re-bases.
+  //
+  // EMPTY IS LEGAL AND MEANS A CELL-LESS CONCEALMENT — a hidden crossing whose
+  // members are doors alone. Nothing about the floor was hidden, so there is
+  // nothing to add, and `doors` and `doorways` below are the whole patch.
+  repeated Position cells = 2;
+  // The props standing on those cells, exactly as GetAtlasResponse.props would
+  // carry them. Withheld from a non-knower along with the floor they stand on
+  // — a prop in a hidden room is as hidden as the room.
+  repeated AtlasProp props = 3;
+  // The concealment's member doors, each one's identity and live state,
+  // exactly as this recipient's GetDoors would now list them. Absent from that
+  // list until this beat.
+  //
+  // A DOOR RIDES ITS CONCEALMENT'S REVEAL, which is the whole difference from
+  // the two messages above: RegionRevealed deliberately carried no door
+  // because a concealed region's doors were separately concealed things with
+  // their own beat. Membership in one concealment is one secret.
+  repeated DoorInfo doors = 4;
+  // Those doors' crossable cell pairs — the AtlasDoorway entries a knower's
+  // GetAtlas carries for them, absent from this recipient's cached atlas until
+  // now. Every edge of a wide door arrives together (rpg-toolkit#1123: a door
+  // is one state over a set of edges).
+  //
+  // A door's gap is still derived client-side where a doorway meets a segment
+  // the recipient holds, marked by nothing on the wire — see AtlasSegment.
+  repeated AtlasDoorway doorways = 5;
+  // The mechanical truth at the revealed edges: every boundary touching the
+  // concealment's cells — border walls included, since the never-authored
+  // yardstick withheld them all (see GetAtlasResponse) — plus the truth at its
+  // member doors' own edges, exactly as GetAtlasResponse.boundaries would
+  // carry them now.
+  //
+  // A REPLACEMENT WHERE THE MASQUERADE STOOD. Where the mask applies — a
+  // member door between two spaces the recipient can see — their cached atlas
+  // holds a synthetic ordinary wall boundary there, and these replace it. A
+  // door's edges otherwise carry no authored boundary and the entry simply
+  // comes off, the doorways above being the truth. Interior-only would leave
+  // the revealed room border-wall-less in the recipient's patched atlas.
+  repeated AtlasBoundary boundaries = 6;
+  // The concealment's walls AS THE AUTHOR DREW THEM — every segment this
+  // recipient's GetAtlas withheld under the same yardstick, exactly as
+  // GetAtlasResponse.segments would carry them now.
+  //
+  // A DIFFERENCE, NOT THE WHOLE SET: walls the recipient did not have and now
+  // does. A segment they already hold is not re-sent — the masquerade wall at
+  // a member door was presented as that wall's WHOLE segment, so it drew
+  // correctly before this beat and draws correctly after, with the door's gap
+  // appearing where the doorways above meet it.
+  //
+  // Presentation only, like its GetAtlasResponse twin: `boundaries` above
+  // stays the mechanical truth and nothing here changes what a member may do.
+  // Without it a client that draws from segments patches in a revealed secret
+  // room with NO WALLS AT ALL — the boundaries arrive, but a client drawing
+  // segments no longer fits a chain out of them, so it has nothing to draw
+  // from. That is the one scenario a concealment exists to produce.
+  repeated AtlasSegment segments = 7;
+  // The revealed cells that NOBODY CAN STAND ON — the cells its walls run
+  // through the middle of. A subset of `cells` above, so this adds no cell the
+  // patch does not already carry and cannot disagree with it about what
+  // exists.
+  //
+  // A REPLACEMENT over those cells, not a difference: it is the complete
+  // answer to which of the arriving cells are sealed, and a client applies it
+  // as the sealed set for them rather than merging it into a partial one.
+  //
+  // A SEALED CELL KEEPS ITS REGION, so membership no longer implies standable
+  // — as true of floor arriving by reveal as of floor fetched with the atlas.
+  // A client that patches these cells in and then places anything by region
+  // membership alone will stand it inside a wall.
+  //
+  // Same absolute frame and the same comparator as `cells`. Sealed floor is
+  // still floor: it is drawn and it is lit, and what sight does at it is the
+  // wall's business, not this list's.
+  repeated Position sealed = 8;
+  // Every region the reveal TOUCHES, WHOLE, as this recipient now sees it —
+  // exactly as GetAtlasResponse.regions would carry it now.
+  //
+  // A REPLACEMENT, the same law as `sealed` above: an entry here replaces the
+  // entry of that id in the recipient's cached `regions` outright, and a
+  // client swaps rather than merges. Merging is not available, because what a
+  // non-knower held was not a smaller list — it was a SHORTER REGION. A region
+  // is a name over a set of cells, and the concealment's cells cannot appear
+  // in it without naming the secret, so a touched region reaches a non-knower
+  // with those cells dropped from its own `cells`, or reaches them not at all
+  // when every cell of the region is hidden. A client that merged would keep
+  // the short cell list sitting beside the true one.
+  //
+  // A REGION'S OWN FACTS RIDE WITH IT — archetype and lighting — which is how
+  // a room withheld entirely gets dressed and lit the way its author dressed
+  // and lit it the moment it arrives, instead of rendering as bare floor until
+  // the next GetAtlas.
+  //
+  // Apply this beat WHOLE and nothing here can disagree with anything above:
+  // every cell an entry names is in the recipient's patched `cells` once
+  // `cells` is applied, same absolute frame and same comparator.
+  //
+  // EMPTY IS LEGAL and means the reveal touched no region — a cell-less
+  // concealment, or cells belonging to no region at all, which are SCENERY
+  // (see GetAtlasResponse.regions).
+  repeated AtlasRegion regions = 9;
 }
 
 // Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted

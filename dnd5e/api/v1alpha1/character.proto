@@ -358,6 +358,11 @@ message ProficiencyGrants {
 
 // Character proficiencies
 message Proficiencies {
+  // Skills whose provider-authored rank doubles the proficiency contribution.
+  // These also appear in skills. Includes Expertise and equivalent grants such
+  // as Blessings of Knowledge; it does not identify a particular class feature.
+  repeated Skill expertise_skills = 9;
+
   // Skill proficiencies
   repeated Skill skills = 1;
 

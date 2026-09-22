@@ -1016,6 +1016,13 @@ message SpellInfo {
 
   // Spell level (0 for cantrips, 1-9 for leveled spells)
   int32 level = 4;
+
+  // Canonical shared spell identity; use this to join class choices and sheet refs.
+  string spell_ref = 5;
+
+  // This catalog spell may be selected or granted, but has no executable
+  // behavior yet. Display "Not yet implemented"; this does not grant a cast.
+  bool not_yet_implemented = 6;
 }
 
 // Detailed background information for selection UI

@@ -1720,9 +1720,9 @@ message Dropped {
 //
 // THE STANCE IS DERIVED, NEVER STORED (§3.4): a reload folds it again from
 // the journal, and this beat is how a client learns the fold changed between
-// its reads. It names the pair and the word, and nothing of WHY — which
-// member carried what to whom is knowledge, per-member by law, and reaches
-// its holders on their own streams.
+// its reads. It names the pair, the word, and the composition's own sentence
+// for why — never which member carried which fact to whom, because that is
+// knowledge, per-member by law, and reaches its holders on their own streams.
 message StanceChanged {
   // The two faction ids the stance is between — the dungeon file's
   // `factions[].id`, or the reserved `party` / `monsters`. Exactly two, and
@@ -1739,6 +1739,19 @@ message StanceChanged {
   // this slice can produce (R2); the other two are here because the word
   // is the file's, and a static `allied` may one day change too.
   string stance = 2;
+  // The composition's own sentence for WHY the pair turned — "attacked by
+  // alice", "the fall of scout", "round 3 started" (design rpg-project#493,
+  // R2 and R3), the three a composition writes today. Text rather than an
+  // enum for the same reason `stance` is: it is a line a client narrates,
+  // not a value it branches on, and the wording is the composition's.
+  //
+  // EMPTY IS LEGITIMATE — A CLIENT MUST NOT REQUIRE IT. A pair also turns
+  // because a faction's mind came to know the fact the author named (the
+  // hold-out beat, §3.4), and that fold writes no sentence: nobody decided
+  // one. So a reader shows the reason when there is one and says only that
+  // the pair turned when there is not. A client that invents a line for the
+  // empty case is narrating something no author wrote.
+  string cause = 3;
 }
 
 // Arrived: a reserved placement entered the run (EVENT_KIND_ARRIVED). A

@@ -1674,6 +1674,194 @@ message AtlasProp {
   bool holdable = 10;
 }
 
+// FootprintPoint is one point in the atlas's CONTINUOUS PLANE, IN FEET.
+// Mirrors spatial.Point (tools/spatial).
+//
+// NOT AxialPoint, and the difference is the FRAME, not the precision. An
+// AxialPoint is a fractional q/r — the atlas's own cell frame, where 1 means
+// one cell along an axis. A footprint's geometry is measured in feet on the
+// plane the engine traces rectangles in, the unit that plane's cell width was
+// measured in (five feet across the flats, one cell). The same spot carries
+// different numbers in the two frames, and neither converts to the other
+// without the layout, so a reader that mistook one for the other would put a
+// table five times too far out. Minted rather than reused for exactly the
+// reason AxialPoint was minted rather than reusing Position: the type is the
+// sentence "these are feet, not coordinates".
+//
+// AND NOT A CELL. A placed footprint has no anchor cell — it is a rectangle
+// somebody drew, and asking which cell it is "at" has no authored answer.
+// AtlasPlacedProp.cells is where a placement STANDS; this is where its
+// rectangle SITS.
+message FootprintPoint {
+  double x = 1;
+  double y = 2;
+}
+
+// FootprintPlacement is one rectangle on the plane: how big it is, where it
+// sits, which way it faces, and how far it is nudged inside its own axes.
+// Mirrors spatial.FootprintPlacement (tools/spatial) field for field.
+//
+// NOT THE SPELL-AREA `Footprint` FAMILY above, which shares four letters and
+// nothing else: that one is a provider-authored outline for a cast — a shape
+// word, a size in feet and an anchor rule — and it says where to draw a
+// template. This is a resolved pose in the world: a real rectangle standing
+// in a real place, which the engine traces cells from. The two never
+// interconvert and no reader should look for `FootprintShape` here.
+//
+// GEOMETRY, NOT THE MECHANICAL ANSWER. What a placement blocks and what it
+// stands on are answered by AtlasPlacedProp's own fields; this is what a
+// client DRAWS the thing as. A client that re-derives cells from this
+// rectangle is computing a second answer to a question the wire already
+// carries — see AtlasPlacedProp.cells.
+message FootprintPlacement {
+  // The rectangle's extent ACROSS its facing, in feet (spatial.Box.W).
+  //
+  // ACROSS, not "the author's width": the dungeonspec dialect's authored
+  // `width` lies ALONG the facing and becomes `depth` below — the adapter
+  // swaps the names on the way in, because the author measures a door by the
+  // opening it fills and spatial measures a box by its bearing. What reaches
+  // this contract is spatial's vocabulary, already canonical, and nothing
+  // here is re-swapped.
+  double width = 1;
+
+  // Its extent ALONG its facing, in feet (spatial.Box.D). See `width` for the
+  // name swap the authored dialect performs before this seam.
+  double depth = 2;
+
+  // Where the placement is anchored on the plane, in feet. The rectangle is
+  // NOT centred here unless `local_offset` is zero — see it.
+  //
+  // Always set by a producer that sends a placed prop; an unset origin is a
+  // producer defect, not a default pose. A placement with no anchor is not a
+  // placement.
+  FootprintPoint origin = 3;
+
+  // Which way it faces, in DEGREES, measured from east in the plane's numeric
+  // frame the way spatial reports a bearing: positive 90 points south. Any
+  // finite angle is valid and nothing is snapped to a hex edge — a placed
+  // rectangle is drawn at the angle the author drew it at, which is the whole
+  // reason it is not a cell prop.
+  //
+  // Zero is a real facing (due east), not "not authored". Every placement
+  // that reaches this seam has been resolved by the construction boundary,
+  // which owns the conversion from the source frame's yaw radians.
+  double facing = 4;
+
+  // The box's centre offset from `origin`, in feet, in the PLACEMENT'S OWN
+  // AXES: x along the facing, y across it. Applied in local axes and then
+  // turned by `facing`, so the centre is
+  // `origin + along*local_offset.x + across*local_offset.y` with
+  // `along = (cos facing, sin facing)` and `across = (-sin facing, cos facing)`.
+  //
+  // Zero — the default, and the pose most placements carry — means the
+  // rectangle is centred on `origin`. It is a real offset, not a nudge for
+  // looks: the engine traces cells from the offset rectangle, so a client
+  // that ignores it draws the thing somewhere the engine does not have it.
+  FootprintPoint local_offset = 5;
+}
+
+// AtlasPlacedProp is one authored FOOTPRINT standing on the map: a rectangle
+// drawn at an angle, with the two blocking answers its author gave it,
+// whether it can be picked up, and the cells the engine says it stands on.
+// Mirrors
+// session.AtlasPlacedProp. Dungeon-absolute.
+//
+// A DIFFERENT KIND OF THING FROM AtlasProp, not a better one, and the two
+// lists never share an id. An AtlasProp occupies A CELL and names content it
+// draws as; a placed prop occupies AN AREA and names nothing — it is the
+// geometry a door, a table or a bookcase was drawn as, and the World Builder
+// owns what it looks like. Both answer the same two blocking questions,
+// independently, all four combinations real content.
+//
+// ABSENCE IS THE WHOLE VOCABULARY HERE — there is no flag on this message
+// for any of the three ways a placement can fail to be on the map, for
+// AtlasProp.id's reason: a flag would be a second answer to a question
+// absence already answers, and a client drawing flagged entries would draw
+// furniture nobody can reach. A placement is absent from this list when:
+//
+//   - IT IS IN RESERVE. A placement whose `arrives` predicate has not held
+//     is not on the floor yet: its rectangle blocks no step, closes no
+//     crossing, obstructs no lane, and Hold refuses it as an id that names
+//     nothing. It appears here once the predicate holds, standing where the
+//     author drew it.
+//   - SOMEBODY IS HOLDING IT, for everyone at once — an object leaving the
+//     floor is not a secret. Dropped afterwards it appears again, with its
+//     origin on the cell it was dropped on rather than the authored one.
+//   - THIS MEMBER CANNOT SEE WHERE IT STANDS. Unlike the two above, this one
+//     is PER-OBSERVER: a placement standing on any cell concealed from this
+//     recipient is withheld from their answer entirely, by the same
+//     never-authored yardstick the rest of GetAtlasResponse's absence law
+//     states. Two members of one party can hold different `placed` lists,
+//     and neither is stale.
+message AtlasPlacedProp {
+  // The AUTHOR'S NAME for this placement, verbatim from the authored file —
+  // required and unique, unlike AtlasProp.id which most props leave empty. A
+  // rectangle has nothing else to be called: it carries no content ref, so
+  // this is the only handle anything binds to, and it is what Hold names as
+  // its target.
+  //
+  // One namespace with AtlasProp.id: the compiler refuses a placement whose
+  // name a cell prop already took, so a client may key both lists together
+  // without collision.
+  string id = 1;
+
+  // The canonical rectangle — its size in feet, where it sits, and which way
+  // it faces. Always set.
+  //
+  // WHAT A CLIENT DRAWS, AND NOTHING IT DECIDES WITH. Every mechanical answer
+  // about this placement is a field beside this one; see `cells` for the one
+  // a client would be tempted to re-derive from the geometry.
+  FootprintPlacement placement = 2;
+
+  // Whether a member may stand on the cells it covers and cross the segments
+  // it lies across.
+  //
+  // Plain bool for AtlasProp's own stated reason — an atlas is the projection
+  // of a resolved world, and `optional` would invent an unspecified state the
+  // producer cannot mean. Independent of the next field: a bookcase is walked
+  // around and seen over, a curtain is neither.
+  bool blocks_movement = 3;
+
+  // Whether it obstructs a sightline.
+  bool blocks_line_of_sight = 4;
+
+  // Whether a member can pick this placement up — the author's flag, verbatim.
+  //
+  // AtlasProp.holdable's law, on the other kind of thing and for the same
+  // reason: the client offers Hold only where this is true and NEVER guesses
+  // from an id. Every placement here carries an id, so inferring the verb
+  // from a name would put a take button on every wall a door stands in.
+  //
+  // FALSE IS THE DEFAULT AND IT IS THE TRUTH: a rectangle nobody declared
+  // holdable is scenery, which is what every placed footprint was before the
+  // flag existed. OFFERING IS NOT PERMISSION — Hold still refuses out of
+  // reach, already held, or out of turn.
+  bool holdable = 5;
+
+  // THE CELLS THE ENGINE SAYS THIS PLACEMENT STANDS ON: every cell its
+  // rectangle covers, plus the cell nearest its centre, in the same absolute
+  // frame and the same order as GetAtlasResponse.cells. Never empty on a
+  // placement that is in this list.
+  //
+  // IT IS HERE SO NOBODY RE-DERIVES IT. Standing is a trace of the rectangle
+  // against every cell of the floor, and a client that fitted its own answer
+  // out of `placement` would be running a second geometry beside the
+  // engine's — one that disagrees at exactly the edges that matter, where a
+  // table's corner clips a hex. So: a client offers Hold when any of these is
+  // adjacent to the viewer; it never re-derives them from `placement`.
+  //
+  // ADJACENT INCLUDES ON TOP OF. Hold measures the legacy reach rule against
+  // every cell in this list — standing on one is distance zero and in reach,
+  // standing next to one is distance one and in reach. No second threshold
+  // exists for a footprint and none is authored.
+  //
+  // The centre cell is in the list even when the rectangle covers no cell
+  // centre at all, which is how a thin door lying along a wall still stands
+  // somewhere: a rectangle needs no floor under it, but the verbs that name
+  // a cell need one to name.
+  repeated Position cells = 6;
+}
+
 // AtlasBoundary is one wall or barrier crossing between adjacent cells. Mirrors
 // session.AtlasBoundary. Both endpoints are dungeon-absolute.
 message AtlasBoundary {

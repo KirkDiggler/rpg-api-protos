@@ -1372,6 +1372,32 @@ message GetAtlasResponse {
   // what it drew before, never as an error: everything above is the whole
   // mechanical truth either way, and presentation is the only thing missing.
   string dungeon_key = 15;
+  // Every authored FOOTPRINT standing on the map — the rectangles the World
+  // Builder placed — sorted by id. A different list from `props` above, never
+  // an overlapping one: a cell prop occupies a cell and names its content, a
+  // placed prop occupies an area and names only itself, and the two id spaces
+  // are one so a client may key them together.
+  //
+  // THIS IS WHETHER THE THING IS THERE. A client drawing a placed prop from
+  // the authored scene alone draws the author's whole drawing, which says
+  // nothing about the run: a rectangle in reserve has not arrived, one
+  // somebody picked up is gone, and one standing in space this member cannot
+  // see was never in their map at all. This list is the presence answer, and
+  // `holdable` on an entry is the take answer.
+  //
+  // THE ABSENCE LAW, as the lists above carry it and with one more clause of
+  // its own: a placement is absent while its arrival predicate has not held,
+  // absent once held by anybody (for every member, not flagged), and absent
+  // from THIS recipient when it stands on any cell concealed from them. The
+  // last is the per-member half — byte-identical to an atlas in which the
+  // placement was never authored, the same yardstick the concealed-region
+  // clause above states. Nothing marks any of the three.
+  //
+  // Empty from a producer that has not adopted placed props, and from a
+  // dungeon whose author drew none. A client that finds none behaves exactly
+  // as it did before; nothing is defaulted in and no rectangle is implied by
+  // `props`.
+  repeated AtlasPlacedProp placed = 16;
   // DEPRECATED. Superseded by `dungeon_key` above (rpg-project#479). The
   // engine no longer carries the World Builder's scene, so a server stops
   // filling this field and a client stops reading it. Kept — never removed,

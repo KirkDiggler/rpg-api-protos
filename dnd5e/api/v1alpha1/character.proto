@@ -48,10 +48,15 @@ service CharacterService {
   //
   // Experience is read-only over the wire. It reaches the client as
   // Character.experience_points plus the derived Character.entitled_level, and
-  // no RPC here or anywhere else writes it: the first in-toolkit source of
-  // experience brings its own mutator with it, and a host never grants a game
-  // quantity. A levelled fixture is seeded on the persisted sheet, never called
-  // into existence through this service.
+  // no RPC here or anywhere else writes it.
+  //
+  // THE SOURCE NOW EXISTS, AND IT IS NOT AN RPC. A monster's fall pays the
+  // party: the worth authored on the monster is divided among the roster by the
+  // session SDK, which writes each sheet inside the toolkit and reports the
+  // grant on the session stream as EVENT_KIND_EXPERIENCE_GAINED. A host still
+  // never grants a game quantity, so nothing was added here. A levelled fixture
+  // is seeded on the persisted sheet, never called into existence through this
+  // service.
   rpc GetNextLevel(GetNextLevelRequest) returns (GetNextLevelResponse);
   rpc LevelUp(LevelUpRequest) returns (LevelUpResponse);
 
@@ -167,7 +172,11 @@ message Character {
   // The toolkit's cumulative experience total, written by the API from the
   // stored sheet. Cumulative and never debited: the total only grows.
   //
-  // Read-only over the wire. No RPC on any service writes it.
+  // Read-only over the wire. No RPC on any service writes it. Experience is
+  // granted inside the toolkit — today by the fall of a monster, divided among
+  // the party by the session SDK — and a client watches a grant land on the
+  // session stream's EVENT_KIND_EXPERIENCE_GAINED rather than polling this
+  // field.
   int32 experience_points = 4;
 
   // Character race

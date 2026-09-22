@@ -424,6 +424,25 @@ enum EventKind {
   // full trigger set is owned where perception lives.
   EVENT_KIND_CONCEALMENT_REVEALED = 39;
 
+  // EXPERIENCE REACHED THE PARTY (design rpg-project "experience from the
+  // fall"). One beat per cause, carrying what caused the grant and what each
+  // character received. Today the only cause is the fall of a monster, so a
+  // DOWNED beat for a monster is followed by at most one of these, naming the
+  // same member — at most, because a fall that pays nobody is not a grant and
+  // raises nothing.
+  //
+  // WHOLE-PARTY, NOT RECIPIENT-SCOPED. A grant is shared arithmetic — the
+  // monster's authored worth divided equally among everyone on the roster at
+  // the moment of the fall — and a recipient shown only its own share could
+  // neither narrate the split nor check the sum against the worth.
+  //
+  // IT EXISTS SO NOBODY POLLS THE SHEET. Experience is read-only over the wire
+  // and no RPC writes it, so before this beat the only way to see a grant land
+  // was to re-read the character. A grant is a thing that happened, so it is a
+  // beat; the total it produced is still read from
+  // Character.experience_points.
+  EVENT_KIND_EXPERIENCE_GAINED = 40;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -544,6 +563,7 @@ message Event {
     CastWarded cast_warded = 43;
     Stayed stayed = 44;
     ConcealmentRevealed concealment_revealed = 45;
+    ExperienceGained experience_gained = 46;
   }
 }
 
@@ -2454,4 +2474,55 @@ message Stayed {
   // closer than the one it is on. A reader must not treat empty as "the
   // producer forgot"; it is the commonest case.
   string why = 3;
+}
+
+// ExperienceGained is the whole-party body for one grant of experience
+// (EVENT_KIND_EXPERIENCE_GAINED). ONE BEAT PER CAUSE. Today the only cause is
+// the fall of a monster — `member` names it, the same id EVENT_KIND_DOWNED
+// carried — and a later slice adds an authored reward paid at an ending.
+//
+// THE DIVISION IS A TOOLKIT RULE, NEVER THE API'S. The monster's worth is
+// authored on the monster, and the session SDK divides it equally among every
+// player on the roster at the moment of the fall, floored, writing the sheet of
+// each character the division paid. This beat reports what that rule produced;
+// nothing on the wire recomputes it, and a client that re-derives the split
+// from a worth it read elsewhere is reading its own arithmetic rather than the
+// world's.
+//
+// EXPERIENCE REMAINS READ-ONLY OVER THE WIRE. Nothing writes it through an RPC
+// (see CharacterService's level-progression block). This beat is how a grant
+// becomes visible, never how one is caused.
+message ExperienceGained {
+  // WHAT PAID THE PARTY. A member id — today always the monster that fell, the
+  // same id EVENT_KIND_DOWNED carried for it, so a client holding both beats
+  // joins them without a second lookup.
+  string member = 1;
+  // WHAT EACH CHARACTER RECEIVED, one entry per character that received a
+  // share. A share floored to zero is not a grant, and a fall that pays nobody
+  // produces no beat — so this list is never empty, and no entry on it is a
+  // character the division reached and had nothing left to give.
+  //
+  // IT IS THEREFORE NOT THE ROSTER. A reader counting entries is counting who
+  // was paid, not who was present, and the two differ exactly when a worth was
+  // too small to reach everyone.
+  repeated ExperienceGrant grants = 2;
+}
+
+// ExperienceGrant is one character's share of one grant (ExperienceGained).
+message ExperienceGrant {
+  // Who received it. A character id, the same vocabulary Character.id speaks —
+  // not a member id, because the sheet that was written is the character's.
+  string character = 1;
+  // The share, floored, as the toolkit divided it. NEVER ZERO: a share that
+  // floored to zero is not a grant, so it raises no entry here at all.
+  int32 amount = 2;
+  // THE CHARACTER'S NEW CUMULATIVE TOTAL — the same number
+  // Character.experience_points reads next, carried here so a client can show
+  // the grant landing without re-reading the character.
+  //
+  // ENTITLEMENT IS NOT HERE, DELIBERATELY. What a total unlocks is derived from
+  // the threshold table, and Character.entitled_level already answers it; a
+  // second copy on this beat would be a derived fact free to disagree with the
+  // one the character read carries.
+  int32 total = 3;
 }

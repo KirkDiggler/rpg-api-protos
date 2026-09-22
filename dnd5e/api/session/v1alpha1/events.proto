@@ -1709,20 +1709,30 @@ message Dropped {
 }
 
 // StanceChanged: the stance between two factions changed
-// (EVENT_KIND_STANCE_CHANGED). Fired when a disposition's `until` predicate
-// holds — the faction's mind came to know the fact the author named — and
-// the pair's edge is rewritten (design rpg-project#375 §3.4; R2: to
-// `neutral`, "not hostile"). A fight formed between members of these two
-// factions dissolves in the same pass, so a FIGHT_ENDED with cause
-// DISSOLVE_KIND_BY_STANCE follows this beat for the members who were in
-// it, while members of a third faction still hostile keep their fight
-// (§3.5, R1).
+// (EVENT_KIND_STANCE_CHANGED). Fired whenever a pair's edge is rewritten, in
+// EITHER DIRECTION (design rpg-project#375 §3.4, as rpg-project#493 R1 widened
+// it): a neutral pair turning hostile is not a hostile pair turning neutral
+// read backwards, and both cross here.
+//
+// FOUR THINGS TURN A PAIR (#493, R2 and R3). A disposition's `until` fires —
+// because the faction's mind came to know the fact the author named, because
+// the round or the fall it waited for happened, or because another pair
+// turned — and the edge becomes the OPPOSITE of the stance the author
+// declared, `hostile` and `neutral` trading places. Or somebody delivers
+// hostile intent across a neutral pair, which turns it hostile with nothing
+// authored at all. An `allied` pair is turned by none of them.
+//
+// THE FIGHTS FOLLOW IN THE SAME PASS (§3.5, R1). A pair that turns neutral
+// dissolves the fight its members were in, so a FIGHT_ENDED with cause
+// DISSOLVE_KIND_BY_STANCE follows this beat for them, while members of a
+// third faction still hostile keep their fight. A pair that turns hostile
+// ends no fight — it starts one.
 //
 // THE STANCE IS DERIVED, NEVER STORED (§3.4): a reload folds it again from
 // the journal, and this beat is how a client learns the fold changed between
-// its reads. It names the pair and the word, and nothing of WHY — which
-// member carried what to whom is knowledge, per-member by law, and reaches
-// its holders on their own streams.
+// its reads. It names the pair, the word, and the composition's own sentence
+// for why — never which member carried which fact to whom, because that is
+// knowledge, per-member by law, and reaches its holders on their own streams.
 message StanceChanged {
   // The two faction ids the stance is between — the dungeon file's
   // `factions[].id`, or the reserved `party` / `monsters`. Exactly two, and
@@ -1735,10 +1745,28 @@ message StanceChanged {
   // dungeon file's own closed vocabulary (design §2), carried as the word
   // the author wrote rather than an enum, the way Ended.ending carries the
   // author's key: what a stance MEANS to a client (which colour, which
-  // sentence) is content the rulebook declares. Neutral is the only value
-  // this slice can produce (R2); the other two are here because the word
-  // is the file's, and a static `allied` may one day change too.
+  // sentence) is content the rulebook declares. A turn lands on `neutral` or
+  // `hostile` and on nothing else, because those are the two an `until`
+  // trades between and hostility is where the aggression law goes; `allied`
+  // is in the vocabulary because the word is the file's, and a pair holding
+  // it is never turned, so this beat does not carry it today.
   string stance = 2;
+  // The composition's own sentence for WHY the pair turned (design
+  // rpg-project#493, R2 and R3) — one per turn that has a cause, in the
+  // composition's own words: "attacked by alice" for the aggression law,
+  // "the fall of scout" and "round 3 started" for a `down` or `round` until,
+  // and "goblins and party turned hostile" for the cascade, where one pair
+  // turning is what another was waiting on. Text rather than an enum for the
+  // same reason `stance` is: it is a line a client narrates, not a value it
+  // branches on, and the wording is the composition's.
+  //
+  // EMPTY IS LEGITIMATE — A CLIENT MUST NOT REQUIRE IT. A pair also turns
+  // because a faction's mind came to know the fact the author named (the
+  // hold-out beat, §3.4), and that fold writes no sentence: nobody decided
+  // one. So a reader shows the reason when there is one and says only that
+  // the pair turned when there is not. A client that invents a line for the
+  // empty case is narrating something no author wrote.
+  string cause = 3;
 }
 
 // Arrived: a reserved placement entered the run (EVENT_KIND_ARRIVED). A

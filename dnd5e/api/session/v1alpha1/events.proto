@@ -427,8 +427,9 @@ enum EventKind {
   // EXPERIENCE REACHED THE PARTY (design rpg-project "experience from the
   // fall"). One beat per cause, carrying what caused the grant and what each
   // character received. Today the only cause is the fall of a monster, so a
-  // DOWNED beat for a monster is followed by exactly one of these, naming the
-  // same member.
+  // DOWNED beat for a monster is followed by at most one of these, naming the
+  // same member — at most, because a fall that pays nobody is not a grant and
+  // raises nothing.
   //
   // WHOLE-PARTY, NOT RECIPIENT-SCOPED. A grant is shared arithmetic — the
   // monster's authored worth divided equally among everyone on the roster at
@@ -2482,10 +2483,11 @@ message Stayed {
 //
 // THE DIVISION IS A TOOLKIT RULE, NEVER THE API'S. The monster's worth is
 // authored on the monster, and the session SDK divides it equally among every
-// player on the roster at the moment of the fall, floored, writing each sheet.
-// This beat reports what that rule produced; nothing on the wire recomputes it,
-// and a client that re-derives the split from a worth it read elsewhere is
-// reading its own arithmetic rather than the world's.
+// player on the roster at the moment of the fall, floored, writing the sheet of
+// each character the division paid. This beat reports what that rule produced;
+// nothing on the wire recomputes it, and a client that re-derives the split
+// from a worth it read elsewhere is reading its own arithmetic rather than the
+// world's.
 //
 // EXPERIENCE REMAINS READ-ONLY OVER THE WIRE. Nothing writes it through an RPC
 // (see CharacterService's level-progression block). This beat is how a grant
@@ -2495,13 +2497,14 @@ message ExperienceGained {
   // same id EVENT_KIND_DOWNED carried for it, so a client holding both beats
   // joins them without a second lookup.
   string member = 1;
-  // WHAT EACH CHARACTER RECEIVED, one entry per player on the roster at the
-  // moment of the fall — the same roster the division was taken over, which is
-  // why the shares can be summed against the monster's worth.
+  // WHAT EACH CHARACTER RECEIVED, one entry per character that received a
+  // share. A share floored to zero is not a grant, and a fall that pays nobody
+  // produces no beat — so this list is never empty, and no entry on it is a
+  // character the division reached and had nothing left to give.
   //
-  // A floored share may be zero, and a zero share is still an entry: it says
-  // the division reached this character and had nothing left to give, which is
-  // an answer about the split rather than an absence.
+  // IT IS THEREFORE NOT THE ROSTER. A reader counting entries is counting who
+  // was paid, not who was present, and the two differ exactly when a worth was
+  // too small to reach everyone.
   repeated ExperienceGrant grants = 2;
 }
 
@@ -2510,7 +2513,8 @@ message ExperienceGrant {
   // Who received it. A character id, the same vocabulary Character.id speaks —
   // not a member id, because the sheet that was written is the character's.
   string character = 1;
-  // The share, floored, as the toolkit divided it.
+  // The share, floored, as the toolkit divided it. NEVER ZERO: a share that
+  // floored to zero is not a grant, so it raises no entry here at all.
   int32 amount = 2;
   // THE CHARACTER'S NEW CUMULATIVE TOTAL — the same number
   // Character.experience_points reads next, carried here so a client can show

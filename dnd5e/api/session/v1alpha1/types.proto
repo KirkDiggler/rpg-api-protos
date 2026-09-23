@@ -1108,13 +1108,16 @@ enum FootprintShape {
   // Equal width and depth; SizeFeet is one edge, not a half-extent.
   // This is a floor outline and declares no height.
   FOOTPRINT_SHAPE_BOX = 2;
+  // Equilateral triangle: SizeFeet is the altitude from tip to opposite edge.
+  // Tip stays at the caster cell centre; aimed cell supplies only its bearing.
+  FOOTPRINT_SHAPE_TRIANGLE = 3;
 }
 
 // FootprintOrigin describes how the outline is placed relative to the caster.
 // It does not identify affected creatures or grant targeting permission.
 enum FootprintOrigin {
   FOOTPRINT_ORIGIN_UNSPECIFIED = 0;
-  // The caster's cell centre is the centre of a radius footprint.
+  // The caster's cell centre is the centre of a radius or tip of a triangle.
   FOOTPRINT_ORIGIN_CASTER = 1;
   // The box's near-edge midpoint sits on the caster cell's boundary along
   // the bearing from the caster to the aimed cell. Its depth extends away

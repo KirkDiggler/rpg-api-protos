@@ -447,10 +447,38 @@ message TurnResponse {
 // NOT_FOUND if the session, encounter or member is absent. Session/world load
 // failures fail the read; unreadable character/action dependencies are instead
 // projected per verb as UNREADABLE so independent declarations still arrive.
+// CastAim asks the existing affordance read about one directional area placement.
+// It is a read: no payment, dice, events, or state changes.
+message CastAim {
+  // Current CAST declaration selector, echoed unchanged.
+  string declaration = 1;
+  // Map coordinates, including fractional coordinates for a continuous bearing.
+  // Uses the same coordinate space and placement semantics as CastRequest.cell.
+  Position cell = 2;
+}
+
+// CastAimPreview is the provider's answer for exactly the echoed aim.
+// Clients discard late responses after aim, selection, or session changes.
+// An absent preview is not an empty hit list: it means no preview was requested
+// or the provider cannot preview this offer. Cast always revalidates current state.
+message CastAimPreview {
+  CastAim aim = 1;
+  bool available = 2;
+  // Present only when placement is unavailable.
+  Shortfall why = 3;
+  // Visible affected members only, in provider order, including allies.
+  // Excludes remembered/unseen members; neither IDs nor counts may leak them.
+  // Derived by the same geometry, overlap threshold and exclusions as Cast.
+  // Empty is a valid answer when available is true. Never caller-supplied targets.
+  repeated string affected_members = 4;
+}
+
 message AffordRequest {
   string session = 1;
   // Whose budget is being asked about — the caller's own.
   string member = 2;
+  // Optional placement preview, authorized as this same member.
+  CastAim cast_aim = 3;
 }
 
 // AffordResponse mirrors session.AffordOutput.
@@ -501,6 +529,8 @@ message AffordResponse {
   // bool at this seam keeps. Proto carries no empty-vs-absent distinction on a
   // repeated field, which is fine — `clock` says which case this is.
   repeated Declaration declarations = 2;
+  // Optional, correlated placement preview; does not reserve this cast.
+  CastAimPreview cast_aim = 3;
 }
 
 // EndTurnRequest ends a member's turn and hands the fight to whoever is next.
@@ -609,6 +639,7 @@ message CastRequest {
   repeated string targets = 5;
 
   // The cell selected for a CELL declaration; required only for that kind.
+  // Fractional coordinates are permitted for continuous directional aiming.
   // For BOX/CASTER_EDGE and TRIANGLE/CASTER it supplies a bearing from the
   // caster, never a new footprint origin. The caster's own cell is invalid
   // for these directional shapes because it supplies no bearing.

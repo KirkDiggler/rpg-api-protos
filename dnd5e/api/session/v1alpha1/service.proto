@@ -608,22 +608,17 @@ message CastRequest {
   // when that declaration permits no targets; receivers preserve this order.
   repeated string targets = 5;
 
-  // The cell a caster-edge shape is aimed toward, and the only field a cast
-  // ever carries about space. Set when — and only when — the selected
-  // declaration's target_kind is CELL, where it is required: a shape anchored
-  // on the caster's edge with nothing to point it at has no position at all.
+  // The cell selected for a CELL declaration; required only for that kind.
+  // For BOX/CASTER_EDGE and TRIANGLE/CASTER it supplies a bearing from the
+  // caster, never a new footprint origin. The caster's own cell is invalid
+  // for these directional shapes because it supplies no bearing.
+  // For RADIUS/POINT it supplies the footprint centre; the caster's cell is
+  // a valid selection if permitted by the authoritative offer.
   //
-  // A REFERENCE THE ENGINE READS, NEVER A COMPUTED SHAPE. The client names one
-  // cell; the engine anchors the content's footprint on the caster, aims it
-  // down that bearing, and derives which cells it covers and who is standing
-  // in them. None of that is sent, which is the same law `targets` keeps for a
-  // member cast and `path` keeps on Move — the caller says what it meant, not
-  // what it worked out.
-  //
-  // INVALID_ARGUMENT for an unset cell on a CELL declaration, for a cell set
-  // on a declaration of any other kind, and for the CASTER'S OWN CELL, which
-  // is not a direction: a caster-edge shape is aimed away from where the
-  // caster stands, so pointing it at that spot names no bearing to aim along.
+  // The client sends a reference, never a computed footprint or recipient
+  // list. The engine validates placement and derives coverage and recipients.
+  // An unset cell on a CELL declaration or a cell on another target kind is
+  // invalid. Range, obstruction, and other legality remain engine decisions.
   Position cell = 6;
 
   // The id of one of the selected declaration's options — which of a Command's

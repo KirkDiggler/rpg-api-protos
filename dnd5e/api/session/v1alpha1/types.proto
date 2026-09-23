@@ -1136,10 +1136,12 @@ enum FootprintOrigin {
 message Footprint {
   // A supported shape; UNSPECIFIED is invalid on a present footprint.
   FootprintShape shape = 1;
-  // Positive extent in feet: a radius for RADIUS, one full edge for BOX.
+  // Positive extent in feet: a radius for RADIUS, one full edge for BOX,
+  // or the tip-to-opposite-edge altitude for TRIANGLE.
   int32 size_feet = 2;
   // A supported anchor; UNSPECIFIED is invalid on a present footprint.
-  // Supported combinations include RADIUS/CASTER, RADIUS/POINT, and BOX/CASTER_EDGE.
+  // Supported combinations: RADIUS/CASTER, RADIUS/POINT, BOX/CASTER_EDGE,
+  // and TRIANGLE/CASTER.
   FootprintOrigin origin = 3;
 }
 

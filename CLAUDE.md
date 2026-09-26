@@ -1,4 +1,4 @@
-# Claude AI Development Guidelines for rpg-api-protos
+# rpg-api-protos
 
 rpg-api-protos is the contract layer between rpg-api (Go) and rpg-dnd5e-web (TS); buf-managed proto definitions, generates Go and TypeScript SDKs (and C++, currently without a consumer).
 

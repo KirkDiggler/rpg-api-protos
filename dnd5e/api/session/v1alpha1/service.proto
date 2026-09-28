@@ -214,6 +214,8 @@ message MoveResponse {
   // The walker joined a visible teammate's combat from their current cell.
   // No step into the teammate's occupied cell occurred or was charged.
   bool joined_combat = 7;
+  // Whether the requested route completed, paused for a reaction, or stopped early.
+  MovementStatus status = 8;
 }
 
 // =============================================================================

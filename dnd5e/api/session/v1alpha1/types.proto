@@ -899,6 +899,13 @@ message Discovery {
 // above do, which is transcribe vocabularies the SDK already sealed.
 // Passage is the provider-owned occupancy contribution relative to the mover.
 // Unspecified is missing contract data, not fog or a blocked cell.
+enum MovementStatus {
+  MOVEMENT_STATUS_UNSPECIFIED = 0;
+  MOVEMENT_STATUS_COMPLETED = 1;
+  MOVEMENT_STATUS_PAUSED = 2;
+  MOVEMENT_STATUS_STOPPED = 3;
+}
+
 enum Passage {
   PASSAGE_UNSPECIFIED = 0;
   PASSAGE_BLOCKED = 1;

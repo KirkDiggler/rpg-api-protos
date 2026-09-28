@@ -890,6 +890,23 @@ message Discovery {
   repeated string faded = 3;
 }
 
+// MovementStatus reports whether the requested walk completed, paused, or stopped.
+enum MovementStatus {
+  MOVEMENT_STATUS_UNSPECIFIED = 0;
+  MOVEMENT_STATUS_COMPLETED = 1;
+  MOVEMENT_STATUS_PAUSED = 2;
+  MOVEMENT_STATUS_STOPPED = 3;
+}
+
+// Passage is the provider-owned occupancy contribution relative to the mover.
+// Unspecified is missing contract data, not fog or a blocked cell.
+enum Passage {
+  PASSAGE_UNSPECIFIED = 0;
+  PASSAGE_BLOCKED = 1;
+  PASSAGE_PASS_THROUGH = 2;
+  PASSAGE_STANDABLE = 3;
+}
+
 // Sighting is one thing an observer currently knows about. Mirrors
 // session.Sighting.
 //
@@ -970,6 +987,11 @@ message Sighting {
   // Empty on a sighting produced before this field and on anything the
   // observer has no opinion about. Empty is "no word for it", NOT `neutral`.
   string stance = 10;
+  // Required for a currently sighted occupant with a known position. Derived
+  // from observed standing, observed obstruction, and believed disposition.
+  // Held memories contribute no live obstacle. Clients use this answer for
+  // traversal and stopping, never reconstruct it from kind, stance, or HP.
+  Passage passage = 11;
 }
 
 // =============================================================================

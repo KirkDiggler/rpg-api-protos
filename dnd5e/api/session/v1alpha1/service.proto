@@ -211,6 +211,13 @@ message MoveResponse {
   Formed formed = 4;
   SaveReport saved = 5;
   DeliveryReport delivery = 6;
+  // The walker joined a visible teammate's combat from their current cell.
+  // No step into the teammate's occupied cell occurred or was charged.
+  bool joined_combat = 7;
+  // Whether the requested route completed, paused for a reaction, or stopped early.
+  MovementStatus status = 8;
+  // Observation-safe explanation when an ordinary obstruction stops the route.
+  string stop_reason = 9;
 }
 
 // =============================================================================

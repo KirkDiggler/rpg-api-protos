@@ -890,15 +890,7 @@ message Discovery {
   repeated string faded = 3;
 }
 
-// Sighting is one thing an observer currently knows about. Mirrors
-// session.Sighting.
-//
-// `channel` and `status` are free-form strings in the SDK, and stay strings
-// here. Promoting them to enums would be rpg-api inventing a closed vocabulary
-// the toolkit has not committed to (rule 1) — the opposite of what the enums
-// above do, which is transcribe vocabularies the SDK already sealed.
-// Passage is the provider-owned occupancy contribution relative to the mover.
-// Unspecified is missing contract data, not fog or a blocked cell.
+// MovementStatus reports whether the requested walk completed, paused, or stopped.
 enum MovementStatus {
   MOVEMENT_STATUS_UNSPECIFIED = 0;
   MOVEMENT_STATUS_COMPLETED = 1;
@@ -906,6 +898,8 @@ enum MovementStatus {
   MOVEMENT_STATUS_STOPPED = 3;
 }
 
+// Passage is the provider-owned occupancy contribution relative to the mover.
+// Unspecified is missing contract data, not fog or a blocked cell.
 enum Passage {
   PASSAGE_UNSPECIFIED = 0;
   PASSAGE_BLOCKED = 1;
@@ -913,6 +907,13 @@ enum Passage {
   PASSAGE_STANDABLE = 3;
 }
 
+// Sighting is one thing an observer currently knows about. Mirrors
+// session.Sighting.
+//
+// `channel` and `status` are free-form strings in the SDK, and stay strings
+// here. Promoting them to enums would be rpg-api inventing a closed vocabulary
+// the toolkit has not committed to (rule 1) — the opposite of what the enums
+// above do, which is transcribe vocabularies the SDK already sealed.
 message Sighting {
   // What is perceived.
   string subject = 1;

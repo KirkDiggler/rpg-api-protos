@@ -4,10 +4,6 @@ package dnd5e.api.authoring.v1alpha1;
 
 import "dnd5e/api/session/v1alpha1/service.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/authoring/v1alpha1;authoringpb";
-option java_multiple_files = true;
-option java_package = "com.kirkdiggler.rpg.api.dnd5e.authoring.v1alpha1";
-
 // AuthoringService is the in-game dungeon builder's seam: write a world file,
 // get back the world the game will play.
 //
@@ -36,18 +32,24 @@ service AuthoringService {
   // Gated server-side by RPG_AUTHORING_ENABLED: with the gate off the RPC is
   // not registered and callers see Unimplemented, which is how a client tells
   // "authoring is off" from "server unreachable". The gate lives in rpg-api,
-  // not here.
+  // not here. Enablement is availability, not authorization: the host must
+  // separately authorize the caller as a builder for this source before
+  // compiling, validating or storing its complete author view. Signing in or
+  // joining/hosting a session alone never grants that authority.
   rpc PutDungeon(PutDungeonRequest) returns (PutDungeonResponse);
   // GetDungeon returns the stored file for a key so an author can reopen it.
-  // Unknown key is NotFound. Ungated: reading content mutates nothing.
+  // Requires separate builder authorization for the requested source before
+  // lookup; a non-builder is denied, including guessed keys learned from a
+  // player atlas. Authorized unknown key is NotFound. This is never a player
+  // rendering fallback: full YAML discloses unexplored layout and placements.
   rpc GetDungeon(GetDungeonRequest) returns (GetDungeonResponse);
   // ListScenarios reports every scenario a dungeon may be bound to, and the
-  // form each one needs filled in. Ungated, for GetDungeon's reason: it
-  // reads a registry and mutates nothing.
+  // form each one needs filled in. Registry catalog access does not authorize
+  // any dungeon's full source or undiscovered placed content.
   rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
   // ListWeapons reports every weapon the server's rulebook can arm a placed
-  // monster with, for the builder's action palette. Ungated, for GetDungeon's
-  // reason: it reads a registry and mutates nothing.
+  // monster with, for the builder's action palette. Catalog access does not
+  // authorize dungeon source or reveal any placed monster's equipment.
   rpc ListWeapons(ListWeaponsRequest) returns (ListWeaponsResponse);
 }
 
@@ -94,11 +96,10 @@ message PutDungeonResponse {
   // endpoints are not adjacent — not one complaint per round trip.
   repeated FieldError errors = 1;
   // THE SAME MESSAGE THE GAME PLAYS FROM. The builder draws what PutDungeon
-  // returns, and what PutDungeon returns is the AUTHOR'S view — what
-  // GetAtlas would answer an all-knowing member once a session starts on
-  // this file (GetAtlas is member-scoped for concealed structure; an
-  // author already knows everything they drew) — one message type, one
-  // producer, one geometry. The first AuthoringService answered with its
+  // returns: the separately authorized AUTHOR'S complete compile view, which
+  // may contain holdable placements. Player reads instead supply discovered
+  // fixed geometry/scenery and separate mutable testimony. One geometry DTO,
+  // with disclosure appropriate to the authorized caller. The first AuthoringService answered with its
   // own `FloorPlan`, a builder-shaped second projection of the world that had to be kept in
   // step with the atlas by hand; the moment the two disagreed the builder
   // was lying. Returning the atlas itself leaves the builder nothing to keep
@@ -117,7 +118,8 @@ message FieldError {
   string message = 2;
 }
 
-// GetDungeonRequest names a stored dungeon by key.
+// GetDungeonRequest names a stored source. The key is not authority; the host
+// enforces separate builder access. Player reads use SessionService.GetKnowledge.
 message GetDungeonRequest {
   string key = 1;
 }

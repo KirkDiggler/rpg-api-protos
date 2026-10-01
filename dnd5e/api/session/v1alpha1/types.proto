@@ -4,10 +4,6 @@ package dnd5e.api.session.v1alpha1;
 
 import "dnd5e/api/customization/v1alpha1/types.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
-option java_multiple_files = true;
-option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
-
 // This package transcribes the exported surface of the toolkit's
 // `rulebooks/dnd5e/session` package (read from session/v0.18.0; v0.21.2 added
 // Seen on Sighting/Report — ADR-0041; v0.54.0 introduced explicit Death Saves,
@@ -1564,7 +1560,10 @@ message AtlasProp {
   // Ref names what this is, so a host can draw it.
   string ref = 1;
 
-  // The cell it stands on, in dungeon-absolute space.
+  // The supplied floor placement, dungeon-absolute. Required for an atlas
+  // entry. In PropSighting, unset means this observer has no known world
+  // placement; the identity/ref remain known. Never substitute an authored
+  // position, (0, 0), a carrier position or a live-world lookup when absent.
   Position at = 2;
 
   // Whether an entity may enter its cell.
@@ -1662,25 +1661,19 @@ message AtlasProp {
   // nothing else. Unique within the dungeon when present; the compiler
   // refuses a collision by name.
   //
-  // A HELD PROP IS ABSENT FROM EVERY MEMBER'S ATLAS, not marked held: the
-  // atlas is construction truth projected per member, and an object that
-  // left the floor left the floor for everyone (design §4.3). There is no
-  // `held` flag here on purpose — a flag would be a second answer to a
-  // question absence already answers, and a client that drew flagged props
-  // would draw furniture nobody can reach. A prop DROPPED after being
-  // carried (see Dropped) appears again, at its drop cell rather than its
-  // authored one, and carries this same id.
+  // Player atlases carry discovered fixed scenery. Mutable holdable props
+  // are PropSighting values on GetKnowledge, retaining this same identity.
+  // An unseen pickup/drop does not remove or relocate another observer's
+  // remembered placement. Neither list omission nor this id reveals a holder.
   string id = 9;
 
   // Whether this prop can be picked up — the author's `holdable` flag,
   // verbatim.
   //
-  // STRUCTURE ON THE TRUTH GRAIN (design rpg-project#368 §5, the wire
-  // paragraph), which is why it is here rather than left for a client to
-  // discover by trying. A holdable thing LOOKS holdable: a reliquary on an
-  // altar reads differently from the altar, and every member who can see the
-  // cell sees the same thing, so this is not per-member knowledge and nothing
-  // about it is concealed.
+  // This is the supplied capability of a permitted prop, not permission to
+  // disclose all props or their live positions. Fixed scenery has false;
+  // holdable props travel as individual PropSighting testimony. A builder's
+  // separately authorized full compile view may carry either kind.
   //
   // THE CLIENT OFFERS HOLD ONLY WHERE THIS IS TRUE, AND NEVER GUESSES FROM
   // AN ID. A prop carrying an `id` is not thereby holdable — ids exist for
@@ -1695,9 +1688,9 @@ message AtlasProp {
   // `optional` would invent an unspecified state the producer cannot mean.
   //
   // OFFERING IS NOT PERMISSION. Hold still refuses out of range, already
-  // held, or out of turn on the clock, and a prop inside space the member
-  // cannot see is absent from this list entirely (the probe law). This field
-  // decides what the client DRAWS a button on, never what the server allows.
+  // held, or out of turn on the clock. Remembered testimony may retain a
+  // placement outside current sight; it is not an actionable live target.
+  // The field describes the observed capability, never what the server allows.
   bool holdable = 10;
 }
 
@@ -1800,26 +1793,12 @@ message FootprintPlacement {
 // owns what it looks like. Both answer the same two blocking questions,
 // independently, all four combinations real content.
 //
-// ABSENCE IS THE WHOLE VOCABULARY HERE — there is no flag on this message
-// for any of the three ways a placement can fail to be on the map, for
-// AtlasProp.id's reason: a flag would be a second answer to a question
-// absence already answers, and a client drawing flagged entries would draw
-// furniture nobody can reach. A placement is absent from this list when:
-//
-//   - IT IS IN RESERVE. A placement whose `arrives` predicate has not held
-//     is not on the floor yet: its rectangle blocks no step, closes no
-//     crossing, obstructs no lane, and Hold refuses it as an id that names
-//     nothing. It appears here once the predicate holds, standing where the
-//     author drew it.
-//   - SOMEBODY IS HOLDING IT, for everyone at once — an object leaving the
-//     floor is not a secret. Dropped afterwards it appears again, with its
-//     origin on the cell it was dropped on rather than the authored one.
-//   - THIS MEMBER CANNOT SEE WHERE IT STANDS. Unlike the two above, this one
-//     is PER-OBSERVER: a placement standing on any cell concealed from this
-//     recipient is withheld from their answer entirely, by the same
-//     never-authored yardstick the rest of GetAtlasResponse's absence law
-//     states. Two members of one party can hold different `placed` lists,
-//     and neither is stale.
+// A player atlas supplies discovered fixed non-holdable scenery only. Unknown
+// geometry is absent, and discovered fixed scenery remains after withdrawal.
+// Separately authorized builder compile views may supply all authored entries.
+// Mutable holdable footprints are outside the first PropSighting shape; they
+// require an explicit extension, never a shared live-state fallback. Omission
+// never establishes that an observer witnessed an empty footprint.
 message AtlasPlacedProp {
   // The AUTHOR'S NAME for this placement, verbatim from the authored file —
   // required and unique, unlike AtlasProp.id which most props leave empty. A
@@ -2001,7 +1980,10 @@ message AtlasDoorway {
   string connection = 1;
   // One of the two cells, dungeon-absolute.
   Position from = 6;
-  // The other, adjacent to `from`.
+  // The other, adjacent to `from`. A supplied endpoint describes a permitted
+  // threshold; it does not declare that cell discovered floor. Neither endpoint
+  // requires inclusion in the recipient's cells, and neither authorizes an
+  // interior, region membership or content beyond the observed doorway.
   Position to = 7;
 }
 
@@ -2067,8 +2049,8 @@ message AtlasRegion {
 // STRUCTURE, NOT SCENARIO. A dungeon has ways out whatever the party came
 // for, so exits sit in the atlas beside cells and regions rather than inside
 // whatever scenario happens to be bound (design rpg-project#368 §3.1, and §5's
-// wire paragraph). Same shape as the file's `start`, and the same for every
-// member: an exit is not concealable and nothing here is per-member knowledge.
+// wire paragraph). Same shape as the file's `start`; player delivery includes
+// only exits this observer knows, whether or not they are concealed.
 //
 // FOR DRAWING THE WAY OUT, NOT FOR GATING IT. Leave is offered everywhere and
 // the SERVER decides what a departure means — R9 REQUIRES a departure from
@@ -2090,9 +2072,8 @@ message AtlasExit {
 // AtlasStart is where the party comes in, and which way they are looking
 // when they get there.
 //
-// THE AUTHORED START, verbatim from the dungeon file's `start`. The same for
-// every member, like AtlasExit beside it: where a dungeon begins is not
-// concealable and nothing here is per-member knowledge.
+// The authored start value, supplied only when permitted to this observer.
+// Fixed structure does not imply that every member already knows it.
 //
 // FOR AIMING THE CAMERA, NOT A RULE. `facing` exists because a party that
 // spawns looking at the back wall spends its first seconds spinning around
@@ -2130,12 +2111,12 @@ message AtlasStart {
 // Doors
 // =============================================================================
 
-// DoorState is what a door is doing right now.
-//
-// A door's state is ENCOUNTER STATE, NOT ATLAS GEOMETRY. GetAtlas carries a
-// door's edges (AtlasDoorway — construction truth, cached once); this enum is
-// the live half, read via GetDoors and updated from DOOR events. A door is one
-// state over a set of edges (rpg-toolkit#1123): every edge of a wide gate
+// DoorState is the supplied value of a door, current or remembered according
+// to its observation. It is ENCOUNTER STATE, NOT ATLAS GEOMETRY. GetAtlas
+// carries a discovered door's edges; DoorSighting supplies the observer's
+// latest value and currency. Knowing a door does not entitle a viewer to its
+// unseen live state. A door is one state over a set of edges
+// (rpg-toolkit#1123): every edge of a wide gate
 // opens and locks together.
 enum DoorState {
   DOOR_STATE_UNSPECIFIED = 0;
@@ -2194,7 +2175,8 @@ message DoorLock {
   repeated CheckApproach approaches = 4;
 }
 
-// DoorInfo is one door's identity and live state.
+// DoorInfo is one supplied door value. DoorSighting carries its observation
+// currency; the value alone must not be assumed current.
 message DoorInfo {
   // The same id AtlasDoorway.connection carries — join the two to know
   // WHERE the door is; this message says WHAT it is doing.
@@ -2202,6 +2184,52 @@ message DoorInfo {
   DoorState state = 2;
   // Set only while state is LOCKED.
   DoorLock lock = 3;
+}
+
+// PropSighting is the observer's latest testimony about a cell-placed holdable
+// prop. The shape leads its SDK implementation (rpg-project#509); it is not a
+// claim that session.PropSighting has shipped. Fixed scenery stays in the atlas.
+// It uses the existing Sighting clock/channel/status vocabulary, not a second
+// knowledge-history model. Current/remembered values are provider answers,
+// never reconstructed from world changes, missing events or atlas membership.
+message PropSighting {
+  // Required. The known prop's identity, permitted appearance and optional
+  // world placement. id is non-empty and stable, holdable is true. If at is
+  // absent, the prop is still known; no floor placement is supplied. Other
+  // fields retain the latest permitted observation, never unseen live values.
+  AtlasProp prop = 1;
+  // The game clock when this testimony was refreshed, not a wall timestamp.
+  uint64 at = 2;
+  // Channels currently confirming this testimony. Empty means remembered.
+  // Currency is not a permission to interact with the prop.
+  repeated string current_via = 3;
+  // The SDK's free-form currency word, with the same meaning as Sighting.status.
+  // Empty is unspecified, never implicitly current.
+  string status = 4;
+  // Optional positive evidence that this observer saw the formerly believed
+  // cell without this prop. Present only with prop.at absent. The provider
+  // establishes sufficient observation; a missing prop/event is not evidence.
+  // This is the latest correction, not a collection of historical positions.
+  // It reveals neither nonexistence nor a carrier/destination. This first
+  // shape covers cell props, not arbitrary partially observed footprints.
+  Position observed_empty = 5;
+  // Supplied display name retained with the testimony; empty means unnamed.
+  string name = 6;
+}
+
+// DoorSighting is one observer's latest door value and observation currency.
+// Door identity/threshold discovery does not refresh unseen state or disclose
+// the interior beyond it. Geometry is on the atlas, not copied here. This shape
+// leads the corresponding SDK projection (rpg-project#509).
+message DoorSighting {
+  // Required. The value this observer currently knows, not necessarily live.
+  DoorInfo door = 1;
+  // The game clock when this testimony was refreshed.
+  uint64 at = 2;
+  repeated string current_via = 3;
+  // Same SDK vocabulary as Sighting.status; empty is not implicitly current.
+  string status = 4;
+  string name = 5;
 }
 
 // SightArea is the public footprint of a persistent sight obstruction.

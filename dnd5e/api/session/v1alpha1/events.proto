@@ -4,10 +4,6 @@ package dnd5e.api.session.v1alpha1;
 
 import "dnd5e/api/session/v1alpha1/types.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
-option java_multiple_files = true;
-option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
-
 // Read from session/v0.18.0; typed event bodies from the combat-turn contract
 // (rpg-project#249) and the current explicit Death Save contract from
 // session/v0.54.1.
@@ -135,12 +131,11 @@ enum EventKind {
   EVENT_KIND_DOWNED = 13;
   // A door changed — opened, closed, or an unlock attempt, beaten or not. A
   // failed attempt is as much fiction as a beaten one, and the composition
-  // writes both through one path. Every member WHO KNOWS THE DOOR hears it:
-  // for a door that was never concealed that is every member (full data
-  // until v1.0), and for a concealed one it is exactly the members it has
-  // been revealed to — scoped as far as concealed structure requires and no
-  // further. A member's first knowledge of a door is never this kind; it is
-  // DOOR_REVEALED, below.
+  // writes both through one path. Only recipients entitled to the action's
+  // facts receive it. Prior knowledge of a door is not observation of its
+  // unseen changes. SDK audiences/projections preserve that distinction in
+  // both live delivery and historical replay. First-time concealment knowledge
+  // uses CONCEALMENT_REVEALED; ordinary discovery invalidates GetKnowledge.
   EVENT_KIND_DOOR = 14;
   // A door entered THIS RECIPIENT'S knowledge — by their own search, by an
   // open in their presence, or by perceiving the opened door as present
@@ -197,10 +192,11 @@ enum EventKind {
   // carries it — DOOR_REVEALED for intel, exactly the beat a search
   // produces. Audience: everyone present.
   EVENT_KIND_LOOTED = 20;
-  // A member picked up a holdable prop. The prop leaves the atlas for
-  // EVERYONE — physical state folds on the truth grain — and the holder
-  // carries it (design §4.3, §5). A client patches its cached GetAtlas by
-  // dropping the prop, the way DOOR_REVEALED patches it by adding one.
+  // A member picked up a holdable prop. The actor and entitled witnesses
+  // learn this action; prior prop knowledge alone does not disclose it.
+  // A blind observer keeps remembered placement. Witnessing the empty former
+  // place corrects location without identifying the carrier. GetKnowledge
+  // supplies the observer answer, not a global remove-from-atlas patch.
   //
   // WAS EVENT_KIND_TAKEN, renamed by design R10 (2026-09-04) along with the
   // verb: this beat records a run-scoped HOLDING, and `take` is reserved for
@@ -210,9 +206,9 @@ enum EventKind {
   // A carrier let go of a holding and it landed on the map: a member leaving
   // from anywhere but the scenario's bound exit drops what they carry where
   // they stood (design R9, §6). The prop reappears as a holdable prop at
-  // that cell, so a client patches its cached GetAtlas by adding it back.
+  // that cell for entitled witnesses, not everyone who remembers the prop.
   // Never a player verb — there is no Drop RPC; this is a consequence of
-  // departure, and the beat is how everyone learns of it.
+  // departure. Unseen changes do not refresh another recipient's testimony.
   EVENT_KIND_DROPPED = 22;
   // The stance between two factions changed: a disposition's `until`
   // predicate held — the faction's mind came to know the fact the author
@@ -460,6 +456,13 @@ enum EventKind {
 // rpg-api neither filters nor re-derives visibility (design rule 4); a host that
 // filtered a single shared payload would be reimplementing perception, and its
 // first mistake would leak fog of war.
+//
+// Party/encounter-wide routing elsewhere in this file is not a grant of
+// undiscovered identities, geometry or unseen mutable facts. Every body,
+// payload and metadata field remains subject to this recipient's permitted
+// knowledge. If a body cannot be lawfully projected, it is not delivered to
+// that recipient. Historical replay keeps the original audience and facts;
+// later discovery never expands an earlier beat's disclosure.
 message Event {
   // The session this event belongs to.
   string session = 1;
@@ -505,7 +508,10 @@ message Event {
   //
   // REMAINS FOR KINDS NOT YET TYPED. For every kind that has a member of
   // `body` below, the body is the beat and this is at most the same facts in
-  // the toolkit's own encoding. A CLIENT READS `body` AND NEVER DECODES
+  // the toolkit's own encoding. These bytes obey the same recipient boundary
+  // as the typed body; unprojected world truth/source documents cannot hide in
+  // an opaque payload merely because a renderer ignores it.
+  // A CLIENT READS `body` AND NEVER DECODES
   // `payload` — not as a fallback, not for a field it wishes were typed. A
   // fact a client needs that only `payload` carries is a missing body field
   // and goes through the design, the way Seen did for Sighting (ADR-0041).
@@ -1253,6 +1259,19 @@ message Sighted {
   // own view and sees whatever they are entitled to see, which may not be
   // what actually happened.
   repeated string changed = 3;
+  // This recipient's GetKnowledge snapshot changed: discovered geometry,
+  // mutable prop/door/creature testimony, observable areas or own holdings.
+  // May be true with all three creature lists empty. The lists above keep
+  // their creature-only meaning; no prop/door ids, hidden carrier or geometry
+  // is encoded in this invalidation. Re-read GetKnowledge, not world truth.
+  //
+  // Only a change in THIS observer's permitted answer produces invalidation;
+  // an unseen change alone does not. The SDK owns that decision. Applies to
+  // live delivery and GetStory recovery with the original recipient audience.
+  // Replay never expands audiences or inserts newly learned facts into an old
+  // beat. Use Event.seq against GetKnowledge.seq for snapshot freshness, not
+  // as acknowledgment of historical narration. No new stream or cursor space.
+  bool knowledge_changed = 4;
 }
 
 // FightStarted: two sides came into contact and a fight began
@@ -1349,13 +1368,14 @@ message Ended {
 }
 
 // DoorChanged: a door changed (EVENT_KIND_DOOR) — opened, closed, or an
-// unlock attempt. Delivered only to members who know the door — see the
-// kind; a member learning of the door for the first time gets DoorRevealed
-// instead, on the same underlying beat.
+// unlock attempt. Delivered only to recipients entitled to those facts, not
+// everyone who remembers the door. Discovery is supplied through the recipient's
+// permitted knowledge; it is not inferred from this action beat.
 message DoorChanged {
   string door = 1;
   DoorState state = 2;
-  // Who did it. Empty when nobody did — authored state reported at open.
+  // Who did it, only if permitted to this recipient. Empty means no actor is
+  // supplied, not proof that nobody acted. Unknown identities are never filled.
   string actor = 3;
   // dc, total and beaten are set only on unlock-attempt beats — the
   // composition's door beat carries them on those and nothing on a plain
@@ -1684,13 +1704,12 @@ message Looted {
 
 // Held: a member picked up a holdable prop (EVENT_KIND_HELD).
 //
-// PHYSICAL STATE FOLDS ON THE TRUTH GRAIN: an object leaving the floor is
-// not a secret, so this beat goes to everyone present and every recipient's
-// atlas loses the prop. A client patches its cached GetAtlas by removing the
-// prop with this id — the load-once, beat-refreshed law (rpg-project#264)
-// running in the subtractive direction, where DOOR_REVEALED runs it in the
-// additive one. GetAtlas itself omits held props for everyone, so a refetch
-// agrees with the patch.
+// Pickup facts reach the actor and lawful witnesses, not every member who
+// knows the prop. An obstructed observer keeps remembered placement through
+// reads/events/replay until its own evidence corrects it. Re-read GetKnowledge
+// on recipient invalidation; do not remove another observer's prop globally.
+// Seeing the old place empty permits location correction, never this beat's
+// holder identity or an inferred destination.
 //
 // Who holds it afterwards is this beat's `holder`, and that stays true until
 // they carry it out through a bound exit (Exited.holding) or drop it
@@ -1714,10 +1733,9 @@ message Held {
 // bound exit (design R9). Without it a carrier who walks out through the
 // lobby — or disconnects — walks off with the only win in the run.
 //
-// The prop reappears as a holdable prop at `at` for everyone present, so a
-// client patches its cached GetAtlas by adding it back at that cell; GetAtlas
-// places dropped props there too, so a refetch agrees. The journal stays
-// append-only underneath — a drop is a new fact, not the erasure of the hold.
+// Placement/carrier facts reach only entitled recipients. An unseen drop does
+// not rewrite another observer's latest PropSighting. Snapshot hydration and
+// replay preserve that boundary; prior prop knowledge never grants the new cell.
 message Dropped {
   // Who dropped it — the departing carrier.
   string member = 1;

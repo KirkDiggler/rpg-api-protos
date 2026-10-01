@@ -5,10 +5,6 @@ package dnd5e.api.session.v1alpha1;
 import "dnd5e/api/session/v1alpha1/events.proto";
 import "dnd5e/api/session/v1alpha1/types.proto";
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
-option java_multiple_files = true;
-option java_package = "com.kirkdiggler.rpg.api.dnd5e.session.v1alpha1";
-
 // SessionService is the wire form of the toolkit's `rulebooks/dnd5e/session`
 // package — one verb surface, transcribed (shapes read from session/v0.18.0;
 // current Death Save contract from session/v0.54.1; Afford from session/v0.21.3;
@@ -1148,6 +1144,54 @@ message GetViewResponse {
   repeated SightArea areas = 2;
 }
 
+// GetKnowledge is the coherent observer snapshot for dungeon rendering. The
+// contract leads its SDK/API implementation (rpg-project#509); no storage,
+// discovery index, perception algorithm or new streaming transport is implied.
+message GetKnowledgeRequest {
+  string session = 1;
+  // Required observer, authorized against the caller by the host before the
+  // SDK read. A supplied id, session membership or hosting alone is not
+  // authority to read another character's knowledge. No all-knowing fallback.
+  string member = 2;
+}
+
+// All fields describe one saved observer state, not independently timed reads.
+// The SDK owns the permitted answer; the API authorizes and converts it without
+// visibility calculations. A client atomically replaces its prior snapshot.
+// Every collection is complete for this answer, not a delta. An absent unknown
+// subject is not a claim of nonexistence; a known prop with unknown placement
+// remains in props with prop.at absent.
+message GetKnowledgeResponse {
+  // Required. Only discovered fixed geometry/scenery and permitted appearance
+  // refs/transforms. Never the complete authored dungeon with a client filter.
+  GetAtlasResponse atlas = 1;
+  // Required, including when sightings/areas are empty. Existing creature
+  // testimony and observable sight areas; no second creature knowledge engine.
+  GetViewResponse view = 2;
+  // Latest known props, each stable prop.id once. No competing current and
+  // remembered rows for the same subject.
+  repeated PropSighting props = 3;
+  // Latest known doors, each door.door once.
+  repeated DoorSighting doors = 4;
+  // Latest recipient-local Event.seq incorporated in this snapshot, zero if
+  // none exists. Never a global/world sequence, clock or content revision.
+  // Invalidation at/below this watermark is already incorporated; newer
+  // Sighted.knowledge_changed requires another coherent read. An older read
+  // must not overwrite a newer snapshot for the same session/member.
+  // This is NOT acknowledgment of narrated events: GetStory/live sequence
+  // tracking and historical audiences remain independent and unchanged.
+  uint64 seq = 5;
+  // This member's own physical prop holding ids, not anyone else's inventory
+  // or transferable intel. Same id vocabulary as AtlasProp.id/Exited.holding.
+  // Complete even after reconnect; unknown world placement does not mean the
+  // holder forgets what they hold. Each id has a known props entry without a
+  // floor placement; no other carrier/destination is disclosed.
+  repeated string holding = 6;
+  // Required. This observer's own placement from the same state as the view,
+  // not a later independent read. Reuses GetWhere; no other positions added.
+  GetWhereResponse where = 7;
+}
+
 // GetWhereRequest asks where one member stands.
 //
 // Added with session/v0.13.0 (toolkit#1051), and it closes design rule 11 on
@@ -1182,87 +1226,53 @@ message GetWhereResponse {
   Position position = 1;
 }
 
-// GetRosterRequest asks who is in a session.
+// GetRosterRequest asks for public identities permitted to one observer.
 message GetRosterRequest {
   string session = 1;
+  // Required viewer, bound to the caller as on GetKnowledge. No session-wide
+  // fallback: non-party dungeon identities the member has not learned are
+  // absent, including names, ids, body refs and customization. Public party
+  // identity may be shared; this never supplies anyone else's position.
+  string member = 2;
 }
 
-// GetRosterResponse carries the public half of every member — see
-// PublicMemberInfo for the public/private law and why there are no
-// positions here. Load once per session, re-pull on a joined event,
-// reference at render.
+// GetRosterResponse carries only the public identities this viewer may know.
+// No positions/private sheets. Refresh when permitted identities change; it is
+// not a side door to undiscovered creatures, NPCs or their appearance refs.
 message GetRosterResponse {
   repeated PublicMemberInfo members = 1;
 }
 
-// GetAtlasRequest asks for a session's static world map, as one member
-// knows it.
+// GetAtlasRequest asks for fixed geometry discovered by one member.
 message GetAtlasRequest {
   string session = 1;
   // The viewer. Bound to the authenticated caller by the host — the same
-  // law Afford and GetWhere keep — because concealed structure makes this a
-  // member-scoped answer: a client-supplied ID wired through unchecked
-  // would read another member's secrets. Added with rpg-api-protos#266;
-  // scoping reaches exactly as far as concealed structure requires
-  // (below) and no further.
+  // law Afford and GetWhere keep. Ordinary undiscovered geometry as well as
+  // concealment makes this member-scoped; caller-supplied ids are not authority.
+  // Use GetKnowledge when geometry and mutable testimony must be coherent.
   string member = 2;
 }
 
-// GetAtlasResponse mirrors session.Atlas.
+// GetAtlasResponse is the supplied geometry view, reusing the existing atlas
+// DTO. The observer projection contract leads its SDK implementation (#509).
 //
-// CONSTRUCTION TRUTH — unchanged by movement, joins, exits or endings —
-// WITH ONE CARVE-OUT: concealed structure this member has not had
-// revealed is not in their answer (ruled on rpg-project#350 and #351,
-// review findings ratified). The absence law:
+// One authoritative server map, individual discovery. Player delivery omits
+// ordinary undiscovered interiors as well as unfound concealed structure. All
+// nested cells, region membership, walls, segments, fixed props/footprints,
+// exits, starts and appearance metadata obey that boundary. A region/door does
+// not grant its whole interior. Segments/region cell sets describe only the
+// permitted portion; unknown endpoints do not declare floor. Known fixed
+// geometry survives withdrawal; mutable prop/door values are separate testimony.
 //
-//   - ABSENT FROM EVERY DOOR-LIST: a concealed unfound door's
-//     AtlasDoorway entries do not appear in `doorways`, nor its DoorInfo
-//     in GetDoors — presence in any list, even marked, leaks the secret.
-//   - MASKED AS WALL IN GEOMETRY, IN ONE CASE ONLY: for a concealed
-//     door between two spaces the member can see, `boundaries` gains a
-//     synthetic ordinary boundary at the door's edges, indistinguishable
-//     from an authored wall — nothing marks it. Masked rather than
-//     omitted because a door's edges carry no authored boundary (a door
-//     cannot stand in a wall; the authored wall run has a gap there,
-//     filled by the doorway entry), so pure omission would render a HOLE
-//     in a visible run exactly where the secret is — the absence itself
-//     would leak. The fiction already says what belongs there: a
-//     concealed door IS a wall until found. At a concealed region's
-//     border NO mask applies — see the third half.
-//   - THE ROOM HIDES WITH ITS DOOR, BY THE NEVER-AUTHORED YARDSTICK
-//     (ruled on rpg-project#351, refined in review round 3: client fog
-//     does not hide unexplored space, so the map itself must keep the
-//     secret). A non-knower's answer is BYTE-IDENTICAL to an atlas in
-//     which the concealed region was never authored: its cells withheld
-//     from `cells`, its AtlasRegion from `regions`, its props from
-//     `props`, and EVERY boundary touching its cells from `boundaries` —
-//     border walls included. Withholding only interior boundaries was
-//     the leak the refinement closed: a border wall left behind would
-//     touch no visible floor, an impossible signature in an honest
-//     atlas, certifying hidden space at a named coordinate. With the
-//     whole border withheld, the space reads as solid mass exactly like
-//     anywhere beyond the map's edge — and no mask applies at the
-//     region's border: its door's edge already reads as solid mass like
-//     the rest of it, and a synthetic wall touching void would carry the
-//     same self-marking signature. Every entrance of a concealed region
-//     is itself a concealed door (authoring refuses anything else), each
-//     absent from the door-lists per the first half; the mask stays the
-//     second half's own.
+// Unfound concealed doors are absent from every door list, indistinguishable
+// from ordinary wall where an observed wall is their permitted appearance.
+// Unknown geometry is absent, not an outlined/marked hidden room. Source counts,
+// full region extents or unrestricted scene documents cannot supply it sideways.
 //
-// That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
-// doors, per the standing ruling that detection beats are per-player from
-// birth. Everything else is identical for every member — full data until
-// v1.0.
-//
-// Still fetch once per encounter and cache it, never per frame — then
-// patch it from the reveal beats on the stream: DOOR_REVEALED carries the
-// doorways this answer withheld and the boundaries that replace the mask;
-// REGION_REVEALED carries a hidden room's whole slice (the load-once,
-// beat-refreshed shape).
-//
-// The builder's PutDungeon answers with this same message as the AUTHOR'S
-// view — an all-knowing member's, since an author already knows
-// everything they drew.
+// GetKnowledge carries this atlas with a coherent observation snapshot. Refresh
+// on recipient knowledge invalidation, not per frame. Builder compile responses
+// may use this same DTO for the full AUTHOR view only under separate builder
+// authority; that view is never a player fallback.
 message GetAtlasResponse {
   // rooms = 1 held a repeated AtlasRoom — the per-room decomposition — until
   // session v0.10.0 flattened the Atlas into one map. `doorways` below keeps
@@ -1288,8 +1298,8 @@ message GetAtlasResponse {
   reserved 5;
   reserved "occluders";
 
-  // Every cell of the map, sorted by coordinate. Cells occupied by props are
-  // included: a prop's blocking is a property of the prop, not of whether the
+  // Every discovered floor cell, sorted by coordinate. Cells occupied by
+  // props are included: a prop's blocking is a property of the prop, not of whether the
   // floor exists under it.
   //
   // Sorted by coordinate rather than concatenated room by room, so the
@@ -1297,18 +1307,12 @@ message GetAtlasResponse {
   // map that still came out room-by-room would be the old shape wearing a new
   // type.
   repeated Position cells = 4;
-  // Everything standing on the map, each naming what it is and answering both
-  // blocking questions for itself. See AtlasProp for why this replaced a bare
-  // list of occluded coordinates; a host that wants that list back filters on
-  // blocks_line_of_sight.
-  //
-  // A prop a member HOLDS (see Held) is ABSENT here, for every member — not
-  // flagged — and one DROPPED afterwards stands at its drop cell rather than
-  // its authored one. This list is still construction truth: picking a thing
-  // up is the one act that folds into it, and it folds for everyone at once
-  // because an object leaving the floor is not a secret. See AtlasProp.id.
+  // Player view: discovered fixed non-holdable scenery only. Mutable holdable
+  // props are GetKnowledge.props testimony, never shared live construction.
+  // Builder compile view: separately authorized complete authored props.
+  // Blocking/facing/offset fields keep their existing meaning.
   repeated AtlasProp props = 7;
-  // Every wall and barrier on the map, sorted by endpoint.
+  // Permitted wall/barrier edges, sorted by endpoint.
   //
   // WALLS ARE DECLARED, NOT IMPLIED BY ROOMS. On one canvas two chambers side
   // by side are ONE OPEN SPACE until somebody draws the seam between them, so
@@ -1316,7 +1320,8 @@ message GetAtlasResponse {
   // answer to what a member cannot walk through or see past. Anything that
   // authors a world for this service owes it these (rpg-toolkit#1130).
   repeated AtlasBoundary boundaries = 6;
-  // Every crossable cell pair, sorted by connection ID. Route planning needs
+  // Discovered doorway thresholds, sorted by connection ID. Endpoints do not
+  // grant adjacent floor discovery (see AtlasDoorway). Route planning needs
   // this as well as `cells` — see AtlasDoorway on why adjacency is not
   // permission.
   repeated AtlasDoorway doorways = 2;
@@ -1324,18 +1329,18 @@ message GetAtlasResponse {
   // absolute frame as `cells`. NO FLOOR CELL APPEARS IN TWO REGIONS, and a
   // floor cell may belong to NONE: an unowned cell in `cells` is SCENERY —
   // floor that belongs to no room, drawn and lit like the floor beside it and
-  // visible to everyone (rpg-project#360 §1.1, §5.1). So a client asking
+  // subject to individual discovery too. So a client asking
   // "which region is this cell in" has one answer or none, never two, and a
   // client that treats "in no region" as "not floor" will punch holes in the
-  // map. Regions are construction truth like the rest of the atlas: fetched
-  // once with it, cached with it, unchanged by anything that happens in the
-  // session. Lighting rides here because it is a world fact, not a render
+  // map. Player region cells are intersected with discovered floor; metadata
+  // is supplied only as permitted knowledge. No complete hidden region bounds.
+  // Lighting rides here because it is a world fact, not a render
   // hint: a client that cannot read "this hall is dark" off the wire
   // re-derives it by experiment. See AtlasRegion for why regions are not
   // rooms, and the law on archetype.
   repeated AtlasRegion regions = 9;
-  // Every wall AS THE AUTHOR DREW IT — the line, not the cell-crossings it
-  // implies. Presentation only: `boundaries` above stays the mechanical truth
+  // Permitted portions of authored wall lines, not their hidden full extent.
+  // The line, not the cell-crossings it implies. Presentation only: `boundaries` above stays the mechanical truth
   // and nothing here changes what a member may do. A client draws these
   // instead of fitting a chain through `boundaries`, which cannot recover the
   // author's line at all — see AtlasSegment for why, and for how a door's gap
@@ -1361,19 +1366,17 @@ message GetAtlasResponse {
   repeated Position sealed = 11;
   // Every authored way out of the dungeon, each an id and a floor cell.
   //
-  // THE SAME FOR EVERY MEMBER, unlike the doors and regions above: an exit is
-  // structure, not concealable, and no part of this list is per-member
-  // knowledge. It rides the atlas because a dungeon has ways out whatever the
-  // party came for — see AtlasExit, including why this is for drawing the way
-  // out and never for deciding whether Leave is offered.
+  // Only exits known to this member, never the whole authored exit list.
+  // Fixed structure is individually discovered even when not concealed.
+  // This is presentation, never authority for whether Leave is offered.
   //
   // Empty from a dungeon whose author declared none, which is every dungeon
   // authored before slice 2. A client that finds none draws no exit marker
   // and behaves exactly as it did before; nothing is defaulted in, and
   // `start` is not implicitly an exit.
   repeated AtlasExit exits = 12;
-  // Where the party comes in, and which way they are looking when they get
-  // there — the authored `start`, the same for every member.
+  // The permitted authored entry/facing, omitted if this observer does not
+  // know it. It does not disclose any other start or floor.
   //
   // THE ATLAS CARRIED NO START AT ALL until this field: a client drawing the
   // map from this message could see cells, props, walls, regions and exits,
@@ -1390,20 +1393,10 @@ message GetAtlasResponse {
   // The key of the authored dungeon this session was launched from, as the
   // content registry knows it.
   //
-  // THE SCENE IS SERVED BY KEY, NOT BY THE ENCOUNTER (rpg-project#479). What a
-  // room looks like — its assets, transforms, lights and labels — is content
-  // the World Builder owns, and the registry already hands back the authored
-  // file verbatim. So a client fetches the room's presentation with this key
-  // through `AuthoringService.GetDungeon` — ungated, because reading content
-  // mutates nothing — and reads it with its own codec. The scene a player sees
-  // and the field the engine compiled come from the same bytes, because the
-  // registry compiled that entry from them; the engine keeps only the numbers
-  // it places a footprint from and carries no document it does not read.
-  //
-  // Empty means the session predates this field — a saved session launched
-  // before it existed. A client reads empty as NO AUTHORED SCENE and draws
-  // what it drew before, never as an error: everything above is the whole
-  // mechanical truth either way, and presentation is the only thing missing.
+  // Content identity, never permission to fetch full authored YAML/scene data.
+  // Player rendering uses only the supplied permitted refs/transforms. No
+  // GetDungeon fallback; that RPC requires separate builder authorization.
+  // A source document stays outside encounter. Empty means no authored source.
   string dungeon_key = 15;
   // Every authored FOOTPRINT standing on the map — the rectangles the World
   // Builder placed — sorted by id. A different list from `props` above, never
@@ -1411,20 +1404,11 @@ message GetAtlasResponse {
   // placed prop occupies an area and names only itself, and the two id spaces
   // are one so a client may key them together.
   //
-  // THIS IS WHETHER THE THING IS THERE. A client drawing a placed prop from
-  // the authored scene alone draws the author's whole drawing, which says
-  // nothing about the run: a rectangle in reserve has not arrived, one
-  // somebody picked up is gone, and one standing in space this member cannot
-  // see was never in their map at all. This list is the presence answer, and
-  // `holdable` on an entry is the take answer.
-  //
-  // THE ABSENCE LAW, as the lists above carry it and with one more clause of
-  // its own: a placement is absent while its arrival predicate has not held,
-  // absent once held by anybody (for every member, not flagged), and absent
-  // from THIS recipient when it stands on any cell concealed from them. The
-  // last is the per-member half — byte-identical to an atlas in which the
-  // placement was never authored, the same yardstick the concealed-region
-  // clause above states. Nothing marks any of the three.
+  // Player view: discovered fixed non-holdable footprints only, with no hidden
+  // footprint extent/metadata. The first mutable testimony shape covers cell
+  // props; arbitrary holdable footprints require their own contract extension,
+  // not a live-world or full-scene fallback. Builder views remain full authored
+  // construction under separate authority.
   //
   // Empty from a producer that has not adopted placed props, and from a
   // dungeon whose author drew none. A client that finds none behaves exactly
@@ -1441,15 +1425,22 @@ message GetAtlasResponse {
   // It held a versioned JSON snapshot of the toolkit's canonical
   // RoomScenePresentation: the source coordinate frame, the workspace, and the
   // complete visual scene. That document is content, and content reaches a
-  // client by key from the registry rather than riding every atlas.
+  // separately authorized builder rather than riding a player atlas.
   string room_scene_json = 14 [deprecated = true];
+  // Opaque immutable registry revision paired with a non-empty dungeon_key.
+  // Geometry and permitted appearance bind to these same source bytes for the
+  // encounter; reconnect must not resolve the mutable key to newer content.
+  // Empty is allowed only when dungeon_key is empty (no authored source).
+  // This is source identity, not a discovery version, hash to interpret, global
+  // event counter or permission to fetch any undiscovered content.
+  string content_revision = 17;
 }
 
 // =============================================================================
 // Doors
 // =============================================================================
 
-// GetDoorsRequest asks for every door's live state, as one member knows it.
+// GetDoorsRequest asks for the door values one member knows, not unseen truth.
 message GetDoorsRequest {
   string session = 1;
   // The viewer. Bound to the authenticated caller by the host — the same
@@ -1460,17 +1451,11 @@ message GetDoorsRequest {
 
 // GetDoorsResponse carries one DoorInfo per door THIS MEMBER KNOWS.
 //
-// THE LIVE HALF OF THE ATLAS'S DOORWAYS: GetAtlas says where a door's edges
-// are; this says what each door is doing now. A concealed door the member
-// has not found is ABSENT from this list — the door-list half of the
-// absence law, whose geometry half masks the door as a wall (see
-// GetAtlasResponse; rpg-toolkit#1020's shelf coming due for doors, and it
-// reaches no further than concealed structure — every never-concealed
-// door is here for everyone, full data until v1.0). Fetch once, then
-// update from DOOR events on the stream and
-// ADD from DOOR_REVEALED beats, which carry exactly the DoorInfo this
-// answer omitted — the same load-once, beat-refreshed shape GetRoster set
-// (rpg-project#264).
+// Ordinary undiscovered and unfound concealed doors are both absent. Known
+// door values are the same current/remembered values GetKnowledge.doors carries,
+// never refreshed from unseen live state. This value-only read does not carry
+// currency; use GetKnowledge for coherent geometry/testimony and presentation.
+// Neither prior door knowledge nor an event omission establishes its live value.
 message GetDoorsResponse {
   repeated DoorInfo doors = 1;
 }
@@ -1890,8 +1875,8 @@ message LootResponse {
 // was rejected because a member who stood there and walked away would "have"
 // it, and zero values must tell the truth.
 //
-// The prop leaves the atlas FOR EVERYONE and the holder carries it, both
-// reported by the HELD beat to everyone present.
+// The prop leaves the world floor and the holder carries it. Only the actor
+// and entitled witnesses learn those facts; other observers retain testimony.
 //
 // THE PROBE LAW APPLIES, and only here (design §4.3): a prop standing in
 // space the member cannot see answers NOT_FOUND identically whether it does
@@ -1923,7 +1908,7 @@ message HoldRequest {
 // HoldResponse acknowledges the hold: the seam's standard reports, and
 // nothing else.
 //
-// The world change everyone needs — the prop off the map, the holder
+// The facts entitled witnesses receive — the prop off the map, the holder
 // carrying it — arrives as the HELD beat, which reaches the caller too
 // (design rule 2: a verb's response describes only the caller's own action,
 // and everything else is the stream's). saved and delivery are S6's law,
@@ -2046,9 +2031,9 @@ service SessionService {
   rpc Loot(LootRequest) returns (LootResponse);
 
   // Hold picks up the holdable prop named by `target`, as `member`. The prop
-  // leaves the atlas for everyone and the holder carries it; both arrive as
-  // the HELD beat. A prop the member cannot see refuses identically to one
-  // that does not exist — the probe law, as OpenDoor and Unlock keep it.
+  // leaves the world floor and the holder carries it. Only entitled recipients
+  // learn those facts through HELD; others retain their testimony. An unseen
+  // prop refuses identically to one that does not exist — the probe law.
   //
   // HOLD CREATES A RUN-SCOPED HOLDING FACT; `take` is reserved for acts that
   // land a thing in a character's inventory — carrying the artifact back to
@@ -2131,25 +2116,26 @@ service SessionService {
   // GetView reports what one member currently perceives.
   rpc GetView(GetViewRequest) returns (GetViewResponse);
 
+  // GetKnowledge supplies the complete coherent observer answer for dungeon
+  // rendering. Authenticated member binding, no full-map/content fallback.
+  // Refresh on Sighted.knowledge_changed; ordinary reads never discover facts.
+  rpc GetKnowledge(GetKnowledgeRequest) returns (GetKnowledgeResponse);
+
   // GetWhere reports the cell one member stands on — the caller's own
   // position, answerable cold. Deliberately singular; a roster read would leak
   // the cells of members the client has never perceived.
   rpc GetWhere(GetWhereRequest) returns (GetWhereResponse);
 
-  // GetAtlas returns the static world map as `member` knows it — concealed
-  // structure the member has not had revealed is absent or masked.
-  // Construction truth otherwise; cache per encounter, patch from
-  // DOOR_REVEALED and REGION_REVEALED beats.
+  // GetAtlas returns discovered fixed geometry as member knows it, not the
+  // complete world map. Use GetKnowledge for coherent rendering snapshots.
   rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
 
-  // GetRoster reports the public half of every member — identity (name, kind,
-  // the body's refs), never position and never the sheet. Stable per session:
-  // fetch once, re-pull on a joined event, reference at render.
+  // GetRoster reports only public identities permitted to member; no unknown
+  // dungeon identities, positions or private sheets.
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
 
-  // GetDoors reports the live state of every door `member` knows — the
-  // dynamic half of GetAtlas's doorways. Fetch once, update from DOOR
-  // events, add from DOOR_REVEALED beats.
+  // GetDoors reports the last values member knows. Values may be remembered;
+  // use GetKnowledge for their observation currency and coherent geometry.
   rpc GetDoors(GetDoorsRequest) returns (GetDoorsResponse);
 
   // StreamEvents delivers the events addressed to one member. Everything a

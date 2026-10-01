@@ -135,7 +135,8 @@ enum EventKind {
   // facts receive it. Prior knowledge of a door is not observation of its
   // unseen changes. SDK audiences/projections preserve that distinction in
   // both live delivery and historical replay. First-time concealment knowledge
-  // uses CONCEALMENT_REVEALED; ordinary discovery invalidates GetKnowledge.
+  // may narrate CONCEALMENT_REVEALED; KnowledgeChanged supplies the resulting
+  // permitted knowledge for both concealed and ordinary discovery.
   EVENT_KIND_DOOR = 14;
   // A door entered THIS RECIPIENT'S knowledge — by their own search, by an
   // open in their presence, or by perceiving the opened door as present
@@ -276,23 +277,11 @@ enum EventKind {
   // the run, pre-v1 full data.
   EVENT_KIND_CONCENTRATION_ENDED = 29;
 
-  // THIS RECIPIENT's own perception changed: members who came into their
-  // view, and members who left it. Recipient-scoped to exactly one member,
-  // like DOOR_REVEALED and REGION_REVEALED — what somebody can see is news
-  // for them, and a roster-wide audience would publish the sight graph to
-  // the table.
-  //
-  // A NUDGE, NOT A PATCH, and the one place this differs from the two
-  // reveals. Sighted carries NAMES AND NO TESTIMONY: what the recipient now
-  // perceives about those members — cell, standing, what is in their hands —
-  // is already answered, member-scoped, by GetView. A body restating it
-  // would be a second computation of that same answer, which is how a patch
-  // and a projection learn to disagree. A client re-reads its view.
-  //
-  // A TRANSITION, NEVER A STATE. It is published only when perception
-  // actually changed, so no event means nothing changed: an observer who
-  // keeps watching the same people hears nothing at all. It is NOT a
-  // periodic "here is what you can see".
+  // Legacy creature perception notification, scoped to one recipient. Retained
+  // for existing consumers; it carries ids, not testimony. Knowledge consumers
+  // apply KnowledgeChanged's supplied values instead of refetching GetView or
+  // GetKnowledge on this notification. Neither absence nor lost ids are
+  // evidence of nonexistence; current/remembered status is provider testimony.
   EVENT_KIND_SIGHTED = 30;
 
   // A cast missed one named target. Carries the provider's supplied outcome,
@@ -417,7 +406,9 @@ enum EventKind {
   // law DOOR_REVEALED carries): a search that found it, crossing into its
   // cells, perceiving one of its member doors standing open, perceiving a
   // creature standing on its cells, or looted or held intel that names it. The
-  // full trigger set is owned where perception lives.
+  // full trigger set is owned where perception lives. Knowledge consumers
+  // do not apply this legacy patch path: KnowledgeChanged carries the coherent
+  // resulting knowledge. Concealment acceptance remains outside slice 1.
   EVENT_KIND_CONCEALMENT_REVEALED = 39;
 
   // EXPERIENCE REACHED THE PARTY (design rpg-project "experience from the
@@ -438,6 +429,13 @@ enum EventKind {
   // beat; the total it produced is still read from
   // Character.experience_points.
   EVENT_KIND_EXPERIENCE_GAINED = 40;
+
+  // This recipient's permitted dungeon knowledge changed. One atomic supplied
+  // answer over changed sections, not invalidation or a new transport. Encounter
+  // owns discovery/observation; session captures and projects this observer's
+  // answer, including its original audience, for live delivery and replay.
+  // A purely unseen world change alone produces no update for this observer.
+  EVENT_KIND_KNOWLEDGE_CHANGED = 41;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -462,7 +460,10 @@ enum EventKind {
 // payload and metadata field remains subject to this recipient's permitted
 // knowledge. If a body cannot be lawfully projected, it is not delivered to
 // that recipient. Historical replay keeps the original audience and facts;
-// later discovery never expands an earlier beat's disclosure.
+// later discovery never expands an earlier beat's disclosure. Legacy reveal
+// patch instructions below are for pre-knowledge consumers only: after adoption,
+// KnowledgeChanged is the sole dungeon-knowledge update, without beat-driven
+// GetKnowledge/GetView/GetAtlas/GetRoster reads or parallel local patches.
 message Event {
   // The session this event belongs to.
   string session = 1;
@@ -570,6 +571,7 @@ message Event {
     Stayed stayed = 44;
     ConcealmentRevealed concealment_revealed = 45;
     ExperienceGained experience_gained = 46;
+    KnowledgeChanged knowledge_changed = 47;
   }
 }
 
@@ -1217,63 +1219,66 @@ message ConcentrationEnded {
   string reason = 3;
 }
 
-// Sighted is EVENT_KIND_SIGHTED's body: who entered this recipient's view,
-// and who left it.
-//
-// EITHER LIST MAY BE EMPTY AND NEVER BOTH. The server omits the half that
-// did not happen and publishes nothing at all when neither did, so a
-// delivered Sighted always names at least one member. A client may read an
-// empty `gained` as "nobody arrived" without wondering whether the question
-// was asked.
-//
-// GAINED MERGES FIRST CONTACT WITH RE-ACQUISITION on purpose. Somebody the
-// recipient has never seen and somebody whose ghost just became real again
-// are ONE FACT to a client — a peer is in view who was not — and the answer
-// to both is the same re-read of GetView.
-//
-// LOST IS NOT A REMOVAL. A member who leaves your view stays on your map as
-// a GHOST: what you last saw, at the moment you last saw it, hands and all.
-// A client that deletes them on this beat is discarding testimony the server
-// still holds and still serves. What changes is that the sighting is no
-// longer current, which GetView already says.
+// Sighted is the legacy id-only perception notification. At least one of
+// gained/lost/changed is non-empty; gained includes first contact/reacquisition.
+// Retained for migration, not a normal read trigger for knowledge consumers.
+// Lost is not deletion: the supplied knowledge keeps latest remembered testimony.
 message Sighted {
-  // Members who came into this recipient's view. Member ids.
   repeated string gained = 1;
-  // Members who left it, and who the recipient now holds only as a ghost.
   repeated string lost = 2;
-  // Members STILL in this recipient's view whose appearance changed under
-  // them — a weapon drawn or put away, and in time anything else an observer
-  // can see. Not a transition: the recipient could see them before and can
-  // see them now, so they are in neither list above.
-  //
-  // WHY IT IS THE SAME EVENT AND NOT ITS OWN. All three lists answer one
-  // question — "what do I perceive now that I did not a moment ago?" — and a
-  // client's answer to all three is identical: re-read GetView. Splitting
-  // them would give a client two ways to learn the same thing and two places
-  // to get it wrong.
-  //
-  // WHAT IT IS NOT is a list of what changed. The server does not say a
-  // weapon was drawn, because saying so would tell this recipient a FACT
-  // rather than that their own view is stale — and the fact is exactly what
-  // an illusion has to be able to lie about. The recipient re-reads their
-  // own view and sees whatever they are entitled to see, which may not be
-  // what actually happened.
+  // Still visible, with changed perceived appearance. Not actual hidden truth.
   repeated string changed = 3;
-  // This recipient's GetKnowledge snapshot changed: discovered geometry,
-  // mutable prop/door/creature testimony, observable areas or own holdings.
-  // May be true with all three creature lists empty. The lists above keep
-  // their creature-only meaning; no prop/door ids, hidden carrier or geometry
-  // is encoded in this invalidation. Re-read GetKnowledge, not world truth.
-  //
-  // The toolkit provider sets this only when THIS observer's permitted answer
-  // changed; an unseen change alone does not. Encounter owns observation and
-  // discovery; the session SDK projects that recipient-scoped decision. The
-  // API transports it and the client re-reads GetKnowledge. Applies to live
-  // delivery and GetStory recovery with the original recipient audience.
-  // Replay never expands audiences or inserts newly learned facts into an old
-  // beat. Use Event.seq against GetKnowledge.seq for snapshot freshness, not
-  // as acknowledgment of historical narration. No new stream or cursor space.
-  bool knowledge_changed = 4;
+  // Retired unreleased invalidation shape; live updates carry actual values.
+  reserved 4;
+  reserved "knowledge_changed";
+}
+
+// KnowledgeChanged is EVENT_KIND_KNOWLEDGE_CHANGED's authoritative update for
+// Event.recipient. It uses that recipient's existing dense Event.seq: no second
+// cursor, global revision or hidden subjects encoded in an id list.
+//
+// ATOMIC CHANGED-SECTION REPLACEMENT. At least one section is present. Omitted
+// sections are unchanged; each present section completely replaces its previous
+// value/collection, including present-empty collections. Apply every supplied
+// section together, never render an intermediate geometry/view/identity mix.
+// Payloads describe the observer's post-change answer, not shared world truth.
+// Reuse the snapshot projection; never a second perception/discovery algorithm.
+//
+// Identity, floor placement and currency are distinct. Replacement omission is
+// not a positive empty-place witness or proof of nonexistence. A known prop of
+// unknown placement remains in props, with prop.at absent; observed_empty is
+// explicit evidence, not inferred from absence. Latest testimony is one row per
+// subject, not parallel current/remembered rows. No hidden holder/destination.
+//
+// The provider captures the permitted values at this historical sequence and
+// persists them with their original audience. GetStory/replay returns those
+// values, never a fresh projection from today's world or newly learned knowledge.
+// Snapshot state through N equals the knowledge-event prefix through N. Buffered
+// state updates <= N are already incorporated; apply > N in full recipient order,
+// accounting for other event kinds too. Duplicates do not reapply state; gaps
+// recover through GetStory or a stream-first snapshot when history is trimmed.
+// Historical narration consumption remains independent of this state cutoff.
+// Other beats may narrate actions but are not a second knowledge-patching path.
+message KnowledgeChanged {
+  // Complete discovered fixed atlas when geometry/appearance changes. Unknown
+  // floor and hidden extent stay absent; withdrawal does not erase discovery.
+  GetAtlasResponse atlas = 1;
+  // Complete permitted creature testimony AND observable sight areas.
+  GetViewResponse view = 2;
+  // Complete known cell-prop testimony, not just moved/removed ids.
+  PropSightings props = 3;
+  // Complete known door testimony, never unseen live-state refresh.
+  DoorSightings doors = 4;
+  // Complete own physical prop holding ids. If a holding change requires prop
+  // testimony changes, supply props in this same atomic update.
+  PropHoldings holding = 5;
+  // Own placement, never a list of unobserved member positions.
+  GetWhereResponse where = 6;
+  // Complete permitted public identity/appearance set. A view introducing a
+  // subject whose identity/appearance is not already supplied includes the
+  // required roster replacement here, so rendering needs no GetRoster read.
+  // Any coupled appearance/testimony changes are supplied together.
+  GetRosterResponse roster = 7;
 }
 
 // FightStarted: two sides came into contact and a fight began
@@ -1567,8 +1572,8 @@ message RegionRevealed {
 // wider reveal (a scried map, a lit floor) is its own design round.
 //
 // KNOWLEDGE, NOT STATE, and it arrives once. A member who already holds the
-// concealment hears the ordinary beats of whatever happened — DoorChanged for
-// a door's state, Sighted for who came into view — and never a second reveal.
+// concealment hears the ordinary narration beats, never a second reveal.
+// KnowledgeChanged supplies its current testimony after knowledge adoption.
 message ConcealmentRevealed {
   // The author's id for the concealment — the dungeon file's
   // `concealments[].id`, which is what intel binds to with
@@ -1708,8 +1713,8 @@ message Looted {
 //
 // Pickup facts reach the actor and lawful witnesses, not every member who
 // knows the prop. An obstructed observer keeps remembered placement through
-// reads/events/replay until its own evidence corrects it. Re-read GetKnowledge
-// on recipient invalidation; do not remove another observer's prop globally.
+// reads/events/replay until its own evidence corrects it. KnowledgeChanged
+// supplies the observer's lawful replacement; never patch props from this beat.
 // Seeing the old place empty permits location correction, never this beat's
 // holder identity or an inferred destination.
 //
@@ -1816,12 +1821,10 @@ message StanceChanged {
 // holds; on the first verb after that it is placed, and this beat says
 // what, and where.
 //
-// NAMES THE THING, NOT ITS ROW — the same shape as Joined. A MONSTER
-// arrival is a new roster member, so a client re-pulls GetRoster exactly as
-// it does on JOINED; a PROP arrival is a new atlas prop, so it re-pulls
-// GetAtlas. The same verb's sight refresh then reports the arrival like any
-// member walking into view — a FIGHT_STARTED, or a fight joined, may follow
-// on the same correlation.
+// NAMES THE THING, NOT ITS ROW. Knowledge consumers do not patch or refetch
+// from this beat; the same verb's permitted KnowledgeChanged supplies creature
+// identity/view or prop testimony coherently. A FIGHT_STARTED or fight joined
+// may follow on the same correlation; arrival does not grant unknown geometry.
 message Arrived {
   // The placement id — the dungeon file's `place[].id`. For a MONSTER this
   // is also the member id the roster will list; for a PROP it is the

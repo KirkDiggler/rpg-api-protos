@@ -2236,6 +2236,118 @@ message DoorSighting {
   string name = 5;
 }
 
+// Shared observer read models. These existing responses live with the values
+// so reads and KnowledgeChanged reuse them without a service/events import
+// cycle. Message identities, existing field tags and value types are unchanged.
+
+// GetViewResponse carries the complete creature testimony for one observer,
+// skipping self. Current/remembered values come from the provider, not a client
+// transition on gained/lost ids. Own placement is GetWhereResponse's answer.
+message GetViewResponse {
+  repeated Sighting sightings = 1;
+  // Complete observable sight-area collection, not every effect in the world.
+  repeated SightArea areas = 2;
+}
+
+// GetWhereResponse mirrors session.WhereOutput: own dungeon-absolute placement.
+// There is no everybody's-position roster; others' positions are permitted View.
+message GetWhereResponse {
+  Position position = 1;
+}
+
+// GetRosterResponse is the complete public identity/appearance set permitted to
+// this viewer. Public party identity may be shared; unknown non-party identities
+// are absent. No positions, private sheets or unrestricted source documents.
+message GetRosterResponse {
+  repeated PublicMemberInfo members = 1;
+}
+
+// GetAtlasResponse is the existing geometry DTO, shared by snapshots and live
+// updates. One authoritative server map, individual discovery. Player delivery
+// omits ordinary undiscovered interiors and unfound concealed structure. Every
+// nested cell, region, wall/segment, prop/footprint, exit/start and appearance
+// field obeys that boundary. A threshold does not disclose the room beyond it.
+// Known fixed geometry survives withdrawal; mutable values are separate testimony.
+//
+// Unknown geometry is absent, not a marked/outlined hidden room. Unfound hidden
+// doors appear only as permitted ordinary wall, never as unknown door entries.
+// Source counts, complete hidden extents and full scene documents cannot bypass
+// discovery. This is a complete replacement when present in KnowledgeChanged,
+// not an append patch or permission to interact. Separately authorized builder
+// compile views may carry full construction; they are never a player fallback.
+message GetAtlasResponse {
+  reserved 1, 5;
+  reserved "rooms", "occluders";
+
+  // One coordinate family for the entire map, not per room.
+  GridKind grid = 3;
+  // Set exactly for GRID_KIND_HEX; otherwise UNSPECIFIED, never defaulted.
+  HexLayout layout = 8;
+  // Every discovered floor cell, sorted by coordinate, including prop cells.
+  repeated Position cells = 4;
+  // Discovered fixed non-holdable scenery only for players. Builder construction
+  // may carry holdable props too. Blocking/facing/offset semantics are unchanged.
+  repeated AtlasProp props = 7;
+  // Permitted mechanical wall/barrier edges, sorted by endpoint. Region labels
+  // do not imply walls; the provider supplies the actual boundaries.
+  repeated AtlasBoundary boundaries = 6;
+  // Discovered thresholds, sorted by connection. Endpoints need not be floor
+  // in cells; they never grant far-side discovery. Adjacency is not permission.
+  repeated AtlasDoorway doorways = 2;
+  // Permitted region metadata and discovered cell membership only. A floor cell
+  // belongs to at most one region, or none (scenery); absence of a region does
+  // not make known floor disappear. Lighting retains its supplied rule meaning.
+  repeated AtlasRegion regions = 9;
+  // Only permitted portions of authored wall lines, not hidden full extents.
+  // Presentation; boundaries remain mechanical truth. Empty implies no segment.
+  repeated AtlasSegment segments = 10;
+  // Known floor nobody may stand on; every entry is also in cells and retains
+  // its region. Region membership alone is not standability. Sorted as cells.
+  repeated Position sealed = 11;
+  // Discovered authored ways out only; no implicit start-as-exit or whole list.
+  // Presentation, never authority for whether Leave is offered.
+  repeated AtlasExit exits = 12;
+  // Permitted entry/facing; omitted when unknown or unauthored. Empty facing
+  // means none was authored, not a default direction. No other floor disclosed.
+  AtlasStart start = 13;
+  // Authored source identity, not permission to fetch full YAML/scene data.
+  // Empty means no authored source. Player rendering uses permitted refs and
+  // transforms; GetDungeon requires separate builder authorization.
+  string dungeon_key = 15;
+  // Discovered fixed footprints only for players, sorted by id; no hidden
+  // extent/metadata. Shares the prop id namespace, never overlaps props. Mutable
+  // holdable footprints need their own contract, not a full-scene/live fallback.
+  repeated AtlasPlacedProp placed = 16;
+  // Never supplied to players. Retained deprecated tag, not a source fallback.
+  string room_scene_json = 14 [deprecated = true];
+  // Opaque immutable revision paired with non-empty dungeon_key. Geometry and
+  // permitted appearance use the same source bytes throughout this encounter.
+  // Empty in a valid answer only without authored source. Legacy keyed records
+  // without a revision require explicit provenance migration or read refusal,
+  // never resolution to today's mutable key. Not a discovery/event counter or
+  // permission to fetch any undiscovered content.
+  string content_revision = 17;
+}
+
+// Presence wrappers for complete changed collections in KnowledgeChanged.
+// Omitted wrapper leaves state unchanged; present-empty clears the collection.
+// Rows reuse snapshot values; these wrappers are not another knowledge model.
+message PropSightings {
+  // Each known prop id once, including known identity with unknown placement.
+  repeated PropSighting sightings = 1;
+}
+
+message DoorSightings {
+  // Each known door id once, with the provider's observation currency.
+  repeated DoorSighting sightings = 1;
+}
+
+message PropHoldings {
+  // Complete own physical prop holding ids; not another member's inventory.
+  // Every id has a known prop testimony entry with no floor placement.
+  repeated string ids = 1;
+}
+
 // SightArea is the public footprint of a persistent sight obstruction.
 // The opaque ID carries no source member identity. Rules and remaining
 // concentration are authoritative on the provider; clients only render it.

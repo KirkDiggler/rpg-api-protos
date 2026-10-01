@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.authoring.v1alpha1;
 
-import "dnd5e/api/session/v1alpha1/service.proto";
+import "dnd5e/api/session/v1alpha1/types.proto";
 
 // AuthoringService is the in-game dungeon builder's seam: write a world file,
 // get back the world the game will play.

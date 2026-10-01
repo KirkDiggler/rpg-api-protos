@@ -1265,9 +1265,11 @@ message Sighted {
   // their creature-only meaning; no prop/door ids, hidden carrier or geometry
   // is encoded in this invalidation. Re-read GetKnowledge, not world truth.
   //
-  // Only a change in THIS observer's permitted answer produces invalidation;
-  // an unseen change alone does not. The SDK owns that decision. Applies to
-  // live delivery and GetStory recovery with the original recipient audience.
+  // The toolkit provider sets this only when THIS observer's permitted answer
+  // changed; an unseen change alone does not. Encounter owns observation and
+  // discovery; the session SDK projects that recipient-scoped decision. The
+  // API transports it and the client re-reads GetKnowledge. Applies to live
+  // delivery and GetStory recovery with the original recipient audience.
   // Replay never expands audiences or inserts newly learned facts into an old
   // beat. Use Event.seq against GetKnowledge.seq for snapshot freshness, not
   // as acknowledgment of historical narration. No new stream or cursor space.

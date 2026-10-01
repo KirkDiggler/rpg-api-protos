@@ -1364,7 +1364,7 @@ message GetAtlasResponse {
   // The engine refuses the step either way — this is so a client need not ask
   // to find out.
   repeated Position sealed = 11;
-  // Every authored way out of the dungeon, each an id and a floor cell.
+  // Each discovered way out of the dungeon, an id and a permitted floor cell.
   //
   // Only exits known to this member, never the whole authored exit list.
   // Fixed structure is individually discovered even when not concealed.
@@ -1430,7 +1430,10 @@ message GetAtlasResponse {
   // Opaque immutable registry revision paired with a non-empty dungeon_key.
   // Geometry and permitted appearance bind to these same source bytes for the
   // encounter; reconnect must not resolve the mutable key to newer content.
-  // Empty is allowed only when dungeon_key is empty (no authored source).
+  // Empty in a valid answer only when dungeon_key is empty (no authored source).
+  // A legacy authored session may store a non-empty key with no revision. The
+  // provider must explicitly migrate that provenance or refuse the read; it
+  // must never silently bind the old session to today's mutable-key contents.
   // This is source identity, not a discovery version, hash to interpret, global
   // event counter or permission to fetch any undiscovered content.
   string content_revision = 17;

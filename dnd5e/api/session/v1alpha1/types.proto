@@ -1656,10 +1656,11 @@ message AtlasProp {
   // The AUTHOR'S NAME for this placement, verbatim from the dungeonspec
   // `place[].id` — the third id the dialect carries, after a region's and a
   // door's (design rpg-project#368 P2). EMPTY WHEN THE AUTHOR NAMED NONE,
-  // which is most props: an id is required only by whatever binds to it — a
-  // scenario binding, or the Hold verb, which names its target by this id and
-  // nothing else. Unique within the dungeon when present; the compiler
-  // refuses a collision by name.
+  // which is most fixed scenery. Holdable props require a non-empty id:
+  // toolkit dungeonspec compilation and encounter field construction both
+  // refuse holdable-without-id. Scenario bindings also require an id; Hold
+  // names its target by this id and nothing else. Unique within the dungeon
+  // when present; the compiler refuses a collision by name.
   //
   // Player atlases carry discovered fixed scenery. Mutable holdable props
   // are PropSighting values on GetKnowledge, retaining this same identity.
@@ -2194,7 +2195,8 @@ message DoorInfo {
 // never reconstructed from world changes, missing events or atlas membership.
 message PropSighting {
   // Required. The known prop's identity, permitted appearance and optional
-  // world placement. id is non-empty and stable, holdable is true. If at is
+  // world placement. id is non-empty and stable, holdable is true; the toolkit
+  // compiler/construction invariant is documented on AtlasProp.id. If at is
   // absent, the prop is still known; no floor placement is supplied. Other
   // fields retain the latest permitted observation, never unseen live values.
   AtlasProp prop = 1;
@@ -2226,9 +2228,11 @@ message DoorSighting {
   DoorInfo door = 1;
   // The game clock when this testimony was refreshed.
   uint64 at = 2;
+  // Channels currently confirming this testimony. Empty means remembered.
   repeated string current_via = 3;
   // Same SDK vocabulary as Sighting.status; empty is not implicitly current.
   string status = 4;
+  // Supplied display name retained with the testimony; empty means unnamed.
   string name = 5;
 }
 

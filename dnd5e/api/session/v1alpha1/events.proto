@@ -1480,8 +1480,6 @@ message DoorRevealed {
 // Shared boundary geometry may appear in both adjacent rooms. A doorway's
 // endpoint does not itself reveal the adjacent room's floor.
 message RegionRevealed {
-  option deprecated = false;
-
   // The AtlasRegion entry the recipient's `regions` was missing. Its own
   // `cells` list IS the patch for the cached `cells` — same absolute
   // frame, same comparator (see AtlasRegion.cells) — so this message

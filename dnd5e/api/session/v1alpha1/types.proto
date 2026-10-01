@@ -994,6 +994,43 @@ message Sighting {
   Passage passage = 11;
 }
 
+// PropSighting is this observer's latest testimony about a movable or holdable
+// prop. The shape reuses the existing cell or footprint DTO; it is not live
+// world state. Unobserved props are absent, including inside a revealed room.
+// Both shapes carry the prop's stable placement id; memories retain the last
+// observed shape, name and blocking answers without following unseen movement.
+// Remembered testimony is not authority for live interaction or collision.
+message PropSighting {
+  oneof shape {
+    AtlasProp prop = 1;
+    AtlasPlacedProp placed = 7;
+  }
+  // Empty means remembered, as on Sighting.current_via.
+  repeated string current_via = 2;
+  // The same provider-owned currency vocabulary as Sighting.status.
+  string status = 3;
+  // Positive observation disproved the former placement. Not inferred from
+  // omission or an unseen pickup. The shape retains identity but has no spatial
+  // placement: prop.at is unset, or placed.placement is unset and cells empty.
+  // This supplies neither destination nor carrier. The observer still knows
+  // the object; absence does not mean it ceased to exist.
+  bool observed_empty = 4;
+  string name = 5;
+  // World-clock reading of the latest observation, not a wall timestamp.
+  uint64 at = 6;
+}
+
+// DoorSighting is this observer's latest known door state. Knowing a fixed
+// doorway does not supply this record until its state has been observed.
+// Unseen changes preserve the last observed state and lock information.
+message DoorSighting {
+  // Present with a known state; UNSPECIFIED is not shorthand for closed.
+  DoorInfo door = 1;
+  repeated string current_via = 2;
+  string status = 3;
+  uint64 at = 4;
+}
+
 // =============================================================================
 // Movement, fights, endings
 // =============================================================================
@@ -1662,14 +1699,11 @@ message AtlasProp {
   // nothing else. Unique within the dungeon when present; the compiler
   // refuses a collision by name.
   //
-  // A HELD PROP IS ABSENT FROM EVERY MEMBER'S ATLAS, not marked held: the
-  // atlas is construction truth projected per member, and an object that
-  // left the floor left the floor for everyone (design §4.3). There is no
-  // `held` flag here on purpose — a flag would be a second answer to a
-  // question absence already answers, and a client that drew flagged props
-  // would draw furniture nobody can reach. A prop DROPPED after being
-  // carried (see Dropped) appears again, at its drop cell rather than its
-  // authored one, and carries this same id.
+  // In individual dungeon knowledge, fixed props use the atlas and mutable
+  // props use PropSighting. A held mutable prop is not fixed room data, but an
+  // observer who did not witness its removal retains the last-known placement
+  // in their PropSighting. No `held` flag discloses an unseen carrier. Reuse of
+  // this DTO describes an observed shape, not permission to read live truth.
   string id = 9;
 
   // Whether this prop can be picked up — the author's `holdable` flag,
@@ -1800,11 +1834,12 @@ message FootprintPlacement {
 // owns what it looks like. Both answer the same two blocking questions,
 // independently, all four combinations real content.
 //
-// ABSENCE IS THE WHOLE VOCABULARY HERE — there is no flag on this message
-// for any of the three ways a placement can fail to be on the map, for
-// AtlasProp.id's reason: a flag would be a second answer to a question
-// absence already answers, and a client drawing flagged entries would draw
-// furniture nobody can reach. A placement is absent from this list when:
+// The absence clauses below describe the legacy live atlas. Individual dungeon
+// knowledge puts only fixed scenery in GetAtlas/room revelation. Mutable
+// footprints instead use PropSighting and retain their last observed placement
+// after unseen changes. Neither a missing live placement nor a narrative beat
+// is evidence that an observer's remembered placement was witnessed empty.
+// A placement is absent from the legacy live list when:
 //
 //   - IT IS IN RESERVE. A placement whose `arrives` predicate has not held
 //     is not on the floor yet: its rectangle blocks no step, closes no
@@ -2067,8 +2102,8 @@ message AtlasRegion {
 // STRUCTURE, NOT SCENARIO. A dungeon has ways out whatever the party came
 // for, so exits sit in the atlas beside cells and regions rather than inside
 // whatever scenario happens to be bound (design rpg-project#368 §3.1, and §5's
-// wire paragraph). Same shape as the file's `start`, and the same for every
-// member: an exit is not concealable and nothing here is per-member knowledge.
+// wire paragraph). Same shape as the file's `start`. The fixed definition is
+// shared; individual knowledge delivers it only with its discovered room.
 //
 // FOR DRAWING THE WAY OUT, NOT FOR GATING IT. Leave is offered everywhere and
 // the SERVER decides what a departure means — R9 REQUIRES a departure from

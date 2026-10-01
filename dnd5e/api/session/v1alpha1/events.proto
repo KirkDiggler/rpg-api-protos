@@ -135,12 +135,10 @@ enum EventKind {
   EVENT_KIND_DOWNED = 13;
   // A door changed — opened, closed, or an unlock attempt, beaten or not. A
   // failed attempt is as much fiction as a beaten one, and the composition
-  // writes both through one path. Every member WHO KNOWS THE DOOR hears it:
-  // for a door that was never concealed that is every member (full data
-  // until v1.0), and for a concealed one it is exactly the members it has
-  // been revealed to — scoped as far as concealed structure requires and no
-  // further. A member's first knowledge of a door is never this kind; it is
-  // DOOR_REVEALED, below.
+  // writes both through one path. For individual knowledge, only recipients
+  // entitled to the witnessed facts receive them; merely knowing the fixed
+  // doorway does not disclose an unseen change. Door testimony is refreshed
+  // through Sighted/GetView, not patched from this narrative beat.
   EVENT_KIND_DOOR = 14;
   // A door entered THIS RECIPIENT'S knowledge — by their own search, by an
   // open in their presence, or by perceiving the opened door as present
@@ -197,10 +195,10 @@ enum EventKind {
   // carries it — DOOR_REVEALED for intel, exactly the beat a search
   // produces. Audience: everyone present.
   EVENT_KIND_LOOTED = 20;
-  // A member picked up a holdable prop. The prop leaves the atlas for
-  // EVERYONE — physical state folds on the truth grain — and the holder
-  // carries it (design §4.3, §5). A client patches its cached GetAtlas by
-  // dropping the prop, the way DOOR_REVEALED patches it by adding one.
+  // A member picked up a holdable prop. For individual knowledge this is a
+  // recipient-permitted narrative fact, not a global atlas removal. Mutable
+  // testimony updates through Sighted/GetView; unwitnessed pickup preserves
+  // another observer's remembered placement and does not reveal the holder.
   //
   // WAS EVENT_KIND_TAKEN, renamed by design R10 (2026-09-04) along with the
   // verb: this beat records a run-scoped HOLDING, and `take` is reserved for
@@ -209,10 +207,9 @@ enum EventKind {
   EVENT_KIND_HELD = 21;
   // A carrier let go of a holding and it landed on the map: a member leaving
   // from anywhere but the scenario's bound exit drops what they carry where
-  // they stood (design R9, §6). The prop reappears as a holdable prop at
-  // that cell, so a client patches its cached GetAtlas by adding it back.
-  // Never a player verb — there is no Drop RPC; this is a consequence of
-  // departure, and the beat is how everyone learns of it.
+  // they stood (design R9, §6). Individual knowledge audiences obey observation;
+  // this is not a global atlas addition or an unseen location refresh. Mutable
+  // testimony updates through Sighted/GetView. There is no Drop RPC.
   EVENT_KIND_DROPPED = 22;
   // The stance between two factions changed: a disposition's `until`
   // predicate held — the faction's mind came to know the fact the author
@@ -227,8 +224,8 @@ enum EventKind {
   // §3.7, R6). Before this beat the placement had no cell, no turn and no
   // row anywhere — absent from roster and atlas for every member, the way a
   // concealed door is absent — so this is the first any client hears of it.
-  // Audience: everyone in the run, the same law as HELD and DROPPED —
-  // physical state folds on the truth grain.
+  // Individual knowledge audiences obey observation, as for HELD and DROPPED;
+  // arrival does not reveal an unobserved placement through a narrative beat.
   EVENT_KIND_ARRIVED = 24;
   // A reaction window opened and the fight is frozen on its answer: a monster
   // stepped out of a player's reach part-way through its turn, the seam
@@ -443,6 +440,11 @@ enum EventKind {
   // Character.experience_points.
   EVENT_KIND_EXPERIENCE_GAINED = 40;
 
+  // A room entered this recipient's knowledge. Carries its full fixed atlas
+  // data, including geometry behind LOS obstructions within that room. Mutable
+  // subjects and door state are learned separately through observation.
+  EVENT_KIND_ROOM_REVEALED = 41;
+
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
   EVENT_KIND_UNKNOWN = 100;
@@ -460,6 +462,12 @@ enum EventKind {
 // rpg-api neither filters nor re-derives visibility (design rule 4); a host that
 // filtered a single shared payload would be reimplementing perception, and its
 // first mistake would leak fog of war.
+//
+// For individual dungeon knowledge, RoomRevealed adds fixed room data; Sighted
+// signals an observer-local GetView refresh. Held, Dropped, Arrived, DoorChanged
+// and concealment beats are not alternate patches for mutable knowledge. Their
+// narrative facts and raw payload must obey the recipient's disclosure boundary,
+// including on GetStory replay; unseen changes do not refresh remembered state.
 message Event {
   // The session this event belongs to.
   string session = 1;
@@ -564,6 +572,8 @@ message Event {
     Stayed stayed = 44;
     ConcealmentRevealed concealment_revealed = 45;
     ExperienceGained experience_gained = 46;
+    // Reuses the room atlas payload; the legacy REGION_REVEALED arm remains.
+    RegionRevealed room_revealed = 47;
   }
 }
 
@@ -1214,11 +1224,9 @@ message ConcentrationEnded {
 // Sighted is EVENT_KIND_SIGHTED's body: who entered this recipient's view,
 // and who left it.
 //
-// EITHER LIST MAY BE EMPTY AND NEVER BOTH. The server omits the half that
-// did not happen and publishes nothing at all when neither did, so a
-// delivered Sighted always names at least one member. A client may read an
-// empty `gained` as "nobody arrived" without wondering whether the question
-// was asked.
+// The member lists may be empty when knowledge_changed reports a prop, door
+// or sight-area observation change. A delivered Sighted has at least one member
+// id or knowledge_changed set; no event means the observer's view is unchanged.
 //
 // GAINED MERGES FIRST CONTACT WITH RE-ACQUISITION on purpose. Somebody the
 // recipient has never seen and somebody whose ghost just became real again
@@ -1253,6 +1261,11 @@ message Sighted {
   // own view and sees whatever they are entitled to see, which may not be
   // what actually happened.
   repeated string changed = 3;
+  // This observer's mutable prop, door or sight-area knowledge changed. Re-read
+  // GetView, just as for the member lists above. This carries no world-truth
+  // fact and does not cause an atlas read; fixed room data arrives separately
+  // through ROOM_REVEALED. May be true with all member lists empty.
+  bool knowledge_changed = 4;
 }
 
 // FightStarted: two sides came into contact and a fight began
@@ -1435,36 +1448,38 @@ message DoorRevealed {
   repeated AtlasBoundary boundaries = 3;
 }
 
-// RegionRevealed: a concealed region entered the recipient's knowledge
-// (EVENT_KIND_REGION_REVEALED) — they perceived its concealed door open,
-// at the opening or arriving later (causes exemplary, as DoorRevealed's
-// are). Never fired on merely finding the door: the door reveal and the
-// room reveal are two knowledge moments, deliberately distinct (ruled on
-// rpg-project#351 — the room hides with its door, since client fog does
-// not hide unexplored space and the map itself must keep the secret).
+// RegionRevealed is the shared fixed-room atlas payload. ROOM_REVEALED uses it
+// when this recipient discovers an ordinary room, including on opening its
+// door or first observing part of it. The deprecated REGION_REVEALED kind used
+// this shape for concealed-region discovery; that legacy kind and arm remain.
 //
 // The payload is the region's own atlas slice — everything this
 // recipient's GetAtlas withheld under that ruling — and the client
 // patches its cached atlas in place: the load-once, beat-refreshed shape
-// (rpg-project#264). On the two fields below, a patched atlas and a fresh
+// (rpg-project#264). On these fixed records, a patched atlas and a fresh
 // GetAtlas answer the same thing once this beat is applied. STILL
 // DELIBERATELY NARROW: one room's own slice, not a sweep — the repo-wide
 // GeometryRevealed this repo removed in #197/#198 stays dead, and a wider
 // reveal (a scried map, a lit floor) is rpg-toolkit#1020's own design round.
 //
-// There is no doorways field, on purpose: every entrance of a concealed
-// region is itself a concealed door (authoring refuses anything else),
-// and doors keep their own law — DoorRevealed, the masquerade wall, the
-// probe law. A door never rides a room's reveal.
+// ROOM_REVEALED also supplies fixed doorway crossings below, without door
+// state. The deprecated REGION_REVEALED producer left those crossings to its
+// separate DoorRevealed beat; its original fields and tags remain intact.
 //
-// DEPRECATED: superseded by ConcealmentRevealed (rpg-project#490), where a
-// door DOES ride its concealment's reveal — the two knowledge moments this
-// message's neighbour kept apart were an artefact of two authored flags, and
-// one concealment has one. Kept, tag for tag, until nothing emits
-// EVENT_KIND_REGION_REVEALED.
+// Shared fixed-room atlas payload for ROOM_REVEALED and the deprecated
+// REGION_REVEALED kind. For ROOM_REVEALED this is the whole newly known room,
+// not only its visible part. It contains no mutable prop placements or door
+// state. A room can include an opaque altar and its surrounding floor without
+// including a chest hidden behind it. The first slice uses a named AtlasRegion
+// as the room discovery unit; coordinates remain dungeon-absolute.
+//
+// The snapshot's GetAtlasResponse contains the union of known fixed records.
+// Applying a ROOM_REVEALED payload merges these records by their existing keys
+// (region/prop/connection/exit id, cell or geometry endpoints). Records already
+// held remain the same; replay does not duplicate them or reveal another room.
+// Shared boundary geometry may appear in both adjacent rooms. A doorway's
+// endpoint does not itself reveal the adjacent room's floor.
 message RegionRevealed {
-  option deprecated = true;
-
   // The AtlasRegion entry the recipient's `regions` was missing. Its own
   // `cells` list IS the patch for the cached `cells` — same absolute
   // frame, same comparator (see AtlasRegion.cells) — so this message
@@ -1491,10 +1506,9 @@ message RegionRevealed {
   // nothing to draw from. That is the one scenario a concealed region exists
   // to produce.
   //
-  // A door's gap is still derived client-side where its doorway meets its
-  // segment. No doorway rides this beat, on purpose (see the message
-  // comment), so a segment arriving here draws unbroken until the region's
-  // own concealed door reveals itself through DoorRevealed.
+  // A door's gap is derived client-side where its fixed doorway crossing meets
+  // its segment. ROOM_REVEALED carries those crossings below; legacy
+  // REGION_REVEALED supplied them through its separate door-reveal beat.
   repeated AtlasSegment segments = 4;
   // The revealed region's cells that NOBODY CAN STAND ON — the cells its
   // walls run through the middle of. A subset of `region.cells` above, so
@@ -1510,6 +1524,13 @@ message RegionRevealed {
   // floor is still floor: it is drawn and it is lit, and what sight does at
   // it is the wall's business, not this list's.
   repeated Position sealed = 5;
+  // Fixed doorway crossings for this room, without live door state. A further
+  // closed doorway does not include the next room's atlas records.
+  repeated AtlasDoorway doorways = 6;
+  // Fixed footprint scenery only; mutable footprints are PropSightings.
+  repeated AtlasPlacedProp placed = 7;
+  // Exits in this known room, not undiscovered exits elsewhere in the dungeon.
+  repeated AtlasExit exits = 8;
 }
 
 // ConcealmentRevealed: one concealment entered the recipient's knowledge
@@ -1684,17 +1705,11 @@ message Looted {
 
 // Held: a member picked up a holdable prop (EVENT_KIND_HELD).
 //
-// PHYSICAL STATE FOLDS ON THE TRUTH GRAIN: an object leaving the floor is
-// not a secret, so this beat goes to everyone present and every recipient's
-// atlas loses the prop. A client patches its cached GetAtlas by removing the
-// prop with this id — the load-once, beat-refreshed law (rpg-project#264)
-// running in the subtractive direction, where DOOR_REVEALED runs it in the
-// additive one. GetAtlas itself omits held props for everyone, so a refetch
-// agrees with the patch.
-//
-// Who holds it afterwards is this beat's `holder`, and that stays true until
-// they carry it out through a bound exit (Exited.holding) or drop it
-// (Dropped).
+// Names the holder at the witnessed moment, not current holdings for every
+// observer. Individual knowledge recipients must be entitled to these facts;
+// an unseen pickup neither discloses the holder nor removes remembered prop
+// testimony. Consumers update mutable observations through Sighted/GetView,
+// not by deleting a prop from the fixed atlas on this narrative beat.
 //
 // WAS `Taken{taker, prop}` — see EVENT_KIND_HELD for the ruling. Renamed,
 // not deprecated: `Taken` is being freed for the merchant lane, so nothing
@@ -1714,10 +1729,10 @@ message Held {
 // bound exit (design R9). Without it a carrier who walks out through the
 // lobby — or disconnects — walks off with the only win in the run.
 //
-// The prop reappears as a holdable prop at `at` for everyone present, so a
-// client patches its cached GetAtlas by adding it back at that cell; GetAtlas
-// places dropped props there too, so a refetch agrees. The journal stays
-// append-only underneath — a drop is a new fact, not the erasure of the hold.
+// Individual knowledge recipients must be entitled to the observed drop and
+// location. This narrative beat does not add a mutable prop to the fixed atlas
+// or refresh another observer's memory after an unseen drop. Sighted/GetView
+// supplies permitted current/remembered testimony.
 message Dropped {
   // Who dropped it — the departing carrier.
   string member = 1;

@@ -1,6 +1,8 @@
 # rpg-api-protos
 
-rpg-api-protos is the contract layer between rpg-api (Go) and rpg-dnd5e-web (TS); buf-managed proto definitions, generates Go and TypeScript SDKs (and C++, currently without a consumer).
+rpg-api-protos owns the protobuf contract between rpg-api (Go) and
+rpg-dnd5e-web (TypeScript). Buf-managed generation targets Go and TypeScript;
+there are no Java or C++ consumers or generation targets.
 
 ## Where things live
 
@@ -17,7 +19,7 @@ rpg-api-protos is the contract layer between rpg-api (Go) and rpg-dnd5e-web (TS)
 ### Proto Changes Go to Feature Branches
 **NEVER push to the `generated` branch** - This branch is managed by CI/CD:
 1. Create feature branches from `main` for proto changes
-2. Only edit `.proto` files on feature branches
+2. Author `.proto` contracts and their owning docs/tooling on feature branches
 3. When PRs are merged to `main`, CI automatically:
    - Builds the protos
    - Pushes generated code to `generated` branch
@@ -29,7 +31,7 @@ rpg-api-protos is the contract layer between rpg-api (Go) and rpg-dnd5e-web (TS)
 git checkout main
 git pull origin main
 git checkout -b feat/add-encounter-proto
-# Edit proto files only
+# Edit contracts; generated bindings remain CI-owned
 git add proto/dnd5e/api/v1alpha1/encounter.proto
 git commit -m "feat: Add encounter.proto"
 git push origin feat/add-encounter-proto
@@ -65,8 +67,40 @@ git add .
 git commit -m "feat: add new message"
 ```
 
+### Contract-only local authoring
+
+Work in an isolated worktree branched from `main`. Before pushing:
+
+```bash
+git fetch origin main
+make format
+make test
+```
+
+`make test` (also `make pre-commit`) runs lint, format verification, the new-file
+options policy, and breaking detection against `main`. It does not generate SDKs
+or mocks, install dependencies, or compile Go/TypeScript consumers. Normal
+authoring needs Buf, Git, Make and Bash/Awk — not Go, Node or mockgen.
+
+CI retains generation, mock generation and SDK validation on PRs. After merge,
+CI publishes bindings and mocks to `generated`; consumers wait for that output
+and adopt it in their own repositories. Do not require locally generated
+bindings or consumer compilation to author a contract. Explicit generation is
+for generator changes or troubleshooting, not a normal authoring prerequisite.
+
+### Managed options and package naming
+
+Use ordinary protobuf package names matching the file path, such as
+`api.world.v1alpha1`; do not hand-name proto packages after generated Go aliases.
+`buf.gen.yaml` managed mode supplies `go_package_prefix`. New contracts omit
+explicit `go_package` and all `java_*` options. The new-file policy checks added
+tracked and untracked proto files against `origin/main`; keep that reference
+current. A real package exception needs a specifically reviewed policy/config
+change, not a copied legacy header. Do not rewrite historical options or change
+published Go package identities as incidental cleanup.
+
 ### Do Not Re-test Generated Protobuf Mechanics
-Do not write bespoke tests that re-test `protoc`, Buf, or generated Go/TypeScript serialization, field presence, descriptors, or other mechanical generated-code behavior. Rely on the repository's normal proto lint, breaking-change, generation, and Go/TypeScript compile gates for those guarantees.
+Do not write bespoke tests that re-test `protoc`, Buf, or generated Go/TypeScript serialization, field presence, descriptors, or other mechanical generated-code behavior. Rely on local contract checks and CI-owned generation/SDK validation for those guarantees.
 
 Tests are justified only for project-specific generator/plugin logic or a non-mechanical project invariant. Keep any such test minimal and discriminating; do not add fixture matrices or round-trip harnesses that merely restate the schema.
 

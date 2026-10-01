@@ -73,11 +73,14 @@ If the answer to all three is "yes," design a new service. If any is
    package dnd5e.api.v1alpha1;   // or api.v1alpha1
 
    import "dnd5e/api/v1alpha1/common.proto";   // as needed
-
-   option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/v1alpha1;v1alpha1";
-   option java_multiple_files = true;
-   option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha1";
    ```
+
+   Use ordinary protobuf package naming matching the file path (for example,
+   `api.world.v1alpha1` in `api/world/v1alpha1/`). Do not hand-name packages after
+   generated Go aliases. Managed mode in `buf.gen.yaml` supplies the Go package
+   prefix; omit explicit `go_package`. There is no Java consumer; omit `java_*`
+   options. `make proto-options` rejects these options in new files only; existing
+   package identities are not a template to copy or a cleanup target.
 
 3. Define messages first (request/response pairs), then the service
    block at the bottom.
@@ -88,12 +91,15 @@ If the answer to all three is "yes," design a new service. If any is
 ## Verifying
 
 ```bash
-buf format -w
-buf lint                                           # must pass
-buf format --diff --exit-code                      # must pass
-buf breaking --against "https://github.com/KirkDiggler/rpg-api-protos.git#branch=main"   # should pass — adding a service is non-breaking
-buf generate                                       # must produce output
+git fetch origin main
+make format
+make test       # lint, format check, new-file options policy, breaking against main
 ```
+
+These are contract checks only. Do not generate bindings/mocks or compile local
+Go/TypeScript consumers as an authoring prerequisite. CI validates generation;
+consumers wait for merge and published output. See
+[run-buf-checks-locally.md](run-buf-checks-locally.md) for individual checks.
 
 ## Updating docs in the same PR
 
@@ -110,7 +116,8 @@ A new service is a doc change too:
 
 ## After merge
 
-- CI auto-publishes the new service to npm and Go modules.
+- Wait for merge-triggered CI to publish Go/TypeScript bindings and Go mocks on
+  `generated`; consumers adopt the published output, not local authoring artifacts.
 - rpg-api adds a handler and orchestrator (its own PR; outside-in
   pattern from rpg-api/CLAUDE.md).
 - rpg-dnd5e-web adds Connect-ES client usage.

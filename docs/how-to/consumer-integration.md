@@ -24,10 +24,12 @@ pinning model, and the failure modes.
 CI then:
 1. Force-pushes `gen/` to a `generated` branch.
 2. Auto-increments the latest `vX.Y.Z` git tag.
-3. Publishes to npm (`@kirkdiggler/rpg-api-protos`).
-4. Creates a GitHub release.
 
-See [regenerate-sdks.md](regenerate-sdks.md) for the local equivalent.
+Go/TypeScript bindings and Go mocks are CI-owned outputs. Consumers wait for
+merge and publication before adopting the contract; local SDK generation or
+consumer compilation is not a proto-authoring prerequisite. Verify availability
+of the exact generated revision or package release before pinning it. See
+[regenerate-sdks.md](regenerate-sdks.md) for CI details and optional troubleshooting.
 
 ## rpg-api (Go) integration
 
@@ -107,8 +109,9 @@ Standard npm install:
 npm install @kirkdiggler/rpg-api-protos
 ```
 
-Each tag publishes a new npm version. `package.json` pins to either a
-specific version or `^0.1.0` / `latest` for active development.
+Use an actually published package version; do not assume a new Git tag alone
+proves npm availability. Consumer dependency pins and compilation belong in the
+web repository, not the proto author's local gate.
 
 ### Usage shape
 
@@ -177,8 +180,9 @@ boundary. See [breaking-change-workflow.md](breaking-change-workflow.md).
 - **Consumer pinned to old SDK calls deprecated RPC.** Works (the RPC
   is still implemented today even when proto-deprecated) until the
   RPC is removed. Then unimplemented error at runtime.
-- **`buf generate` produces output, but `make mocks` fails.** Mocks are
-  required for rpg-api unit tests; failure here is a pre-merge gate.
+- **CI generation or `make mocks` fails.** Mocks are required for rpg-api unit
+  tests; CI failure blocks the proto PR. Diagnose the CI run first; optional local
+  reproduction does not become a normal authoring prerequisite.
 - **`buf format` clean locally but CI flags formatting.** Unlikely if
   you ran `buf format -w`; possible if your buf version is older than
   CI's. Run `brew upgrade buf` (macOS) periodically.

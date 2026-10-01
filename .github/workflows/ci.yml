@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # New-file policy compares with the PR base / push predecessor.
       
       - uses: bufbuild/buf-setup-action@v1
         with:
@@ -32,6 +34,14 @@ jobs:
       - name: Format check
         run: buf format --diff --exit-code
       
+      - name: Test contract-authoring policy
+        run: bash scripts/test-contract-authoring.sh
+
+      - name: Check new proto options
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/check-new-proto-options.sh "$BASE_REF"
+
       - name: Breaking change detection
         if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'breaking-change-approved')
         run: buf breaking --against "https://github.com/${{ github.repository }}.git#branch=main"

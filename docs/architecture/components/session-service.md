@@ -2,7 +2,7 @@
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
 updated: 2026-10-01
-confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
+confidence: high for released SDK transcriptions and generated contract shape; existing API/web consumers; individual knowledge, authorization, provenance and recovery acceptance remain pending runtime adoption
 ---
 
 # SessionService

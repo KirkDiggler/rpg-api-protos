@@ -1,4 +1,7 @@
-.PHONY: help install-tools lint format refgen generate clean test push
+.PHONY: help install-tools lint format format-check refgen generate clean test mocks breaking proto-options compile-go compile-ts deps pre-commit
+
+BREAKING_AGAINST ?= https://github.com/KirkDiggler/rpg-api-protos.git\#branch=main
+NEW_PROTO_BASE ?= origin/main
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -6,11 +9,9 @@ help: ## Show this help message
 	@echo 'Targets:'
 	@egrep '^(.+)\:\ ##\ (.+)' $(MAKEFILE_LIST) | column -t -c 2 -s ':#'
 
-install-tools: ## Install required development tools
-	@echo "Installing buf..."
+install-tools: ## Install Buf (requires Go); no SDK generation dependencies
+	@echo "Installing buf... (or install a prebuilt Buf binary)"
 	@go install github.com/bufbuild/buf/cmd/buf@latest
-	@echo "Installing Node.js dependencies..."
-	@npm install
 
 lint: ## Lint protobuf files
 	buf lint --disable-symlinks
@@ -18,22 +19,23 @@ lint: ## Lint protobuf files
 format: ## Format protobuf files
 	buf format -w --disable-symlinks
 
+format-check: ## Check protobuf formatting without modifying files
+	buf format --diff --exit-code --disable-symlinks
+
+proto-options: ## Reject redundant managed Go/unused Java options in new proto files
+	bash scripts/check-new-proto-options.sh "$(NEW_PROTO_BASE)"
+
 refgen: ## Regenerate typed content enums (weapons, armor, ...) from the toolkit registry
 	cd tools/refgen && go run .
 	buf format -w --disable-symlinks
 
-generate: ## Generate Go and TypeScript code
+generate: ## Generate Go and TypeScript code explicitly (CI/troubleshooting)
 	buf generate --disable-symlinks
 
 clean: ## Clean generated files
 	rm -rf gen/
 
-test: ## Run tests (lint + format check + generate + mocks)
-	buf lint --disable-symlinks
-	buf format --diff --exit-code --disable-symlinks
-	buf generate --disable-symlinks
-	$(MAKE) mocks
-	$(MAKE)
+test: lint format-check proto-options breaking ## Run local contract checks only
 
 mocks: ## Generate mocks for gRPC services
 	# D&D 5e services
@@ -58,7 +60,7 @@ mocks: ## Generate mocks for gRPC services
 	mockgen -source=gen/go/sandbox/api/v1alpha1/sandbox_room_grpc.pb.go -destination=gen/go/sandbox/api/v1alpha1/mocks/sandbox_room_service.go -package=mocks
 
 breaking: ## Check for breaking changes against main branch
-	buf breaking --disable-symlinks --against 'https://github.com/KirkDiggler/rpg-api-protos.git#branch=main'
+	buf breaking --disable-symlinks --against '$(BREAKING_AGAINST)'
 
 compile-go: ## Test Go compilation
 	cd gen/go && if [ ! -f go.mod ]; then go mod init github.com/KirkDiggler/rpg-api-protos/gen/go; fi && go mod edit -go=1.25.0 && go mod tidy && go build ./...

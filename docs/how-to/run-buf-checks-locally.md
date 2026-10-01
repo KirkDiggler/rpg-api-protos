@@ -1,138 +1,90 @@
 ---
 name: Run buf checks locally
-description: Lint, format, and breaking-change checks before pushing
-updated: 2026-05-04
-confidence: high — verified by running each command on docs/honest-status-snapshot
+description: Contract-only checks before pushing; generation and SDK validation belong to CI
 ---
 
-# Run buf checks locally
+# Run contract checks locally
 
-CI runs three buf checks; all three are blocking. The breaking-change
-check has a labeled override (`breaking-change-approved`) for intentional
-breaks — see
-[overview.md Rule 2](../architecture/overview.md#rule-2-buf-breaking-is-authoritative-not-advisory).
-Run all three locally before pushing.
+Author contracts on a feature worktree based on `main`. Normal authoring requires
+Buf, Git, Make and Bash/Awk, not Go, Node, mockgen or locally generated SDKs.
+CI retains generation and SDK validation; merge-triggered CI publishes bindings
+and mocks on `generated` for consumers.
 
-## Prerequisites
+## Normal authoring gate
 
-```bash
-# Install Buf CLI: https://buf.build/docs/installation
-brew install bufbuild/buf/buf      # macOS
-# or download from GitHub releases for Linux
-
-buf --version                      # verify install
-```
-
-## The three checks
+From the worktree root:
 
 ```bash
-cd /home/kirk/personal/rpg-api-protos
-
-# 1. Lint — blocking. Fails on violations of the buf default lint set.
-buf lint
-
-# 2. Format — blocking. Auto-fixable; check first, then write.
-buf format --diff --exit-code      # check (exits non-zero if changes needed)
-buf format -w                       # write fixes (run before commit)
-
-# 3. Breaking-change detection — blocking; PR may carry
-#    'breaking-change-approved' label to intentionally skip in CI.
-buf breaking --against "https://github.com/KirkDiggler/rpg-api-protos.git#branch=main"
+buf --version
+git fetch origin main
+make format
+make test
 ```
 
-**On `docs/honest-status-snapshot` (this branch) all three exit clean.**
-
-## When `buf breaking` flags something
-
-You changed a field tag, removed a field, renamed a message, etc.
-The check tells you exactly what.
-
-Two responses:
-
-1. **You meant to break.** Use `reserved` to retire field numbers and
-   names so future tag reuse is detected:
-   ```proto
-   message TurnState {
-     reserved 9, 10;
-     reserved "disengage_active", "dodge_active";
-     // ...
-   }
-   ```
-   Then bump the version package (`v1alpha1` → `v1alpha2` or
-   `v1beta1`) per [breaking-change-workflow.md](breaking-change-workflow.md).
-
-2. **You didn't mean to break.** Revert the change. Field tag numbers
-   are forever within a version.
-
-PR #136 is the worked example — old fragmented event fields retired
-correctly.
-
-## Generation locally
-
-`buf generate` produces Go and TypeScript SDKs. Useful for verifying
-generation works before CI.
+`make test` and `make pre-commit` run these checks only:
 
 ```bash
-buf generate              # writes gen/go, gen/ts
-make mocks                # generates Go mocks for gRPC clients
-
-# Quick verification:
-ls gen/go/dnd5e/api/v1alpha1/*.pb.go
-ls gen/ts/dnd5e/api/v1alpha1/*.ts
+make lint          # buf lint --disable-symlinks
+make format-check  # buf format --diff --exit-code --disable-symlinks
+make proto-options # added tracked/untracked .proto files vs origin/main
+make breaking      # buf breaking against remote main
 ```
 
-The `gen/` directory is gitignored — it's regenerated per CI run and
-force-pushed to the `generated` branch on main merges.
+All are blocking for ordinary additions. `make test` does not generate code or
+mocks, install dependencies, compile consumers, or run generator-tool tests.
+A proto contract PR is not a local consumer build.
 
-## Pre-push checklist
+## New-file options policy
+
+New proto files use conventional package names matching their paths. Managed
+mode supplies Go package paths; new contracts omit `go_package` and `java_*`
+options. The policy guard ignores historical files so it does not change
+published package identities. A required exception needs explicit review and a
+scoped policy/config change.
+
+Keep `origin/main` current so the guard can identify new files. It includes
+untracked, staged and committed additions. To compare with an explicit revision:
 
 ```bash
-buf format -w                                                      # auto-fix formatting
-buf lint                                                            # must pass
-buf format --diff --exit-code                                       # must pass
-buf breaking --against "https://github.com/KirkDiggler/rpg-api-protos.git#branch=main"   # check
-buf generate                                                        # must produce output
+make proto-options NEW_PROTO_BASE=<comparison-commit>
 ```
 
-If all five clean, push.
+CI uses the PR base commit or main-push predecessor. Comments and string contents
+are not option declarations. Missing comparison revisions fail loudly.
 
-## Why each check matters
+## When breaking detection flags a change
 
-- **`buf lint`** — enforces naming consistency (Rule 6). Violations
-  land as ugly Go/TS code in consumer SDKs.
-- **`buf format`** — keeps PR diffs small. A formatting churn diff hides
-  the actual change.
-- **`buf breaking`** — the contract guarantee. A breaking change here
-  is a runtime break in rpg-api or rpg-dnd5e-web. CI enforces this
-  blocking, with the `breaking-change-approved` label as the only
-  override path. Run it locally too — failing on a push is slower than
-  catching it before the push.
-- **`buf generate`** — protos that fail to generate Go/TS won't ship.
-  Catching here saves a CI cycle.
+The remote comparison is configured by `BREAKING_AGAINST` in the Makefile.
+A field removal, rename or type change can be an intentional break, but it is
+not silently accepted. Follow
+[breaking-change-workflow.md](breaking-change-workflow.md): record the migration
+and obtain the required acknowledgment for the `breaking-change-approved` CI
+label. Local detection still reports the break; a label does not authorize
+changing the local gate or claiming a passing check.
 
-## Configuration
+Reserve retired numbers and names to prevent reuse. For unintentional breaks,
+restore the agreed contract. For additions, all contract checks should pass.
 
-`buf.yaml`:
-```yaml
-version: v2
-modules:
-  - path: .
-    excludes:
-      - .claude
-breaking:
-  use:
-    - FILE       # detects breaks per file (more sensitive than PACKAGE)
-lint:
-  use:
-    - DEFAULT
-  except:
-    - PACKAGE_VERSION_SUFFIX        # we use v1alpha1 style
-    - RPC_RESPONSE_STANDARD_NAME    # streaming RPCs use event-style names
-  rpc_allow_same_request_response: false
-  rpc_allow_google_protobuf_empty_requests: false
-  rpc_allow_google_protobuf_empty_responses: false
+## Generation is separate
+
+Do not put `buf generate`, `make mocks`, `make compile-go` or `make compile-ts`
+in the authoring checklist. CI runs its generation/validation pipeline on PRs
+and publishes after merging to `main`. Consumers wait for the published output
+and verify integration in their own repositories.
+
+Explicit local generation can be useful when changing a generator or diagnosing
+CI failure. See [regenerate-sdks.md](regenerate-sdks.md); its optional tooling is
+not a prerequisite for writing a contract.
+
+## Testing authoring tooling
+
+If changing the new-file guard or Makefile routing, run:
+
+```bash
+bash scripts/test-contract-authoring.sh
 ```
 
-The two `lint.except` entries are intentional — they document
-deviations from the default set. New deviations should be discussed
-in a PR rather than added quietly.
+This tests the project policy and contract-only command routing in temporary Git
+fixtures. It does not re-test generated protobuf serialization or descriptors.
+Generator-specific tests, such as `tools/refgen`, remain owned by their tooling
+and CI; see [regenerate-content-enums.md](regenerate-content-enums.md).

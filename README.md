@@ -70,19 +70,19 @@ rpg-api-protos/
 ### Prerequisites
 
 - [Buf CLI](https://docs.buf.build/installation)
-- Go 1.25+ (matches generated Go SDK dependencies and CI)
-- Node.js 18+
+- Git, Make, Bash and Awk
+
+Normal contract authoring does not require Go, Node.js, mockgen or generated
+bindings. Those belong to CI or explicit generator troubleshooting.
 
 ### Setup
 
 ```bash
-# Install tools
-make install-tools
+# In an isolated worktree branched from main, with Buf installed:
+git fetch origin main
+make format
 
-# Generate code
-make generate
-
-# Run tests (lint + format + generate)
+# Contract checks only; no generation or consumer compilation
 make test
 ```
 
@@ -92,11 +92,24 @@ make test
 make help              # Show all available commands
 make lint              # Lint proto files
 make format            # Format proto files
-make generate          # Generate Go and TypeScript code
-make test              # Run all checks
-make push              # Push to BSR (requires BUF_TOKEN)
+make format-check      # Verify formatting without changes
+make proto-options     # Check new files for redundant Go/unused Java options
+make test              # Lint + format check + new-file policy + breaking
+make pre-commit        # Same contract-only gate
 make breaking          # Check for breaking changes
+
+# Explicit CI/troubleshooting tools, not authoring prerequisites:
+make generate          # Generate Go and TypeScript code
+make mocks             # Generate Go mocks (requires generated bindings/mockgen)
+make compile-go        # Compile generated Go output
+make compile-ts        # Compile generated TypeScript output
 ```
+
+New contracts use normal protobuf package names matching their paths. Buf
+managed mode supplies Go package paths; omit explicit `go_package` and unused
+`java_*` options. Existing schemas and published package identities are not
+rewritten by this policy. See [the authoring guide](docs/how-to/add-a-new-service.md)
+and [local checks](docs/how-to/run-buf-checks-locally.md).
 
 ## API Documentation
 
@@ -189,18 +202,22 @@ plugins:
 2. **Make changes**: Edit `.proto` files
 3. **Test locally**: `make test`
 4. **Submit PR**: Breaking changes will be detected automatically
-5. **Merge**: Triggers automatic publishing to BSR
+5. **Merge to main**: CI generates and publishes bindings/mocks to `generated`;
+   consumers wait for that output before adopting the changed contract.
 
 ### Development Workflow
 
 ```bash
-# Start development
-git checkout -b feat/add-spell-service
+# Start development in an isolated worktree based on main
+git worktree add .worktrees/add-spell-service -b feat/add-spell-service main
+cd .worktrees/add-spell-service
+git fetch origin main
 
 # Make changes to proto files
 vim dnd5e/api/v1alpha1/spell.proto
 
-# Test changes
+# Format and check the contract (no local SDK generation)
+make format
 make test
 
 # Commit and push
@@ -217,9 +234,14 @@ The GitHub Actions workflow automatically:
 
 1. **Lint and Format**: Ensures code quality
 2. **Breaking Change Detection**: Protects API consumers
-3. **Code Generation**: Validates all languages work
-4. **BSR Publishing**: Publishes on main branch merges
-5. **Artifact Upload**: Makes generated code available
+3. **New-file Policy**: Rejects redundant managed Go/unused Java options
+4. **Generation and SDK Validation**: Generates Go/TypeScript and Go mocks,
+   tests refgen and compiles TypeScript; independent of local `make test`
+5. **Artifact Upload**: Makes generated code available for the CI run
+6. **Main Merge Publication**: Updates `generated` and tags the generated output
+
+Do not push authored contracts to `generated`. Generation/validation jobs remain
+CI-owned. Consumers adopt published outputs and test their own integration.
 
 ## Configuration
 

@@ -7,10 +7,11 @@ confidence: high — verified by reading buf.gen.yaml and .github/workflows/ci.y
 
 # Regenerate SDKs
 
-The repo generates two SDK targets: Go (gRPC + grpc-go) and TypeScript
-(Connect-ES via `bufbuild/es`). You should rarely need to do this
-locally — CI does it on every merge to main and force-pushes the
-result to the `generated` branch plus an auto-incremented git tag.
+The repo generates two SDK targets: Go (protobuf + gRPC) and TypeScript
+(Connect-ES via `bufbuild/es`), plus Go mocks. CI owns generation and validation
+on PRs and publishes to `generated` with an auto-incremented tag after main
+merges. Contract authors run [local contract checks](run-buf-checks-locally.md)
+only; they do not generate bindings or compile consumers as a prerequisite.
 
 ## What the pipeline does
 
@@ -23,16 +24,19 @@ result to the `generated` branch plus an auto-incremented git tag.
 4. Force-pushes a `generated` branch with the contents of `gen/`.
 5. Auto-increments the latest `vX.Y.Z` tag and pushes it on the
    `generated` branch.
-6. Creates a GitHub release.
-7. Publishes to npm: `cp -r gen/ts/* . && npm publish`.
 
-Verified by reading the workflow directly. Steps 4-7 only run on
-pushes to `main`.
+The generated-branch/tag steps run on pushes to `main`. Additional GitHub release
+and npm steps have separate conditions; consumers must verify actual published
+artifact availability rather than infer it from a successful contract check.
 
-## Local generation (rarely needed)
+## Optional local troubleshooting
+
+Use this only for generator changes or diagnosing CI, not routine proto edits.
+This path needs Go 1.25, Node dependencies (`npm ci`), Buf remote-plugin access
+and mockgen (`go install go.uber.org/mock/mockgen@latest`). These are not contract
+authoring dependencies. From the worktree root:
 
 ```bash
-cd /home/kirk/personal/rpg-api-protos
 
 buf generate                      # writes gen/go, gen/ts
 make mocks                        # writes mocks under gen/go
@@ -102,7 +106,7 @@ gets the latest.
   per `CLAUDE.md`.
 - **Generated output drifts from proto.** Only happens if you edit
   `gen/` files directly (don't) or if `buf generate` fails silently.
-  Run it locally to confirm.
+  Inspect CI generation evidence; reproduce locally only when diagnosing it.
 - **`make mocks` fails.** The CI installs `mockgen` first
   (`go install go.uber.org/mock/mockgen@latest`). Missing locally
   → install it.

@@ -27,6 +27,16 @@ There is no shared `Reference` message — IDs are bare `string` fields.
 This is intentional and matches the workspace pattern: refs like
 `dnd5e:features:rage` are strings the toolkit interprets.
 
+### World access configuration (`api/world/v1alpha1/service.proto`)
+
+`World` identifies a Discord server's game configuration by `world_id`.
+`WorldRoles` contains required admin, builder, and player role IDs as strings.
+The fields configure authorization policy; client-supplied IDs are never proof
+of guild membership or ownership. Owner-only complete replacement and
+admin-capable builder/player replacement are separate RPCs. See
+[WorldService](components/world-service.md). This introduces no new gameplay
+request fields or character-transfer contract.
+
 ### Position (`api/v1alpha1/room_common.proto:9`)
 
 ```proto

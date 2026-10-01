@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-19
+updated: 2026-10-01
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -16,13 +16,25 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **Room revelation and mutable observations (rpg-project#508 / design #509)** —
+  GetKnowledge restores a coherent known atlas, latest view, own position/holdings
+  and known public identities. ROOM_REVEALED supplies a full newly known fixed
+  room using the existing RegionRevealed payload; internal LOS does not clip its
+  floor/scenery. Mutable props and doors use GetView current/remembered testimony;
+  Sighted.knowledge_changed signals a view refresh just like creature changes.
+  No whole-atlas replacement event, DTO relocation or annotation cleanup.
+  Existing fields/kinds stay; the legacy GetDoors RPC is deprecated. Provider
+  persistence, authorization, appearance/source protection and browser recovery
+  remain follow-on runtime acceptance. See
+  [the contract](architecture/components/session-service.md#room-discovery-and-mutable-observations).
+
 - **Presentation is content (rpg-project#479, 2026-09-19)** — additive on
   `GetAtlasResponse`: `dungeon_key = 15` names the authored dungeon the session
   was launched from, and `room_scene_json = 14` gains `[deprecated = true]`.
-  What a room looks like is the World Builder's content, served by key from the
-  registry through the ungated `AuthoringService.GetDungeon` and decoded by the
-  client's own codec — not a JSON scene the engine validates, stores and
-  re-marshals on every save to read three numbers per prop out of. One string
+  What a room looks like remains World Builder content, not an encounter-owned
+  rendering document. Individual knowledge adoption must deliver permitted
+  appearance rather than let players fetch full source through GetDungeon.
+  Source/appearance protection remains a provider adoption requirement. One string
   on the wire: no scene RPC and no scene DTO, so nothing on this contract models
   a visual scene. Empty `dungeon_key` means a session saved before the field
   existed and reads as *no authored scene*, never as an error. Tag 14 is burnt

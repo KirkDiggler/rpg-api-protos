@@ -1,8 +1,8 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-18
-confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
+updated: 2026-10-01
+confidence: high for released SDK transcriptions and generated contract shape; existing API/web consumers; room discovery and mutable-prop/door memory require runtime adoption
 ---
 
 # SessionService
@@ -570,9 +570,12 @@ Twenty-three, mirroring the exposed SDK verbs one-for-one plus the stream.
 | `End` | `End` | `EndRequest:EndResponse` | Declared external endings only — `NotFound` means the key was never on the menu |
 | `GetStatus` | `Status` | `GetStatusRequest:GetStatusResponse` | Encounter-wide, never per-member |
 | `GetStory` | `Story` | `GetStoryRequest:GetStoryResponse` | The resync source of truth |
-| `GetView` | `View` | `GetViewRequest:GetViewResponse` | Sightings — what this member perceives of *others*. Skips self by design; `GetWhere` answers self |
-| `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | The caller's own cell, answerable cold. Deliberately singular — no roster read exists |
-| `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Static; cache per encounter, never per frame |
+| `GetKnowledge` | Observer snapshot (provider adoption pending) | `GetKnowledgeRequest:GetKnowledgeResponse` | Coherent known atlas, latest view, own position/holdings, known public identities and recipient-local seq |
+| `GetView` | `View` | `GetViewRequest:GetViewResponse` | Current/remembered creatures, mutable props and door state; creature sightings skip self |
+| `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | The caller's own cell; no roster-of-positions read |
+| `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Fixed known-room records; cache and merge room reveals |
+| `GetRoster` | Observer public identities (adoption pending) | `GetRosterRequest:GetRosterResponse` | Self and known creatures, not unobserved identities; member-scoped |
+| `GetDoors` | Legacy door read | `GetDoorsRequest:GetDoorsResponse` | Deprecated; individual knowledge uses current/remembered `GetView.doors` |
 | `Interact` | `Interact` | `InteractRequest:InteractResponse` | Reaches a placed `MEMBER_KIND_WORLD` member and reports identity plus resolved vendor stock, if any. See "World NPCs" below |
 | `StreamEvents` | `EventStream` | `StreamEventsRequest:stream Event` | Per-recipient projections |
 
@@ -679,12 +682,47 @@ walk case joins it and nothing on this contract has to change.
 > A DOORWAY"*, stale since v0.12.0 and contradicted by its own code — is
 > **resolved**. rpg-toolkit#1052 is closed and the paragraph is gone at v0.18.0.
 
+## Room discovery and mutable observations
+
+Individual knowledge has two lifecycles:
+
+- **Fixed rooms:** opening a door reveals the opener's full adjacent-room fixed
+  data; first observing part of a room also reveals it to that observer. Floor
+  behind an opaque altar is included. Unknown rooms remain absent. A further
+  closed door does not reveal its next room. Fixed records stay known when
+  visibility is lost; LOS-clipped geometry discovery is outside this first slice.
+- **Mutable subjects:** creatures, movable/holdable props and door state use
+  current/remembered observations. A chest behind the altar is absent until
+  observed. Unseen pickup/closing does not refresh another observer's memory;
+  observing the former placement empty supplies an explicit correction, not
+  the object's destination or carrier.
+
+`GetKnowledge(session, member)` restores one coherent saved observer answer.
+It reuses GetAtlas/GetView/GetWhere/GetRoster responses in their existing files,
+plus own holdings and a recipient-local seq. `ROOM_REVEALED` kind 41/body arm 47
+reuses the existing `RegionRevealed` payload, extended with fixed doorways,
+footprints and exits. Its message is shared rather than deprecated; the old
+REGION_REVEALED kind/arm stay deprecated and no fields move. First-slice rooms
+use named AtlasRegions, with absolute coordinates rather than room-local frames.
+
+`GetView.props` uses PropSighting with the existing cell or footprint shape;
+`GetView.doors` uses DoorSighting. Both retain observation currency. The existing
+Sighted member lists remain unchanged; `knowledge_changed = 4` signals a GetView
+refresh when prop, door or sight-area observations change, even with empty member
+lists. No whole-atlas replacement/refetch is required by normal discovery or
+mutable observation. Legacy narrative beats are not parallel mutable-state
+patches. Existing StreamEvents/GetStory carry delivery and recovery; no new
+transport or readiness metadata is introduced here.
+
+This is schema-first. Provider discovery, observation support, persistence,
+recovery sequencing, permitted appearance/source protection and the authenticated
+two-player walk still require runtime work. Schema gates do not establish them.
+
 ## The Atlas
 
-`GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
-which way its hexes point (`layout`), every `cell` sorted by coordinate, every
-`prop` standing on it, every `boundary`, every `doorway` as a crossable cell
-pair, and every `region` — a named set of those cells with its lighting.
+`GetAtlasResponse` remains one map in one coordinate frame: grid/layout and the
+union of fixed records from this observer's known rooms. Mutable props and door
+state are supplied by GetView, not by room revelation.
 
 **`regions` arrived 2026-08-23 (tag 9)**, ahead of its SDK by the same ruling
 as the combat turn, as part of the Dungeon Builder restart (rpg-project PR
@@ -759,8 +797,10 @@ coordinate specifically so the flattening does not leak the old room grouping
 back through iteration order. A map that still came out room-by-room would be
 the old shape wearing a new type.
 
-Construction truth: unchanged by movement, joins, exits or endings. Fetch it
-once per encounter and cache it; never per frame.
+Known fixed records are retained. Hydrate them with GetKnowledge and merge
+newly known room data from ROOM_REVEALED, keyed by existing ids/cells/endpoints.
+Shared border geometry can appear in both adjacent room payloads; replay must
+not duplicate records. A doorway endpoint is not revelation of the next room.
 
 ### The scene is served by key, not by the encounter
 
@@ -780,15 +820,12 @@ TypeScript in lockstep. That is a downstream consumer's document living inside
 the engine, which is the coupling the toolkit's composability rule exists to
 prevent.
 
-`dungeon_key` is the whole replacement: the key of the authored dungeon the
-session was launched from, as the content registry knows it. A client fetches
-the room's presentation with it through `AuthoringService.GetDungeon`
-([authoring-service.md](authoring-service.md)), which is ungated because reading
-content mutates nothing, and reads the file with its own codec — the same codec
-that authored it. **The scene a player sees and the field the engine compiled
-come from the same bytes**, because the registry compiled that entry from them.
-One string on the wire: no scene RPC, no scene DTO, nothing on this contract that
-models a visual scene.
+`dungeon_key` identifies the authored source; it is not permission for a player
+to fetch the full document. Individual knowledge consumers render permitted room
+and observation data, not full source filtered in the browser. Appearance remains
+content outside encounter. Broader appearance selection and source/provenance
+protection require provider adoption; this contract does not add builder-policy
+management or revise authoring DTOs.
 
 Empty means the session predates the field — a session saved before it existed.
 A client reads empty as *no authored scene* and draws what it drew before, never
@@ -800,12 +837,9 @@ removed, never retyped, the discipline `occluders` and `Answered.fact` set here.
 A producer that has dropped the presentation leaves it empty and a client built
 against it keeps decoding.
 
-**What this forecloses, stated rather than papered over:** a running session no
-longer carries its own visuals, so a file re-`Put` under the same key while a
-session is live changes the scene under geometry that was compiled at launch.
-Pre-v1 that is acceptable and visible. Kirk's ruling names the fix when it stops
-being: an immutable scene revision pinned on the session, which is the
-*registry's* noun, never the encounter's.
+Source/provenance binding remains a host concern. A mutable source lookup must
+not rewrite already learned fixed room data or bypass individual disclosure.
+The first-slice schema does not select the registry storage/migration mechanism.
 
 ## The event spine
 
@@ -1009,6 +1043,15 @@ spells, spell slots, concentration, magical resources, or future target kinds.
 
 ## Reconnect, and the gap that closed
 
+Individual knowledge consumers hydrate GetKnowledge, then use existing
+StreamEvents/GetStory sequencing for later events. Snapshot seq is a state
+cutoff, not acknowledgment of unread narration. Room-reveal replay carries the
+original recipient's fixed records, not today's source reconstructed at an old
+seq. Sighted refreshes only that observer's latest GetView. Correct handoff,
+gap recovery and stale-response handling remain runtime acceptance.
+
+The history below describes the separate reads retained for legacy consumers.
+
 Design rule 11 asked that a cold client be able to learn its own position from
 reads alone. Through v0.12.0 it could not: `GetView` reports what a member
 perceives and *skips self*, `GetStatus` is encounter-wide, and while `Member`
@@ -1041,7 +1084,7 @@ nothing about whether they are standing, and a client that reconnects mid-fight
 draws the whole party on its feet. Filed as **rpg-toolkit#1137**; it wants the
 same treatment `GetWhere` got — a read, not a replay dependency.
 
-**Why there is no roster read**, and this is the part worth not "improving"
+**Why there is no roster-of-positions read**, and this is the part worth not "improving"
 later: a read returning everybody's positions would hand a client the cells of
 members it has never perceived — around a corner, in a room it has not entered,
 behind a door it has not opened. That is precisely the fog-of-war leak design
@@ -1113,10 +1156,8 @@ same swap), per the versioning trigger in `rpg-project/CLAUDE.md`.
 
 ## Status
 
-Proto-only as of this doc. rpg-api's implementation (W2 of `rpg-project#227`)
-is open as **rpg-api#797**, written and aligned against **v0.13.0** — so it
-absorbs this delta: the `occluders` translation becomes `props`, the error table
-loses `ErrNoCrossing` and gains `ErrLocked` / `ErrDowned` / `ErrCannotAfford` /
-`ErrBadCost` (35 sentinels → 38), and `DOWNED` / `BY_DEFEAT` become reachable
-values it must map. No `rpg-dnd5e-web` client usage yet (W3). Not a "live"
-service by this repo's usual definition — re-grade once the rpg-api PR lands.
+Existing session API and web consumers are live. GetKnowledge, room revelation,
+mutable-prop/door testimony and observer-scoped identity are schema-first and
+require SDK/API/web adoption. Generation/compilation establish shape, not saved
+knowledge, authenticated disclosure or browser recovery. Legacy source and live
+reads must not bypass knowledge when providers adopt this surface.

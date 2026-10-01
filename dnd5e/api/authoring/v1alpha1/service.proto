@@ -99,9 +99,10 @@ message PutDungeonResponse {
   // returns: the separately authorized AUTHOR'S complete compile view, which
   // may contain holdable placements. Player reads instead supply discovered
   // fixed geometry/scenery and separate mutable testimony. One geometry DTO,
-  // with disclosure appropriate to the authorized caller. The first AuthoringService answered with its
-  // own `FloorPlan`, a builder-shaped second projection of the world that had to be kept in
-  // step with the atlas by hand; the moment the two disagreed the builder
+  // with disclosure appropriate to the authorized caller. The first
+  // AuthoringService answered with its own `FloorPlan`, a builder-shaped second
+  // projection of the world that had to be kept in step with the atlas by hand;
+  // the moment the two disagreed the builder
   // was lying. Returning the atlas itself leaves the builder nothing to keep
   // in step.
   dnd5e.api.session.v1alpha1.GetAtlasResponse atlas = 2;

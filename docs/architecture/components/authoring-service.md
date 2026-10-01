@@ -1,8 +1,8 @@
 ---
 name: AuthoringService
-description: Dev-gated dungeon authoring surface — PutDungeon compiles a dungeon file and answers with the same GetAtlasResponse the game plays from; GetDungeon hands the stored file back verbatim; ListScenarios and ListWeapons hand the builder the rulebook's own vocabulary
-updated: 2026-09-16
-confidence: high for the contract — verified by buf lint/format/breaking and generated Go/TypeScript compilation; no consumer yet (rpg-api A and rpg-dnd5e-web W of the same plan are the next legs)
+description: Builder-authorized dungeon source and compile surface, sharing the atlas DTO with permitted player knowledge; separate catalog reads expose rulebook vocabulary
+updated: 2026-10-01
+confidence: high for schema shape; builder authorization and immutable source provenance remain pending runtime adoption
 ---
 
 # AuthoringService
@@ -32,15 +32,15 @@ a body.
 ## Shape
 
 - 1 service, 4 RPCs, 12 messages, 1 enum. Imports
-  `dnd5e/api/session/v1alpha1/service.proto` for `GetAtlasResponse` — the
-  only cross-package dependency, and the point of the design.
+  `dnd5e/api/session/v1alpha1/types.proto` for shared `GetAtlasResponse`.
+  The DTO is reused, not a second authored geometry model.
 
 | RPC | Purpose |
 |---|---|
-| `PutDungeon` | Compiles a dungeon file and, unless `validate_only`, stores it under its key. Either way answers with the compiled atlas. Gated server-side by `RPG_AUTHORING_ENABLED` (Unimplemented when off) |
-| `GetDungeon` | Returns the stored file for a key, verbatim. `NotFound` for an unknown key. Ungated — reading content mutates nothing |
-| `ListScenarios` | Every scenario a dungeon may be bound to, and the form each one needs filled in. Ungated, for `GetDungeon`'s reason |
-| `ListWeapons` | Every weapon the rulebook can arm a placed monster with, for the builder's action palette. Ungated, for `GetDungeon`'s reason |
+| `PutDungeon` | Builder-authorized compile/validate/write; additionally unavailable with `RPG_AUTHORING_ENABLED` off. Returns the complete author compile view when valid |
+| `GetDungeon` | Builder-authorized full source read. An authorized unknown key is `NotFound`; no player rendering fallback |
+| `ListScenarios` | Registry catalog of scenario fields; catalog access grants no dungeon source or placement knowledge |
+| `ListWeapons` | Registry catalog for the action palette; catalog access grants no source or placed-monster equipment knowledge |
 
 ```proto
 message PutDungeonRequest  { string key = 1; string yaml = 2; bool validate_only = 3; }
@@ -68,16 +68,19 @@ There is no `DeleteDungeon`. Not now: nothing in the builder's first loop
 
 ## The atlas is the response — the builder has no second geometry
 
-`PutDungeon` answers with `dnd5e.api.session.v1alpha1.GetAtlasResponse`,
-not a builder-shaped projection. The builder draws what `PutDungeon`
-returns, and what `PutDungeon` returns is what `GetAtlas` will return once
-a session starts on that file: one message type, one producer, one
-geometry. The first cut's `FloorPlan` was a second projection of the world
-that had to be kept in step with the atlas by hand, and the moment the two
-disagreed the builder was lying. Returning the atlas itself leaves nothing
-to keep in step. Regions and lighting reach the builder the same way every
-other world fact does — on the atlas
-([session-service.md](session-service.md), "The Atlas").
+`PutDungeon` reuses `dnd5e.api.session.v1alpha1.GetAtlasResponse`, defined in
+session `types.proto`. One authoritative geometry source serves two authorized
+answers: the builder's complete compile view may contain holdable placements;
+player knowledge contains discovered fixed geometry/scenery and separate mutable
+testimony. Reusing the DTO never grants a player the full author view. Regions,
+lighting and appearance metadata obey the same disclosure boundary as floor.
+See [observer knowledge](session-service.md#individual-dungeon-knowledge).
+
+Source reads, validation and writes require host-enforced builder authority for
+that source. `RPG_AUTHORING_ENABLED` controls availability, not authorization;
+signing in, joining or hosting a session does not confer builder authority.
+Player rendering uses supplied permitted knowledge, never `GetDungeon` YAML.
+The concrete builder policy and its runtime enforcement remain follow-on work.
 
 ## Error transport
 
@@ -115,11 +118,11 @@ author could reach something the server's rulebook already has — and the day
 the two lists disagreed, the palette would be offering a chip that writes a
 file the compiler refuses.
 
-Both are ungated for `GetDungeon`'s reason: they read a registry and mutate
-nothing. Both take an empty request and none are coming — the set is a
-property of the **server's rulebook build**, not of any one dungeon, so there
-is nothing to scope it by, and a builder with nothing drawn yet still needs
-the list to show what a map or a monster could become.
+These are catalog reads, unlike builder-authorized `GetDungeon` source reads.
+Catalog access never grants a dungeon's complete source or reveals its placed
+content. Both take an empty request: the set belongs to the server's rulebook
+build, not a particular dungeon. A builder with nothing drawn still needs the
+vocabulary to show what a map or monster could become.
 
 ### `ScenarioDescriptor` is content, translated verbatim
 
@@ -173,10 +176,11 @@ again; the bool is the rulebook's own predicate, answered server-side.
 
 ## Live consumers
 
-None at merge time. `rpg-api` (plan section A: the content registry, the
-RPCs, the key) and `rpg-dnd5e-web` (section W: `/author` on the atlas)
-are the next legs of the same plan
-(`rpg-project/ideas/dungeon-builder/plan.md`).
+Existing API handlers and the web builder consume this surface. The new
+builder-authorization requirement, immutable source revision binding and player
+source-refusal proof remain pending in the dungeon-knowledge wave
+(`rpg-project#508` / design PR `rpg-project#509`). Schema documentation does not
+establish that runtime gate or authenticated non-disclosure.
 
 ## Design notes
 

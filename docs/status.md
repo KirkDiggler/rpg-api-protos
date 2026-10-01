@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-09-19
+updated: 2026-10-01
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -16,21 +16,33 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
-- **Presentation is content (rpg-project#479, 2026-09-19)** — additive on
-  `GetAtlasResponse`: `dungeon_key = 15` names the authored dungeon the session
-  was launched from, and `room_scene_json = 14` gains `[deprecated = true]`.
-  What a room looks like is the World Builder's content, served by key from the
-  registry through the ungated `AuthoringService.GetDungeon` and decoded by the
-  client's own codec — not a JSON scene the engine validates, stores and
-  re-marshals on every save to read three numbers per prop out of. One string
-  on the wire: no scene RPC and no scene DTO, so nothing on this contract models
-  a visual scene. Empty `dungeon_key` means a session saved before the field
-  existed and reads as *no authored scene*, never as an error. Tag 14 is burnt
-  and the field is never removed; a producer that has dropped the presentation
-  leaves it empty. **Merges first** — toolkit `encounter`, toolkit `session`,
-  `rpg-api` and web follow in that order on pseudo-versions, and the wave is
-  walked on the workshop room and one v2 dungeon before any of it merges. See
-  [the contract](architecture/components/session-service.md#the-scene-is-served-by-key-not-by-the-encounter).
+- **Individual dungeon knowledge (rpg-project#508 / design PR #509)** —
+  schema-first `GetKnowledge` supplies a coherent saved observer snapshot;
+  `KnowledgeChanged` carries atomic permitted live values on the existing
+  recipient-local stream, not invalidation/refetch. Present sections completely
+  replace, absent sections remain unchanged; geometry, mutable testimony and
+  required appearance arrive coherently. Register the authorized exact-owned-seat
+  stream, receive readiness metadata, buffer, then hydrate through seq N and
+  apply later values. Historical replay preserves captured values/audiences;
+  state watermark is not narration acknowledgment. Four response DTOs relocate
+  to shared `types.proto` (TS imports move `service_pb` to `types_pb`); Go package
+  identity and wire fields stay unchanged. Alpha source-layout migration and
+  requested annotation removal need a bounded breaking exception. **Runtime
+  adoption remains pending:** discovery, saved historical updates, builder gate,
+  revision provenance, stream/browser race proof and authenticated two-player
+  non-disclosure are not established by schema compilation. See
+  [the contract](architecture/components/session-service.md#individual-dungeon-knowledge).
+
+- **Presentation is content (rpg-project#479)** — `dungeon_key = 15` identifies
+  authored source; deprecated `room_scene_json = 14` stays empty and its tag is
+  burnt. Appearance remains content outside encounter. The dungeon-knowledge
+  contract adds immutable `content_revision = 17` binding permitted geometry and
+  appearance to the same bytes. Key/revision is not permission to fetch a full
+  document: `AuthoringService.GetDungeon` requires separate builder authority;
+  players render supplied permitted values. Legacy authored records without a
+  revision need explicit provenance migration or read refusal, never today's
+  mutable-key lookup. See
+  [source provenance](architecture/components/session-service.md#the-scene-is-served-by-key-not-by-the-encounter).
 
 - **The `Stayed` beat (rpg-project#465, 2026-09-18)** — additive, from Kirk's
   walk: `EVENT_KIND_STAYED = 38` with `Stayed { member, cause, why }` at
@@ -646,8 +658,8 @@ Your read of where we are. See [quality.md](quality.md) for grade + rationale.
 | `dnd5e.CharacterService` | Medium-high — the biggest service by RPC count (~25 RPCs); coherent draft + finalize flow; deprecated proficiency fields still present |
 | `api.DiceService` | High — small (3 RPCs), consumed by rpg-api, well-shaped |
 | `api.world.WorldService` | Contract draft — owner setup and delegated builder/player configuration; API/web consumer work tracked by rpg-project#514 and rpg-api#1065; no runtime proof yet |
-| `dnd5e.authoring.AuthoringService` | High (contract) / no consumer yet — REPLACED 2026-08-23 (rpg-project#256): 4 RPCs, answers with the session atlas itself, plus the two ungated registry doors `ListScenarios` (2026-09-04) and `ListWeapons` (rpg-project#448, 2026-09-16) that hand the builder the rulebook's own vocabulary instead of letting the web hold a copy; the 2026-07-30 `FloorPlan` contract is gone with its server (rpg-api#801). Consumers (rpg-api A, rpg-dnd5e-web W) are queued in the same plan, distinct from the Low-rated services below which have none in flight |
-| `dnd5e.session.SessionService` | High (contract) / consumer adoption pending — current explicit Death Save surface is transcribed from released session/v0.54.1; earlier core came from #222/#226 and `GetWhere` from #228. Proto lint/breaking/generation are the contract evidence; API/web runtime acceptance remains follow-on work |
+| `dnd5e.authoring.AuthoringService` | Existing API/web consumers; builder-authorization adoption pending. Four RPCs share the session atlas DTO; catalog reads do not grant source access. GetDungeon/PutDungeon require source authority independently of service enablement |
+| `dnd5e.session.SessionService` | Existing API/web consumers; new individual-knowledge runtime adoption pending. Schema generation/compilation and bounded breaking assessment establish contract shape, not saved discovery, live recovery or authenticated non-disclosure |
 | `dnd5e.session.presentation.SessionPresentationService` | High (contract) / no consumer yet — new (rpg-api-protos#256, 2026-08-27). Presentation-only live-session dice throw plans: `PublishDiceThrow` + `StreamDiceThrows`, group-shaped bodies/contacts/terminals, server-bound `roller`, intended live/no-replay Redis-backed host in rpg-api. Both consumer issues are already assigned (`rpg-api#852`, `rpg-dnd5e-web#837`), so this is consumer-pending rather than speculative unused proto |
 | `api.EnvironmentService` | Low — defined, not consumed. Generic room shape duplicates encounter Room |
 | `api.SpatialService` | Low — defined, not consumed |

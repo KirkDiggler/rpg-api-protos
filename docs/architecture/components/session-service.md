@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-09-18
+updated: 2026-10-01
 confidence: high for the Death Save contract and everything with an SDK tag behind it — Death Save was transcribed field-for-field from rulebooks/dnd5e/session v0.54.1; earlier surface evidence includes scripted comparison against v0.18.0 plus the tagged Atlas.Layout and Seen deltas; first live consumer remains the rpg-dnd5e-web Concepts Lab pending API adoption
 ---
 
@@ -60,6 +60,76 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   by decode, since `intel.Report` carries no channel of its own
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
+
+## Individual dungeon knowledge
+
+The dungeon-knowledge contract (`rpg-project#508`, design PR `#509`) leads its
+SDK/API implementation. The following requirements are schema contracts, not
+claims that runtime observation, authorization or recovery already satisfies them.
+
+Encounter owns observation/discovery and latest mutable intel; session owns the
+coherent permitted projection and saved historical updates; API binds authenticated
+identity and transports/stores values; web renders supplied answers and sends
+intent. No second LOS algorithm, knowledge engine, transport or cursor space.
+
+`GetKnowledge(session, member)` supplies one saved observer snapshot: discovered
+fixed `atlas`, creature `view`, mutable `props`/`doors`, own `holding`/`where`,
+permitted public identity/appearance `roster`, and recipient-local `seq`. Message
+sections are required; complete collections include empty ones. The host verifies
+that the caller controls this exact member and that it is seated in this session.
+IDs, hosting or another owned seat are not authority. Auxiliary `GetRoster` is
+also member-scoped and never an unknown-creature/private-sheet bypass.
+
+`EVENT_KIND_KNOWLEDGE_CHANGED = 41` / `Event.knowledge_changed = 47` carries normal
+live changes. At least one section is present: absent sections leave prior state
+unchanged; present sections replace their complete values, including present-empty
+collections. Apply coupled geometry/view/identity/holdings atomically. Small
+`PropSightings`, `DoorSightings` and `PropHoldings` wrappers supply presence for
+repeated sections, not duplicate row models. Snapshot and live delivery reuse the
+same permitted projection; new creature identities/appearance arrive with their
+view without a separate roster read.
+
+Known geometry survives withdrawal. Creatures, cell-placed holdable props and
+door state retain latest current/remembered testimony through unseen changes.
+`PropSighting.prop.at` absent means known identity with unknown placement, not
+nonexistence. `observed_empty` is explicit positive old-place evidence, never an
+inference from omission or a carrier/destination disclosure. First-shape holdable
+props are cell-placed; arbitrary holdable footprints require a separate extension,
+not a source/live-world fallback.
+
+Stream/snapshot handoff:
+
+1. Authenticate/verify the exact owned seat and register `StreamEvents`.
+2. Emit initial metadata `x-rpg-session-stream-ready: 1` only after registration.
+   The browser must receive it and buffer concurrently before requesting knowledge;
+   request initiation alone is not readiness. Host/proxy/CORS observability needs
+   runtime proof, including an idle stream.
+3. Apply the coherent snapshot through N, suppress knowledge-state application
+   at/below N, then apply buffered updates above N in dense recipient order,
+   counting other kinds too. Snapshot state equals the authorized knowledge prefix
+   through N, never later truth stamped with an earlier cursor. Fence stale attempts
+   and late responses.
+4. Deduplicate and recover gaps through `GetStory`; if retention prevents replay,
+   repeat stream-first snapshot hydration. Historical values/audiences are captured
+   at their sequence, never reconstructed from today's world or later discovery.
+   The snapshot state cutoff does not acknowledge unseen historical narration.
+
+After knowledge adoption, legacy `Sighted`, held/reveal and narration beats are
+not parallel knowledge patches or triggers for normal GetKnowledge/GetView/
+GetAtlas/GetRoster reads. `Sighted` retains its three creature-id lists for
+migration; its unreleased invalidation field 4/name is reserved.
+
+`GetAtlasResponse`, `GetViewResponse`, `GetWhereResponse` and `GetRosterResponse`
+are shared in `types.proto` to avoid an events/service import cycle. Existing
+message identities/tags/types stay fixed; TypeScript imports/schemas move from
+`service_pb` to `types_pb`. Consumers of raw proto descriptors must update direct
+imports too. Generated Go package identity is unchanged. This deliberate alpha
+source-layout migration and the requested Go/Java annotation removals require the
+bounded breaking-change acknowledgment, not a claim that raw Buf breaking passes.
+
+SDK/API/web adoption, builder policy, immutable source storage/migration and
+isolated authenticated two-player proof remain outstanding. A compiled schema is
+not evidence about provider persistence, network races or non-disclosure.
 
 ## Stabilization results
 
@@ -554,7 +624,8 @@ Consequences for this contract, all live:
 
 ## RPCs
 
-Twenty-three, mirroring the exposed SDK verbs one-for-one plus the stream.
+Selected surface overview, not an exhaustive RPC count. Existing verbs mirror
+the SDK; GetKnowledge and the live knowledge contract lead provider adoption.
 
 | RPC | SDK verb | Request:Response | Notes |
 |---|---|---|---|
@@ -571,8 +642,10 @@ Twenty-three, mirroring the exposed SDK verbs one-for-one plus the stream.
 | `GetStatus` | `Status` | `GetStatusRequest:GetStatusResponse` | Encounter-wide, never per-member |
 | `GetStory` | `Story` | `GetStoryRequest:GetStoryResponse` | The resync source of truth |
 | `GetView` | `View` | `GetViewRequest:GetViewResponse` | Sightings — what this member perceives of *others*. Skips self by design; `GetWhere` answers self |
-| `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | The caller's own cell, answerable cold. Deliberately singular — no roster read exists |
-| `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Static; cache per encounter, never per frame |
+| `GetWhere` | `Where` | `GetWhereRequest:GetWhereResponse` | Own cell only; public roster never supplies everybody's positions |
+| `GetKnowledge` | Provider contract pending | `GetKnowledgeRequest:GetKnowledgeResponse` | Coherent saved observer snapshot through recipient seq; initial hydration/recovery |
+| `GetRoster` | `Roster` | `GetRosterRequest:GetRosterResponse` | Required observer member; permitted public identities/appearance, no private sheets or positions |
+| `GetAtlas` | `Atlas` | `GetAtlasRequest:GetAtlasResponse` | Discovered fixed geometry only; changes arrive via KnowledgeChanged, never a full-map fallback |
 | `Interact` | `Interact` | `InteractRequest:InteractResponse` | Reaches a placed `MEMBER_KIND_WORLD` member and reports identity plus resolved vendor stock, if any. See "World NPCs" below |
 | `StreamEvents` | `EventStream` | `StreamEventsRequest:stream Event` | Per-recipient projections |
 
@@ -681,17 +754,21 @@ walk case joins it and nothing on this contract has to change.
 
 ## The Atlas
 
-`GetAtlasResponse` is the whole map in one piece: one `grid` for the field,
-which way its hexes point (`layout`), every `cell` sorted by coordinate, every
-`prop` standing on it, every `boundary`, every `doorway` as a crossable cell
-pair, and every `region` — a named set of those cells with its lighting.
+`GetAtlasResponse` is one permitted geometry answer in a single absolute frame:
+one `grid`/`layout`, discovered floor cells and fixed scenery, permitted boundaries,
+thresholds and region metadata/membership. Undiscovered ordinary rooms and hidden
+extents are absent, not client-filtered. Threshold endpoints never grant far-side
+floor discovery. Mutable holdable props and door state are separate testimony.
+A separately authorized builder may receive the full author compile view using
+this same DTO; that answer is not a player fallback.
 
 **`regions` arrived 2026-08-23 (tag 9)**, ahead of its SDK by the same ruling
 as the combat turn, as part of the Dungeon Builder restart (rpg-project PR
 #255, slice rpg-project#256; toolkit side T1/T3 of the plan). `AtlasRegion`
 is `{id, name, cells, archetype, lighting}`: the cells are absolute, sorted
-with the same comparator as `cells`, and **every floor cell appears in exactly
-one region** — no cell unowned, no cell shared. **Regions replace rooms.**
+with the same comparator as `cells`, and **a floor cell belongs to at most one
+region**. Unowned floor is scenery, not absent floor. Player region membership
+contains discovered floor only. **Regions replace rooms.**
 Nothing past the authored file has a room: no origin, no room-local frame, no
 chain. A region is only a name over cells that already exist in `cells`, and
 walls are still declared, not implied by it (below).
@@ -759,8 +836,10 @@ coordinate specifically so the flattening does not leak the old room grouping
 back through iteration order. A map that still came out room-by-room would be
 the old shape wearing a new type.
 
-Construction truth: unchanged by movement, joins, exits or endings. Fetch it
-once per encounter and cache it; never per frame.
+The authoritative fixed geometry binds to one immutable source revision, but
+this observer's delivered atlas changes as it discovers geometry. Hydrate with
+GetKnowledge and replace changed atlas sections from KnowledgeChanged, never
+fetch per frame or retain a once-per-encounter full-map download.
 
 ### The scene is served by key, not by the encounter
 
@@ -780,32 +859,27 @@ TypeScript in lockstep. That is a downstream consumer's document living inside
 the engine, which is the coupling the toolkit's composability rule exists to
 prevent.
 
-`dungeon_key` is the whole replacement: the key of the authored dungeon the
-session was launched from, as the content registry knows it. A client fetches
-the room's presentation with it through `AuthoringService.GetDungeon`
-([authoring-service.md](authoring-service.md)), which is ungated because reading
-content mutates nothing, and reads the file with its own codec — the same codec
-that authored it. **The scene a player sees and the field the engine compiled
-come from the same bytes**, because the registry compiled that entry from them.
-One string on the wire: no scene RPC, no scene DTO, nothing on this contract that
-models a visual scene.
+`dungeon_key` identifies the authored registry source; `content_revision = 17`
+binds geometry and permitted appearance to the same immutable bytes. These values
+never grant player access to full YAML or a scene document. Player rendering uses
+supplied permitted refs/transforms; `AuthoringService.GetDungeon` requires separate
+builder authority for that source, not sign-in, hosting or session membership.
+See [authoring authorization](authoring-service.md#the-atlas-is-the-response--the-builder-has-no-second-geometry).
 
-Empty means the session predates the field — a session saved before it existed.
-A client reads empty as *no authored scene* and draws what it drew before, never
-as an error: everything else on this message is the whole mechanical truth
-either way.
+In a valid answer, an empty revision accompanies an empty key (no authored source).
+Legacy authored records with a key and no revision require explicit provenance
+migration or read refusal, never resolution to today's mutable key. A source
+document stays outside encounter; the session carries opaque host provenance.
 
 `room_scene_json` carries `[deprecated = true]` and **14 is burnt** — never
 removed, never retyped, the discipline `occluders` and `Answered.fact` set here.
 A producer that has dropped the presentation leaves it empty and a client built
 against it keeps decoding.
 
-**What this forecloses, stated rather than papered over:** a running session no
-longer carries its own visuals, so a file re-`Put` under the same key while a
-session is live changes the scene under geometry that was compiled at launch.
-Pre-v1 that is acceptable and visible. Kirk's ruling names the fix when it stops
-being: an immutable scene revision pinned on the session, which is the
-*registry's* noun, never the encounter's.
+Updating a mutable registry key must not rewrite an existing session's permitted
+picture. Immutable revision storage/resolution belongs to the host; session treats
+that provenance as opaque, not as a source lookup. The schema requires this
+boundary; registry migration and runtime enforcement remain pending.
 
 ## The event spine
 
@@ -832,11 +906,11 @@ Three properties worth holding onto:
   numbering is what makes a gap honest — a member never observes a hole even
   though retention trims the shared story underneath. A client that notices a
   gap in its *own* numbering re-queries `GetStory` from its last known value.
-  The stream carries no replay obligation, which is why there is no
-  snapshot-then-deltas pattern here — the shape `StreamEncounter` and
-  `StreamLobby` both use.
+  The stream carries no replay obligation; Story supplies recovery. Knowledge
+  consumers combine its registered live buffer with GetKnowledge hydration and
+  authoritative KnowledgeChanged values, as specified above.
 
-`EventKind` now has 19 named values plus `UNSPECIFIED`, with the retired
+`EventKind` is additive, with the retired
 `TRAVERSED` number/name reserved. The vocabulary held unchanged from v0.9.0
 through v0.13.0, then grew additively as typed session beats landed; clients
 must match names rather than counts.
@@ -1018,15 +1092,11 @@ right up until the moment it matters: a reconnect, a fresh tab, a second
 device, a response it never received.
 
 **`session/v0.13.0` closed it, and `GetWhere` is that read on the wire.** A
-cold client's reconnect is now three reads with no replay dependency for
-position:
-
-1. `GetWhere` — where am I
-2. `GetAtlas` — what does the map look like (cache it; construction truth)
-3. `GetStory` — what did I miss, from my last known `seq`
-
-`GetStory` still matters, because story replay is how a client recovers *events*
-it missed. What changed is that position is no longer derived from it.
+cold client can read its own placement without deriving it from narrated moves.
+Knowledge consumers now hydrate own position with the coherent GetKnowledge
+snapshot after stream registration, alongside discovered geometry and testimony.
+Normal live changes arrive in KnowledgeChanged; Story remains the source for
+missed events, with narration consumption separate from the snapshot cutoff.
 
 **A second gap of the same shape opened at v0.15.0, and the combat-turn
 contract closes it on the wire (SDK pending, rpg-toolkit#1137): a cold client
@@ -1041,7 +1111,7 @@ nothing about whether they are standing, and a client that reconnects mid-fight
 draws the whole party on its feet. Filed as **rpg-toolkit#1137**; it wants the
 same treatment `GetWhere` got — a read, not a replay dependency.
 
-**Why there is no roster read**, and this is the part worth not "improving"
+**Why there is no roster-of-positions read**, and this is the part worth not "improving"
 later: a read returning everybody's positions would hand a client the cells of
 members it has never perceived — around a corner, in a room it has not entered,
 behind a door it has not opened. That is precisely the fog-of-war leak design
@@ -1113,10 +1183,9 @@ same swap), per the versioning trigger in `rpg-project/CLAUDE.md`.
 
 ## Status
 
-Proto-only as of this doc. rpg-api's implementation (W2 of `rpg-project#227`)
-is open as **rpg-api#797**, written and aligned against **v0.13.0** — so it
-absorbs this delta: the `occluders` translation becomes `props`, the error table
-loses `ErrNoCrossing` and gains `ErrLocked` / `ErrDowned` / `ErrCannotAfford` /
-`ErrBadCost` (35 sentinels → 38), and `DOWNED` / `BY_DEFEAT` become reachable
-values it must map. No `rpg-dnd5e-web` client usage yet (W3). Not a "live"
-service by this repo's usual definition — re-grade once the rpg-api PR lands.
+The existing session surface has API and web consumers. Individual dungeon
+knowledge is a schema-first extension: GetKnowledge, captured KnowledgeChanged
+values, exact-seat stream readiness, immutable provenance and removal of player
+source fallback require provider/consumer adoption. Generation and compilation
+establish shape, not runtime persistence, authenticated disclosure or browser
+recovery. The isolated two-player acceptance remains outstanding.

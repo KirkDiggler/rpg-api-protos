@@ -158,6 +158,16 @@ spirit.
 
 ## Newly defined, consumer PR pending
 
+### api.world.WorldService — B+ (provisional)
+
+Three focused RPCs for server-owned access configuration: read, owner-only
+complete setup/replacement, and delegated builder/player changes. Distinct
+mutation contracts prevent delegated admins from supplying an admin-role
+change. Standard gRPC errors and required role IDs preserve fail-closed
+semantics. Consumer work is tracked by rpg-project#514 and rpg-api#1065;
+authorization, atomic admin-role preservation, and live setup remain unproven
+until the API/web slice is integrated.
+
 ### dnd5e.lobby.LobbyService — B+ (provisional)
 
 Landed 2026-07-06 (rpg-api-protos#176), no consumer yet — distinct from the

@@ -22,6 +22,8 @@ the consequences of changing that shape.
 rpg-api-protos/
   dnd5e/api/customization/v1alpha1/  # shared provider-neutral customization intent
     types.proto                     # StyleSelection, HairCustomization, OutfitCustomization
+  api/world/v1alpha1/          # server-owned game access configuration
+    service.proto               # WorldService — GetWorld, SetWorldRoles, SetWorldMemberRoles; consumers in progress
   api/v1alpha1/
     dice.proto                  # DiceService — live, consumed by rpg-api
     room_common.proto           # generic Position, Wall, Door, Room, Entity

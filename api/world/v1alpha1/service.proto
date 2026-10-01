@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package api.world.v1alpha1;
+
+// WorldRoles maps Discord role IDs to cumulative game permissions.
+// Each ID is a canonical non-zero decimal uint64. All three are required.
+// Admins can configure builder/player access, build, and play; builders can
+// build and play. Discord governs who holds each configured role.
+message WorldRoles {
+  string admin_role_id = 1;
+  string builder_role_id = 2;
+  string player_role_id = 3;
+}
+
+// World is the server-owned game configuration, not a running game session.
+message World {
+  // world_id is the Discord guild ID. The API independently verifies the
+  // caller's guild membership; this field is never authorization evidence.
+  string world_id = 1;
+  WorldRoles roles = 2;
+}
+
+// GetWorldRequest selects the configuration to read.
+message GetWorldRequest {
+  string world_id = 1;
+}
+
+// GetWorldResponse contains the persisted world configuration.
+message GetWorldResponse {
+  World world = 1;
+}
+
+// SetWorldRolesRequest supplies the complete configuration for initial setup
+// or owner-controlled replacement. Omitted/empty role IDs are invalid, not
+// requests to remove restrictions or grant everyone access.
+message SetWorldRolesRequest {
+  string world_id = 1;
+  WorldRoles roles = 2;
+}
+
+// SetWorldRolesResponse contains the configuration saved by this call.
+message SetWorldRolesResponse {
+  World world = 1;
+}
+
+// SetWorldMemberRolesRequest changes builder and player access only. There is
+// deliberately no admin_role_id: delegated admins cannot alter admin authority.
+message SetWorldMemberRolesRequest {
+  string world_id = 1;
+  string builder_role_id = 2;
+  string player_role_id = 3;
+}
+
+// SetWorldMemberRolesResponse contains the saved configuration, including its
+// unchanged admin role. Updates preserve the latest stored admin role atomically.
+message SetWorldMemberRolesResponse {
+  World world = 1;
+}
+
+// WorldService manages server-local access configuration independently of
+// gameplay admission. RPC failures use standard gRPC status codes.
+// The target world must match the API-verified guild context. Owner verification
+// comes from Discord, never from request fields or a configured game role.
+service WorldService {
+  // GetWorld requires the verified Discord server owner or a configured world
+  // admin. Missing configuration is NotFound, including during initial setup.
+  rpc GetWorld(GetWorldRequest) returns (GetWorldResponse);
+
+  // SetWorldRoles requires the verified Discord server owner, even when the
+  // caller holds the configured admin role. It creates the world configuration
+  // if absent, permitting bootstrap before any game role is configured.
+  rpc SetWorldRoles(SetWorldRolesRequest) returns (SetWorldRolesResponse);
+
+  // SetWorldMemberRoles requires the verified server owner or a configured
+  // world admin. The world must already exist; missing configuration is
+  // NotFound. Admin authority is checked against the current stored config.
+  rpc SetWorldMemberRoles(SetWorldMemberRolesRequest) returns (SetWorldMemberRolesResponse);
+}

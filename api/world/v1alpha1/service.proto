@@ -2,10 +2,6 @@ syntax = "proto3";
 
 package api.world.v1alpha1;
 
-option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/api/world/v1alpha1;worldpb";
-option java_multiple_files = true;
-option java_package = "com.kirkdiggler.rpg.api.world.v1alpha1";
-
 // WorldRoles maps Discord role IDs to cumulative game permissions.
 // Each ID is a canonical non-zero decimal uint64. All three are required.
 // Admins can configure builder/player access, build, and play; builders can

@@ -1480,10 +1480,9 @@ message DoorRevealed {
 // Shared boundary geometry may appear in both adjacent rooms. A doorway's
 // endpoint does not itself reveal the adjacent room's floor.
 message RegionRevealed {
-  // The AtlasRegion entry the recipient's `regions` was missing. Its own
-  // `cells` list IS the patch for the cached `cells` — same absolute
-  // frame, same comparator (see AtlasRegion.cells) — so this message
-  // carries no second cell list free to disagree with it.
+  // The newly known AtlasRegion and its owned cells, in the same absolute
+  // frame as the atlas. Additional unowned floor is carried in scenery below;
+  // it must not be relabeled as region-owned or walkable floor.
   AtlasRegion region = 1;
   // The props standing in the region, exactly as GetAtlasResponse.props
   // would carry them.
@@ -1511,9 +1510,8 @@ message RegionRevealed {
   // REGION_REVEALED supplied them through its separate door-reveal beat.
   repeated AtlasSegment segments = 4;
   // The revealed region's cells that NOBODY CAN STAND ON — the cells its
-  // walls run through the middle of. A subset of `region.cells` above, so
-  // this adds no cell the patch does not already carry and cannot disagree
-  // with it about what exists.
+  // walls run through the middle of, plus unstandable scenery. A subset of
+  // region.cells and scenery, never additional undisclosed floor.
   //
   // A SEALED CELL KEEPS ITS REGION, so membership no longer implies
   // standable — as true of a room arriving by reveal as of one fetched with
@@ -1531,6 +1529,10 @@ message RegionRevealed {
   repeated AtlasPlacedProp placed = 7;
   // Exits in this known room, not undiscovered exits elsewhere in the dungeon.
   repeated AtlasExit exits = 8;
+  // Newly known unowned floor, such as wall footing, supplied alongside this
+  // room. Add it to atlas cells, not region.cells. It is fixed geometry, not
+  // mutable prop placement or permission to walk there.
+  repeated Position scenery = 9;
 }
 
 // ConcealmentRevealed: one concealment entered the recipient's knowledge

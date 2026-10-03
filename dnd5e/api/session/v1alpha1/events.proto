@@ -444,6 +444,8 @@ enum EventKind {
   // data, including geometry behind LOS obstructions within that room. Mutable
   // subjects and door state are learned separately through observation.
   EVENT_KIND_ROOM_REVEALED = 41;
+  // Automatic discovery roll; audience follows the actor's sharing preference.
+  EVENT_KIND_DISCOVERY_CHECKED = 42;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -574,6 +576,7 @@ message Event {
     ExperienceGained experience_gained = 46;
     // Reuses the room atlas payload; the legacy REGION_REVEALED arm remains.
     RegionRevealed room_revealed = 47;
+    DiscoveryChecked discovery_checked = 48;
   }
 }
 
@@ -586,6 +589,18 @@ message Event {
 // TurnResponse.participants or Sighting.name. Bodies carry FACTS, not prose:
 // "You hit skeleton-1 — 17 vs AC 13, 6 slashing" is rendered by the client
 // from Struck, and the server never writes a sentence.
+
+// DiscoveryChecked carries a resolved automatic discovery check. It deliberately
+// omits the hidden check/subject ID, location, label and DC. The occurrence of a
+// failure can hint that something is nearby, but does not identify the secret.
+// Both successes and failures use the original moment's sharing audience.
+message DiscoveryChecked {
+  string member = 1;
+  string ability = 2;
+  bool beaten = 3;
+  int32 total = 4;
+  RollCalculation calculation = 5;
+}
 
 // TurnEnded: a member's turn ended and the order moved on (EVENT_KIND_TURN_ENDED).
 //

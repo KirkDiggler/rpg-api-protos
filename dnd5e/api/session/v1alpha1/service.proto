@@ -1148,6 +1148,24 @@ message GetKnowledgeResponse {
   // Public appearance/identity as known to this observer, for self and known
   // creatures; not current truth that refreshes remembered appearances unseen.
   GetRosterResponse roster = 6;
+  // Present when this producer supports per-character discovery sharing.
+  // Explicit false is private; absent does not mean private.
+  optional bool discovery_sharing = 7;
+}
+
+// SetDiscoverySharing changes this character's policy for future automatic
+// discovery results. It never replays old discoveries or erases learned intel.
+message SetDiscoverySharingRequest {
+  string session = 1;
+  string member = 2;
+  // Required presence, including when turning sharing off.
+  optional bool sharing = 3;
+}
+
+message SetDiscoverySharingResponse {
+  bool sharing = 1;
+  SaveReport saved = 2;
+  DeliveryReport delivery = 3;
 }
 
 // GetViewRequest asks what one member currently perceives.
@@ -2031,7 +2049,15 @@ service SessionService {
   // acknowledges the attempt and never says what, if anything, was there —
   // an empty room and a failed check answer identically. A find arrives as
   // a DOOR_REVEALED beat on the searcher's own stream.
-  rpc Search(SearchRequest) returns (SearchResponse);
+  // Retired gameplay operation. Servers return UNIMPLEMENTED; discovery is
+  // automatic. Kept as a wire tombstone during consumer migration, never as a
+  // second way to roll or bypass an authored attempt budget.
+  rpc Search(SearchRequest) returns (SearchResponse) {
+    option deprecated = true;
+  }
+
+  // Caller must control this exact seated character.
+  rpc SetDiscoverySharing(SetDiscoverySharingRequest) returns (SetDiscoverySharingResponse);
 
   // Interact reaches for a placed world NPC and reports what it is — identity,
   // capabilities, and resolved vendor stock if it has any. Placement itself

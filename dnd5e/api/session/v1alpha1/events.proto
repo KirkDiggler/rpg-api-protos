@@ -734,6 +734,9 @@ enum InformationNeedKind {
   INFORMATION_NEED_KIND_OBSERVED_UNIVERSE = 5;
   INFORMATION_NEED_KIND_TARGET_EFFECTS = 6;
   INFORMATION_NEED_KIND_REACTION_READINESS = 7;
+  // Effective action facts are still pending normalization; clients do not
+  // fill them by reconstructing equipment or ability rules.
+  INFORMATION_NEED_KIND_ACTION_FACTS = 8;
 }
 
 // InformationNeed describes a permitted but unestablished fact. Subject/other

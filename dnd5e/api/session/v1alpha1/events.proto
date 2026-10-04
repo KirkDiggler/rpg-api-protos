@@ -699,6 +699,143 @@ message RollSource {
   string source_id = 4;
 }
 
+// The following detached read values share RollSource with resolved traces.
+// They are RPC output, not events to publish or frozen executable offers.
+
+// InformationFacet names the bounded mechanical question affected by an issue.
+// Damage is before target defenses, never predicted HP loss or a hit probability.
+enum InformationFacet {
+  INFORMATION_FACET_UNSPECIFIED = 0;
+  INFORMATION_FACET_ATTACK_ROLL = 1;
+  INFORMATION_FACET_DAMAGE_NORMAL = 2;
+  INFORMATION_FACET_DAMAGE_CRITICAL = 3;
+  INFORMATION_FACET_SPELL_DC = 4;
+  INFORMATION_FACET_HEALING = 5;
+}
+
+// EffectApplicability is the rule's answer under the permitted supplied facts.
+// Unknown context is not a definite negative. No value grants or refuses
+// permission to execute the independently offered action.
+enum EffectApplicability {
+  EFFECT_APPLICABILITY_UNSPECIFIED = 0;
+  EFFECT_APPLICABILITY_APPLIES = 1;
+  EFFECT_APPLICABILITY_DOES_NOT_APPLY = 2;
+  EFFECT_APPLICABILITY_NEEDS_CONTEXT = 3;
+}
+
+// InformationNeedKind identifies a missing fact, not an executable predicate
+// or a request for the client to calculate game rules.
+enum InformationNeedKind {
+  INFORMATION_NEED_KIND_UNSPECIFIED = 0;
+  INFORMATION_NEED_KIND_TARGET = 1;
+  INFORMATION_NEED_KIND_DISTANCE = 2;
+  INFORMATION_NEED_KIND_RELATIONSHIP = 3;
+  INFORMATION_NEED_KIND_SIGHT = 4;
+  INFORMATION_NEED_KIND_OBSERVED_UNIVERSE = 5;
+  INFORMATION_NEED_KIND_TARGET_EFFECTS = 6;
+  INFORMATION_NEED_KIND_REACTION_READINESS = 7;
+  // Effective action facts are still pending normalization; clients do not
+  // fill them by reconstructing equipment or ability rules.
+  INFORMATION_NEED_KIND_ACTION_FACTS = 8;
+}
+
+// InformationNeed describes a permitted but unestablished fact. Subject/other
+// identify known members only; a need must never enumerate a hidden subject.
+message InformationNeed {
+  InformationNeedKind kind = 1;
+  string subject = 2;
+  // The other member for a directed pair fact, otherwise empty.
+  string other = 3;
+}
+
+// EffectAssessment is a successful evaluation, including a known negative.
+// A reason explains this context; it never replaces canonical description.
+message EffectAssessment {
+  // Required; UNSPECIFIED is a producer defect.
+  EffectApplicability applicability = 1;
+  // Required, authored by the owning rule and rendered without reinterpretation.
+  string reason = 2;
+  // Nonempty exactly when applicability is NEEDS_CONTEXT.
+  repeated InformationNeed needs = 3;
+}
+
+// AssessmentIssue reports unavailable information, not an action refusal. It
+// removes the affected settled calculation only, not known content or another
+// supported calculation.
+message AssessmentIssue {
+  // Required, nonempty. Unknown impact names all requested facets.
+  repeated InformationFacet facets = 1;
+  // Required limitation. Must not vary with hidden target data.
+  string reason = 2;
+}
+
+// EffectParticipation distinguishes an automatic contribution from a later
+// choice opportunity. An opportunity is not an already-added bonus or offer token.
+enum EffectParticipation {
+  // No participating benefit has been established for this row.
+  EFFECT_PARTICIPATION_UNSPECIFIED = 0;
+  EFFECT_PARTICIPATION_CONTRIBUTION = 1;
+  EFFECT_PARTICIPATION_OPPORTUNITY = 2;
+}
+
+// EffectSelectionState preserves stacking independently of applicability.
+enum EffectSelectionState {
+  EFFECT_SELECTION_STATE_UNSPECIFIED = 0;
+  EFFECT_SELECTION_STATE_SELECTED = 1;
+  EFFECT_SELECTION_STATE_SUPPRESSED = 2;
+}
+
+// EffectSelection is present only when a stacking selection is established.
+// A suppressed applicable effect is not an ineligible effect.
+message EffectSelection {
+  // Required; UNSPECIFIED is invalid when this message is present.
+  EffectSelectionState state = 1;
+  // Required provider-authored selection reason, not client-derived policy.
+  string reason = 2;
+}
+
+// EffectInformation is a detached source row for effect indicators/tooltips.
+// No raw condition state, hidden sheet, executable predicate, simulated roll,
+// or command/offer authority crosses here. Ineligible rows remain inspectable.
+message EffectInformation {
+  // Evaluation-local identity distinguishing instances of the same content.
+  // Not durable, not a command token, and not sufficient as a freshness key.
+  string instance = 1;
+  // Canonical ref/name/label/source identity, reused from resolved traces.
+  // Source identity must be permitted knowledge, not a redacted hidden provider.
+  RollSource source = 2;
+  // Canonical explanation of the effect, separate from the contextual reason.
+  string description = 3;
+  // Exactly one arm is required. Unsupported is not an eligibility answer.
+  oneof assessment {
+    EffectAssessment assessed = 4;
+    AssessmentIssue unavailable = 5;
+  }
+  EffectParticipation participation = 6;
+  // Absent when no selection is established; absence is not suppression.
+  EffectSelection selection = 7;
+  // Optional provider-formatted contribution or opportunity/timing detail.
+  // The client neither parses nor sums it.
+  string benefit_detail = 8;
+}
+
+// ActionInformation describes an owned action independently of affordability,
+// turn or a paused command. Current state does not replace frozen roll evidence.
+message ActionInformation {
+  ActionInformationRef action = 1;
+  string name = 2;
+  // Canonical content; missing prose does not imply unsupported mechanics.
+  string description = 3;
+  // Echoed inspected target. Empty means actor-only scope, not every target.
+  string target = 4;
+  // Echoed inspected spell option; empty means no option selected.
+  string option = 5;
+  repeated EffectInformation effects = 6;
+  repeated AssessmentIssue assessment_issues = 7;
+  // Provider-authored choices, independent of current affordability.
+  repeated CastOption options = 8;
+}
+
 // DiceReroll is one reroll applied to one die of a DiceTrace, in the order it
 // happened.
 message DiceReroll {

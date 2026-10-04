@@ -1360,11 +1360,43 @@ message Declaration {
   // client still sends only the existing selector/reference inputs. Unknown
   // shape/origin values must not be reinterpreted as a supported outline.
   Footprint footprint = 20;
+  // Optional provider-authored join to InspectActions information. This neither
+  // replaces id nor enables the command; early blockers may omit it. Equal
+  // selectors/references do not imply that prior effect information is current.
+  ActionInformationRef information = 21;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
   // Attack blocker even when Attack compilation cannot proceed. Compiled
   // offers use the field-presence rules above.
+}
+
+// ActionInformationVariant names a provider-assembled action variant, not a
+// command or an action-economy price. Clients echo it and do not infer eligibility.
+enum ActionInformationVariant {
+  ACTION_INFORMATION_VARIANT_UNSPECIFIED = 0;
+  ACTION_INFORMATION_VARIANT_MAIN_HAND = 1;
+  ACTION_INFORMATION_VARIANT_OFF_HAND = 2;
+  ACTION_INFORMATION_VARIANT_MARTIAL_ARTS = 3;
+  ACTION_INFORMATION_VARIANT_SPELL = 4;
+}
+
+// ActionInformationRef identifies an actual owned action for read-only inspection.
+// It is neither an executable declaration selector nor permission to act. The
+// provider resolves it against current equipment/known spells on every read.
+// Equality includes every field; a content ref alone does not identify a weapon
+// instance/hand/grip. The variant names the hand where applicable.
+message ActionInformationRef {
+  // Full canonical content ref, for example "dnd5e:weapons:shortsword".
+  string ref = 1;
+  // Required. UNSPECIFIED is invalid, never an implicit main-hand action.
+  ActionInformationVariant variant = 2;
+  // Actual equipped inventory identity. Empty only for provider-authored unarmed
+  // or spell variants; consumers cannot manufacture a hypothetical loadout.
+  string item_id = 3;
+  // The provider's actual grip. False is a one-handed/non-weapon variant, not
+  // permission to change grip. Does not change the independently priced command.
+  bool two_handed = 4;
 }
 
 // Shortfall is the structured reason a declaration or candidate is unavailable. Lands

@@ -61,6 +61,16 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
 
+## CloseDoor intent (in-flight adoption)
+
+`CloseDoor` transcribes the existing toolkit close operation exposed by the
+session SDK. Its request carries session/member/door identifiers and its response
+carries `DoorInfo`, following the existing OpenDoor wire convention. The host binds
+the actor to the caller, and the SDK owns reach, state, concealment probing,
+persistence and event delivery. Closing does not lock. State/perception changes
+continue through the existing session stream; no new event kind or local toggle
+is introduced. Consumer adoption follows CI-published bindings.
+
 ## Structural wall layout (in-flight promotion)
 
 `AtlasStructuralWall`, `AtlasStructuralOpening` and `AtlasStructuralDoor`

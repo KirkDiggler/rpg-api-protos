@@ -1545,6 +1545,22 @@ message OpenDoorResponse {
   DoorInfo door = 1;
 }
 
+// CloseDoorRequest names an existing open door and the member shutting it.
+// Caller/seat binding and the concealed-door probe law are the same as
+// OpenDoorRequest. The host delegates state and reach decisions to the SDK.
+message CloseDoorRequest {
+  string session = 1;
+  string member = 2;
+  string door = 3;
+}
+
+// CloseDoorResponse reports the resulting door state. Closing does not lock.
+// Perception changes and the door beat use the existing session event stream;
+// no client-side toggle or new event kind is implied by this response.
+message CloseDoorResponse {
+  DoorInfo door = 1;
+}
+
 // UnlockRequest tries a lock: the member's hands, the member's ability
 // modifier, the lock's authored approaches. The caller names no approach —
 // the resolver applies the character's best listed one (see CheckApproach;
@@ -2048,6 +2064,10 @@ service SessionService {
   // OpenDoor pushes a shut door open, as `member`. A locked door refuses with
   // FAILED_PRECONDITION naming the DC (rpg-toolkit#1135: fiction, not defect).
   rpc OpenDoor(OpenDoorRequest) returns (OpenDoorResponse);
+
+  // CloseDoor shuts an open door as `member`, without locking it. This is
+  // the existing toolkit CloseDoor intent, with its own authoritative refusals.
+  rpc CloseDoor(CloseDoorRequest) returns (CloseDoorResponse);
 
   // Unlock tries a lock as `member`: the server rolls the check against the
   // authored DC and reports the attempt; a beaten lock leaves the door OPEN.

@@ -1143,6 +1143,15 @@ message TargetCandidate {
   // Present if and only if available is false. TARGET_OUT_OF_REACH is a
   // candidate-level reason; global turn/economy reasons are never copied here.
   Shortfall why = 3;
+  // The answers that change with this target, for effect rows on the
+  // enclosing declaration. Lands with rpg-project#520.
+  //
+  // The client overlays each entry onto the declaration's EffectRow with the
+  // same `id`; a declaration row with no entry here keeps its own answer for
+  // this target. Description and participation are never repeated per
+  // candidate. These answers never grant or refuse targeting: `available`
+  // and `why` remain the only target gate.
+  repeated TargetEffect effects = 4;
 }
 
 // CostComponent is one provider-authored display component of a declaration's
@@ -1360,11 +1369,98 @@ message Declaration {
   // client still sends only the existing selector/reference inputs. Unknown
   // shape/origin values must not be reinterpreted as a supported outline.
   Footprint footprint = 20;
+  // The acting member's effects bearing on this action, each with the rule's
+  // answer. Lands with rpg-project#520.
+  //
+  // Availability and applicability are independent: an unavailable
+  // declaration still carries its rows, and no row grants or refuses the
+  // action. A declaration that carries no action content carries an empty
+  // list. Answers that change with the target ride each candidate's
+  // TargetEffect, matched by `id`. Information only: no totals, folding or
+  // prediction, and the client recognises no effect by name.
+  repeated EffectRow effects = 21;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
   // Attack blocker even when Attack compilation cannot proceed. Compiled
   // offers use the field-presence rules above.
+}
+
+// EffectState is one rule's answer to whether its effect applies to an
+// action. Lands with rpg-project#520 as session.EffectState.
+enum EffectState {
+  // A producer defect. Every row and target answer names a state.
+  EFFECT_STATE_UNSPECIFIED = 0;
+  // The rule applies given what the acting member knows.
+  EFFECT_STATE_APPLIES = 1;
+  // The rule does not apply; `reason` says why. The row stays visible.
+  EFFECT_STATE_DOES_NOT_APPLY = 2;
+  // The answer depends on something not yet known, such as the target.
+  // Unknown is never shown as not applying.
+  EFFECT_STATE_DEPENDS = 3;
+  // The rule cannot yet answer for this action. The row is shown, never
+  // dropped and never read as not applying.
+  EFFECT_STATE_UNAVAILABLE = 4;
+}
+
+// EffectParticipation says when an effect's benefit joins the action. Lands
+// with rpg-project#520 as session.EffectParticipation.
+enum EffectParticipation {
+  // A producer defect. Every row names its participation.
+  EFFECT_PARTICIPATION_UNSPECIFIED = 0;
+  // The benefit is part of the action as declared.
+  EFFECT_PARTICIPATION_CONTRIBUTES_NOW = 1;
+  // The benefit is offered for the player to choose later, such as after the
+  // roll. Shown as available, never as already added.
+  EFFECT_PARTICIPATION_LATER_CHOICE = 2;
+}
+
+// EffectRow is one effect bearing on a declaration, with its rule's answer.
+// Lands with rpg-project#520 as session.EffectRow.
+//
+// Rows describe; they never grant or refuse an action. The wire names no
+// class feature and no action variant: `ref` and `name` identify the effect's
+// source as content, and the client renders every row the same way.
+message EffectRow {
+  // Opaque and unique within its declaration. TargetEffect.id joins to it;
+  // clients do not parse it.
+  string id = 1;
+  // Full canonical content ref of the effect's source. Display identity, not
+  // a key clients branch on.
+  string ref = 2;
+  // Content-authored display name of the effect.
+  string name = 3;
+  // Content-authored description of what the effect does, separate from
+  // `reason`. Never repeated on a TargetEffect.
+  string description = 4;
+  // The rule's answer for this action. UNSPECIFIED is a producer defect.
+  EffectState state = 5;
+  // The rule's own words for why it does or does not apply here. Empty when
+  // the rule gives none.
+  string reason = 6;
+  // Whether the benefit contributes now or is a later choice.
+  EffectParticipation participation = 7;
+  // Optional rule-authored line stating the benefit, for example "+1d4 to the
+  // attack roll". Empty when there is no line. Never a computed total.
+  string benefit = 8;
+}
+
+// TargetEffect is one effect's answer for a specific target candidate. Lands
+// with rpg-project#520 as session.TargetEffect.
+//
+// It replaces `state`, `reason` and `benefit` wholesale for the declaration's
+// EffectRow with the same `id`; it never carries description or
+// participation, which stay on that row.
+message TargetEffect {
+  // The EffectRow.id on the enclosing declaration this answer overlays.
+  string id = 1;
+  // The rule's answer against this target. UNSPECIFIED is a producer defect.
+  EffectState state = 2;
+  // The rule's reason against this target. Empty when the rule gives none.
+  string reason = 3;
+  // Optional rule-authored benefit line against this target; empty when there
+  // is no line.
+  string benefit = 4;
 }
 
 // Shortfall is the structured reason a declaration or candidate is unavailable. Lands

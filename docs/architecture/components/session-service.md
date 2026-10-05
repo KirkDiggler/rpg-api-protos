@@ -1,7 +1,7 @@
 ---
 name: SessionService
 description: D&D 5e session contract (v1alpha1) — the wire transcription of the toolkit's session package; one map, no rooms on the seam; the surface that replaces the v1alpha2 encounter stack
-updated: 2026-10-01
+updated: 2026-10-05
 confidence: high for released SDK transcriptions and generated contract shape; existing API/web consumers; room discovery and mutable-prop/door memory require runtime adoption
 ---
 
@@ -60,6 +60,32 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   by decode, since `intel.Report` carries no channel of its own
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
+
+## Structural wall layout (in-flight promotion)
+
+`AtlasStructuralWall`, `AtlasStructuralOpening` and `AtlasStructuralDoor`
+transcribe the fixed structural records for World Builder promotion
+(rpg-project#527). The encounter provider supplies these records and the session
+adapter carries them; API and client do not compute their visibility. This
+contract is in flight, not a claim that published consumers have adopted it.
+
+Both the knowledge snapshot's `GetAtlasResponse` and the existing
+`RegionRevealed`/`ConcealmentRevealed` payloads carry these same messages.
+Snapshots contain the permitted set; reveal payloads contain newly permitted or
+changed records. Clients upsert each complete record by identity. In particular,
+a known wall can gain a cut without changing its id. Empty reveal collections
+mean no changes, not deletion; older payloads remain valid.
+
+Endpoints use `FootprintPoint` and all dimensions are canonical feet. Wall ids
+are the raw fixed-presence ids; structural door ids are the canonical gameplay
+ids used by observations and verbs. Opaque content refs and layout dimensions
+never replace mechanical blocker data. Door layouts are independent records,
+without parent identity or mutable state. Unknown door state does not conceal
+its known opening; only the toolkit's withheld-identity answer omits that cut.
+
+The messages contain no builder document, private attachment binding or starting
+door state. They use existing read/event paths, not another appearance RPC.
+Generation and published binding adoption remain CI-owned.
 
 ## Stabilization results
 

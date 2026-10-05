@@ -2067,6 +2067,8 @@ service SessionService {
 
   // CloseDoor shuts an open door as `member`, without locking it. This is
   // the existing toolkit CloseDoor intent, with its own authoritative refusals.
+  // Already-closed and locked doors use NOT_FOUND, the same code as a missing
+  // or unfound concealed door. Closing never unlocks or bypasses the probe law.
   rpc CloseDoor(CloseDoorRequest) returns (CloseDoorResponse);
 
   // Unlock tries a lock as `member`: the server rolls the check against the

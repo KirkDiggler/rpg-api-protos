@@ -1468,11 +1468,13 @@ message GetAtlasResponse {
   // `props`.
   repeated AtlasPlacedProp placed = 16;
   // Fixed structural layout already scoped by the toolkit to this recipient.
-  // These are not reconstructed from blocker rectangles or fetched from full
-  // authoring YAML. Older/no-structure producers omit both collections.
+  // Sorted by raw wall id. These are not reconstructed from blocker rectangles
+  // or fetched from full authoring YAML. Older/no-structure producers omit both
+  // collections.
   repeated AtlasStructuralWall structural_walls = 17;
-  // Independent permitted door layouts, with no mutable state or parent id.
-  // Join state by the supplied canonical id to the existing door observations.
+  // Independent permitted door layouts, sorted by canonical gameplay DoorID,
+  // with no mutable state or parent id. Join state by that supplied id to the
+  // existing door observations.
   repeated AtlasStructuralDoor structural_doors = 18;
   // DEPRECATED. Superseded by `dungeon_key` above (rpg-project#479). The
   // engine no longer carries the World Builder's scene, so a server stops

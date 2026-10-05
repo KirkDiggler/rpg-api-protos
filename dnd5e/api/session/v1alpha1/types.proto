@@ -1879,6 +1879,8 @@ message AtlasStructuralWall {
 // AtlasStructuralOpening is a permitted cut, without door state or private
 // attachment metadata. An empty cut list means uninterrupted wall appearance.
 message AtlasStructuralOpening {
+  // Required nonempty identity, unique among openings in the field. A reveal
+  // row missing this identity is refused whole by the session decoder.
   string id = 1;
   // Centre distance along the owning wall's from-to line, in feet.
   double position = 2;
@@ -1900,6 +1902,8 @@ message AtlasStructuralDoor {
   // the assembly width and their midpoint/direction define its visual pose.
   FootprintPoint from = 3;
   FootprintPoint to = 4;
+  // The owning wall's assembled dimensions, in canonical feet. Height and
+  // thickness are positive; base elevation relative to the floor may be negative.
   double height = 5;
   double thickness = 6;
   double elevation = 7;

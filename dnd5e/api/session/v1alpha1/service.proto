@@ -480,30 +480,6 @@ message CastAimPreview {
   repeated string affected_members = 4;
 }
 
-// InspectActionsRequest asks about owned actions without pricing or executing
-// them. The host binds member to the authenticated caller. No command waits for
-// this read, and an unavailable assessment cannot revoke command availability.
-message InspectActionsRequest {
-  string session = 1;
-  string member = 2;
-  // Absent: list current owned variants in provider order. Present: resolve this
-  // exact current variant. Stale equipment/ownership is an error, not authority.
-  ActionInformationRef action = 3;
-  // Requires action. Unknown and unpermitted targets have the same not-found
-  // error shape. Only permitted observations may refine the assessment.
-  string target = 4;
-  // Requires a spell action and a provider-authored option, otherwise invalid.
-  string option = 5;
-}
-
-// InspectActionsResponse contains detached current information, never offers.
-// Consumers key freshness by session/member/full action/target/option and their
-// invalidation generation. An older response cannot overwrite a newer context.
-message InspectActionsResponse {
-  // Listing returns zero or more actions; a valid exact-action read returns one.
-  repeated ActionInformation actions = 1;
-}
-
 message AffordRequest {
   string session = 1;
   // Whose budget is being asked about — the caller's own.
@@ -2141,11 +2117,6 @@ service SessionService {
   // caller's own budget, bound to the authenticated member as GetWhere is
   // (toolkit#1138, ADR-0042).
   rpc Afford(AffordRequest) returns (AffordResponse);
-
-  // Inspect current owned weapon/spell effects without rolling, spending,
-  // publishing, or granting permission to act. Works independently of Afford's
-  // turn/budget/frozen-window blockers; target facts are observer-bounded.
-  rpc InspectActions(InspectActionsRequest) returns (InspectActionsResponse);
 
   // Activate uses a combat ability or feature the member already carries. The
   // selector says which one; there are seven at level 1 and only Help takes a

@@ -1548,6 +1548,12 @@ message RegionRevealed {
   // room. Add it to atlas cells, not region.cells. It is fixed geometry, not
   // mutable prop placement or permission to walk there.
   repeated Position scenery = 9;
+  // Newly permitted OR changed structural records from this recipient's
+  // projection. Upsert each whole record by id: a wall already known can gain
+  // a newly revealed cut. Appending cuts or ignoring an existing id is wrong.
+  // Empty means no changes, not deletion of previously known structures.
+  repeated AtlasStructuralWall structural_walls = 10;
+  repeated AtlasStructuralDoor structural_doors = 11;
 }
 
 // ConcealmentRevealed: one concealment entered the recipient's knowledge
@@ -1694,6 +1700,12 @@ message ConcealmentRevealed {
   // concealment, or cells belonging to no region at all, which are SCENERY
   // (see GetAtlasResponse.regions).
   repeated AtlasRegion regions = 9;
+  // The same fixed-record delta as RegionRevealed: upsert whole records by id.
+  // Revealing a door can update an already-known wall's cut list; revealing a
+  // wall does not duplicate an independent door the recipient already knew.
+  // These rows contain no mutable state or withheld parent/door associations.
+  repeated AtlasStructuralWall structural_walls = 10;
+  repeated AtlasStructuralDoor structural_doors = 11;
 }
 
 // Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted

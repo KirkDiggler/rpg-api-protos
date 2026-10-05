@@ -1854,6 +1854,57 @@ message FootprintPoint {
   double y = 2;
 }
 
+// AtlasStructuralWall is a recipient-permitted authored wall layout. Endpoints
+// and all dimensions are in canonical FEET, not cells or source-scene units.
+// It names appearance content without embedding the builder document. Blocking
+// remains the toolkit's independent placed-footprint answer.
+message AtlasStructuralWall {
+  // Stable raw wall identity, matching its fixed placed presence.
+  string id = 1;
+  // Opaque appearance content reference; rules do not interpret it.
+  string ref = 2;
+  FootprintPoint from = 3;
+  FootprintPoint to = 4;
+  // Assembled dimensions in feet. Height and thickness are positive; elevation
+  // is the base relative to the floor and may be negative.
+  double height = 5;
+  double thickness = 6;
+  double elevation = 7;
+  // Complete permitted cut list for this wall. A withheld opening is absent
+  // whole: no id, position, width or placeholder marks the secret. A known
+  // doorway remains a cut even when its mutable state has not been observed.
+  repeated AtlasStructuralOpening openings = 8;
+}
+
+// AtlasStructuralOpening is a permitted cut, without door state or private
+// attachment metadata. An empty cut list means uninterrupted wall appearance.
+message AtlasStructuralOpening {
+  string id = 1;
+  // Centre distance along the owning wall's from-to line, in feet.
+  double position = 2;
+  // Longitudinal extent in feet, positive.
+  double width = 3;
+}
+
+// AtlasStructuralDoor is one independently permitted door's fixed layout.
+// It has a self-contained pose and no parent-wall identity: withholding the
+// parent must neither disclose it through a child nor hide an unlisted door.
+// Mutable state comes only from DoorSighting; its absence means unknown state,
+// not closed, open or concealed. No authored starting state is carried here.
+message AtlasStructuralDoor {
+  // Actual gameplay DoorID used by observations and verbs, not a raw item id
+  // to which a client must add a dungeon prefix.
+  string id = 1;
+  string ref = 2;
+  // Resolved visual opening endpoints in canonical feet. Their separation is
+  // the assembly width and their midpoint/direction define its visual pose.
+  FootprintPoint from = 3;
+  FootprintPoint to = 4;
+  double height = 5;
+  double thickness = 6;
+  double elevation = 7;
+}
+
 // FootprintPlacement is one rectangle on the plane: how big it is, where it
 // sits, which way it faces, and how far it is nudged inside its own axes.
 // Mirrors spatial.FootprintPlacement (tools/spatial) field for field.

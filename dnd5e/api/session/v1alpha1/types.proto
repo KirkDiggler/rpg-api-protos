@@ -1152,6 +1152,16 @@ message TargetCandidate {
   // candidate. These answers never grant or refuse targeting: `available`
   // and `why` remain the only target gate.
   repeated TargetEffect effects = 4;
+  // Effects this target holds that bear on the enclosing declaration's
+  // action, as full rows. Lands with rpg-project#520.
+  //
+  // The declaration's own EffectRows are the actor's effects only; these are
+  // the target's. They are never overlaid onto, or joined with, the
+  // declaration's rows. Each `id` is unique within this candidate and never
+  // equals a declaration EffectRow `id`. Like `effects`, they never grant or
+  // refuse targeting. Empty when the target holds nothing that bears, or when
+  // what it holds is not known.
+  repeated EffectRow held_effects = 5;
 }
 
 // CostComponent is one provider-authored display component of a declaration's

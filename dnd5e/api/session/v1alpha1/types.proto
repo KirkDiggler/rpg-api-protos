@@ -1898,6 +1898,27 @@ message AtlasStructuralOpening {
   double width = 3;
 }
 
+// StructuralWallOpeningsReplacement replaces one known wall's complete
+// recipient-permitted opening list, leaving its other layout fields unchanged.
+// A present record with an empty/default openings list CLEARS that component;
+// absence of a record for the wall means no change. This is not an append or
+// a partial AtlasStructuralWall, and it carries no door state or private binding.
+//
+// The producer captures this recipient's projected change when the event is
+// recorded. Replay must not enrich it from later knowledge. Apply all structural
+// introductions/replacements in the enclosing reveal atomically after its
+// Knowledge snapshot cutoff, using the existing recipient event sequence.
+// If the wall is absent from the local baseline, recover through GetKnowledge
+// instead of creating a partial wall or applying only the sibling door records.
+// Empty identities, duplicate replacement wall IDs, duplicate opening IDs and
+// a full wall plus replacement for that same wall in one reveal are malformed.
+message StructuralWallOpeningsReplacement {
+  // Required known AtlasStructuralWall.id; never a withheld parent identity.
+  string wall_id = 1;
+  // Complete replacement in the same canonical order and feet as the snapshot.
+  repeated AtlasStructuralOpening openings = 2;
+}
+
 // AtlasStructuralDoor is one independently permitted door's fixed layout.
 // It has a self-contained pose and no parent-wall identity: withholding the
 // parent must neither disclose it through a child nor hide an unlisted door.

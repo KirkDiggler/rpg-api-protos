@@ -1707,8 +1707,8 @@ message ConcealmentRevealed {
   // Complete recipient-permitted records, with the same upsert semantics as
   // RegionRevealed. Revealing a wall does not duplicate an independently known
   // door. These rows contain no mutable state or withheld parent associations.
-  // Historical full changed-wall records remain valid; opening-only changes
-  // to known walls can instead use field 12.
+  // Historical full changed-wall records remain valid. Revealing a door can
+  // replace its known wall's opening list via field 12 instead of a full row.
   repeated AtlasStructuralWall structural_walls = 10;
   repeated AtlasStructuralDoor structural_doors = 11;
   // Same atomic component replacement as RegionRevealed. A missing local wall

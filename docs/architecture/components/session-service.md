@@ -94,7 +94,8 @@ replacements atomically using the existing recipient sequence and Knowledge
 snapshot cutoff. If a replacement names a wall missing from the local baseline,
 recover through GetKnowledge without inventing a partial wall or applying only
 the sibling doors. Empty identities, duplicate replacement IDs, duplicate opening
-IDs and a same-event full wall/replacement collision are malformed.
+IDs and a same-event full wall/replacement collision are malformed. Existing
+geometry validation still applies to the assembled layout before drawing.
 
 Historical complete changed-wall records retain their upsert semantics. No field
 is removed and snapshots are unchanged. Producers do not dual-write a full wall

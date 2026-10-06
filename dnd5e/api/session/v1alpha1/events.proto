@@ -1548,12 +1548,16 @@ message RegionRevealed {
   // room. Add it to atlas cells, not region.cells. It is fixed geometry, not
   // mutable prop placement or permission to walk there.
   repeated Position scenery = 9;
-  // Newly permitted OR changed structural records from this recipient's
-  // projection. Upsert each whole record by id: a wall already known can gain
-  // a newly revealed cut. Appending cuts or ignoring an existing id is wrong.
+  // Complete recipient-permitted structural records, upserted by identity.
+  // New walls/doors arrive whole. Historical complete changed-wall records
+  // remain valid; a known wall's opening-only change can instead use field 12.
   // Empty means no changes, not deletion of previously known structures.
   repeated AtlasStructuralWall structural_walls = 10;
   repeated AtlasStructuralDoor structural_doors = 11;
+  // Atomic with the introductions above. Each record replaces the known wall's
+  // openings; an empty/default list clears them, while no record is a no-op.
+  // Do not send both a full wall and a replacement for its ID in one event.
+  repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
 }
 
 // ConcealmentRevealed: one concealment entered the recipient's knowledge
@@ -1700,12 +1704,16 @@ message ConcealmentRevealed {
   // concealment, or cells belonging to no region at all, which are SCENERY
   // (see GetAtlasResponse.regions).
   repeated AtlasRegion regions = 9;
-  // The same fixed-record delta as RegionRevealed: upsert whole records by id.
-  // Revealing a door can update an already-known wall's cut list; revealing a
-  // wall does not duplicate an independent door the recipient already knew.
-  // These rows contain no mutable state or withheld parent/door associations.
+  // Complete recipient-permitted records, with the same upsert semantics as
+  // RegionRevealed. Revealing a wall does not duplicate an independently known
+  // door. These rows contain no mutable state or withheld parent associations.
+  // Historical full changed-wall records remain valid; opening-only changes
+  // to known walls can instead use field 12.
   repeated AtlasStructuralWall structural_walls = 10;
   repeated AtlasStructuralDoor structural_doors = 11;
+  // Same atomic component replacement as RegionRevealed. A missing local wall
+  // requires snapshot recovery, not partial application of this reveal.
+  repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
 }
 
 // Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted

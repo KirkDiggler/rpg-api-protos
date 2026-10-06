@@ -81,10 +81,28 @@ contract is in flight, not a claim that published consumers have adopted it.
 
 Both the knowledge snapshot's `GetAtlasResponse` and the existing
 `RegionRevealed`/`ConcealmentRevealed` payloads carry these same messages.
-Snapshots contain the permitted set; reveal payloads contain newly permitted or
-changed records. Clients upsert each complete record by identity. In particular,
-a known wall can gain a cut without changing its id. Empty reveal collections
-mean no changes, not deletion; older payloads remain valid.
+Snapshots contain the complete permitted set. Reveal payloads introduce complete
+wall/door records and can update a known wall using
+`StructuralWallOpeningsReplacement` in
+`structural_wall_openings_replacements` (tag12 on both reveal messages). A
+replacement carries only `wall_id` and the complete permitted opening list;
+unchanged endpoints, dimensions and appearance are not repeated.
+
+A present replacement with an empty/default list clears that wall's openings;
+absence of a replacement means no change. Apply structural introductions and
+replacements atomically using the existing recipient sequence and Knowledge
+snapshot cutoff. If a replacement names a wall missing from the local baseline,
+recover through GetKnowledge without inventing a partial wall or applying only
+the sibling doors. Empty identities, duplicate replacement IDs, duplicate opening
+IDs and a same-event full wall/replacement collision are malformed.
+
+Historical complete changed-wall records retain their upsert semantics. No field
+is removed and snapshots are unchanged. Producers do not dual-write a full wall
+and a replacement for the same ID. A client that does not understand tag12 cannot
+apply a patch-only reveal, so structural producer/API/web rollout is coordinated;
+wire-additive does not imply old-client behavioral support. This adds neither a
+generic patch language nor live map-editing semantics. Event payloads retain the
+original recipient's projection rather than being enriched on replay.
 
 Endpoints use `FootprintPoint` and all dimensions are canonical feet. Wall ids
 are the raw fixed-presence ids; structural door ids are the canonical gameplay

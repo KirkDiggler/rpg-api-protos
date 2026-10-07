@@ -1558,6 +1558,10 @@ message RegionRevealed {
   // openings; an empty/default list clears them, while no record is a no-op.
   // Do not send both a full wall and a replacement for its ID in one event.
   repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
+  // Full introductions/upserts of newly permitted fixed prop render records,
+  // keyed by id. Absence is no addition, never a collection clear. Mutable
+  // subjects retain their independent observation lifecycle.
+  repeated PropPresentation prop_presentations = 13;
 }
 
 // ConcealmentRevealed: one concealment entered the recipient's knowledge
@@ -1714,6 +1718,9 @@ message ConcealmentRevealed {
   // Same atomic component replacement as RegionRevealed. A missing local wall
   // requires snapshot recovery, not partial application of this reveal.
   repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
+  // Full newly permitted fixed prop render records for the original recipient.
+  // An earlier recorded reveal is never enriched using later knowledge/content.
+  repeated PropPresentation prop_presentations = 13;
 }
 
 // Looted: a member looted a downed body (EVENT_KIND_LOOTED). Who looted

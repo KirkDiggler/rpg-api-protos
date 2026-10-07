@@ -1018,6 +1018,10 @@ message PropSighting {
   string name = 5;
   // World-clock reading of the latest observation, not a wall timestamp.
   uint64 at = 6;
+  // Captured with this observation, never joined with a newer live pose.
+  // Absent for observed_empty and for legacy observations without appearance.
+  // Current/remembered currency remains on this sighting.
+  PropPresentation presentation = 8;
 }
 
 // DoorSighting is this observer's latest known door state. Knowing a fixed
@@ -1862,6 +1866,51 @@ message AtlasProp {
 message FootprintPoint {
   double x = 1;
   double y = 2;
+}
+
+// PropPresentation is one recipient-permitted prop's render input, not its
+// collider and not an editor document. Fixed props travel in the atlas/reveals;
+// mutable props travel only with the observation that captured this record.
+// All distances are canonical FEET. A renderer converts units once, resolves ref
+// through its asset catalog, and never fits the art from a blocker rectangle.
+// IDs are unique within each supplied collection; malformed present records are
+// refused rather than silently omitted. Absence does not authorize a source fetch.
+message PropPresentation {
+  string id = 1;
+  // Opaque asset/content reference; rules do not interpret it.
+  string ref = 2;
+  // Required planar origin, independent of the collider's local offset.
+  FootprintPoint origin = 3;
+  // Height above the shared floor, in feet. May be negative.
+  double elevation = 4;
+  // Canonical planar degrees: +X toward +Y, as on FootprintPlacement.facing.
+  // Three.js positive-Y yaw has the opposite sign.
+  double facing_degrees = 5;
+  // Positive dimensionless visual Y scale; producers explicitly supply 1 for
+  // unscaled art. Zero on a present record is invalid, not an implicit default.
+  double height_scale = 6;
+  // Optional visual emission, not D&D illumination or sight range.
+  PropPointLight point_light = 7;
+  // Optional canonical gameplay DoorID for a standalone bound door. State comes
+  // only from this recipient's DoorSighting; no observation means unknown, not
+  // closed. Empty means no gameplay-door binding, regardless of asset name.
+  string door_id = 8;
+  string label = 9;
+}
+
+// PropPointLight is an explicitly authored visual light relative to its prop.
+// Its planar offset rotates with that prop's facing. It supplies no rule facts.
+message PropPointLight {
+  bool enabled = 1;
+  // Local planar offset in canonical feet; required when the record is present.
+  FootprintPoint offset = 2;
+  double offset_elevation = 3;
+  // Six-digit hexadecimal RGB with leading #.
+  string color = 4;
+  // Nonnegative renderer scalar, not physical light intensity.
+  double intensity = 5;
+  // Positive visual range in feet, not a mechanical visibility distance.
+  double range = 6;
 }
 
 // AtlasStructuralWall is a recipient-permitted authored wall layout. Endpoints

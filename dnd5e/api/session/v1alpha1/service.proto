@@ -1437,7 +1437,8 @@ message GetAtlasResponse {
   // This key identifies source; it does not authorize a player to fetch the
   // complete authored dungeon. Individual knowledge consumers render permitted
   // room/observation data, never full source followed by client-side hiding.
-  // Broader permitted appearance delivery remains a provider adoption concern.
+  // prop_presentations carries recipient-permitted ordinary prop appearance;
+  // neither this key nor a missing presentation authorizes a full-source read.
   //
   // Empty means the session predates this field — a saved session launched
   // before it existed. A client reads empty as NO AUTHORED SCENE and draws
@@ -1476,6 +1477,12 @@ message GetAtlasResponse {
   // with no mutable state or parent id. Join state by that supplied id to the
   // existing door observations.
   repeated AtlasStructuralDoor structural_doors = 18;
+  // Complete render records for fixed props permitted by this recipient's
+  // knowledge, including decorative props with no blocking declaration. No
+  // editor hierarchy or unrestricted scene document is delivered. Mutable
+  // presentations belong to PropSighting, not this fixed collection. Legacy
+  // encounters/producers without captured appearance omit these records.
+  repeated PropPresentation prop_presentations = 19;
   // DEPRECATED. Superseded by `dungeon_key` above (rpg-project#479). The
   // engine no longer carries the World Builder's scene, so a server stops
   // filling this field and a client stops reading it. Kept — never removed,

@@ -781,7 +781,12 @@ canonical feet, canonical facing in degrees, positive visual height scale, label
 optional visual point light and optional supplied gameplay DoorID. It carries no
 blocker or editor hierarchy. Collider dimensions/offsets never determine art pose
 or scale. The renderer converts units and facing once and uses its asset catalog.
-An absent door observation means unknown state, not a closed leaf.
+An absent door observation means unknown state, not a closed leaf. Presentation
+IDs use the same PropID namespace as legacy props/placed rows and sighting shapes;
+matching IDs denote one object whose legacy visual is replaced, not duplicated.
+Opening-attached doors render only through `AtlasStructuralDoor` and never also
+through `PropPresentation`; producers enforce that exclusion rather than asking
+clients to infer a tie-break from incompatible IDs.
 
 Fixed records ride `GetAtlasResponse.prop_presentations` (field19). Existing
 `RegionRevealed`/`ConcealmentRevealed` carry full introductions/upserts under the
@@ -789,7 +794,11 @@ same name (field13); absent collections add nothing and do not delete old entrie
 Provider selection includes decorative props with no mechanical declaration, but
 never unpermitted room contents or explicitly concealed identities. A record's
 presence is permission already decided by toolkit, not a client-side visibility
-instruction. Validate complete updates before applying them.
+instruction. Validate complete updates before applying them. Numeric fields must be finite.
+Present lights require an offset, valid RGB color and positive range even when
+disabled. Offsets/elevation/intensity default to zero, enabled to false; no asset
+style is guessed. A sighting with both observed-empty and a presentation is malformed
+and refused, not silently stripped. Fixed collections are sorted by PropID.
 
 Mutable appearances instead ride `PropSighting.presentation` (field8), captured
 with the observed pose and its existing currency. An observed-empty sighting has

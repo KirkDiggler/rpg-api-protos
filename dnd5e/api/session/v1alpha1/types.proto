@@ -1020,7 +1020,8 @@ message PropSighting {
   uint64 at = 6;
   // Captured with this observation, never joined with a newer live pose.
   // Absent for observed_empty and for legacy observations without appearance.
-  // Current/remembered currency remains on this sighting.
+  // A record paired with observed_empty=true is malformed and must be refused,
+  // not silently stripped or rendered. Current/remembered currency remains here.
   PropPresentation presentation = 8;
 }
 
@@ -1873,11 +1874,17 @@ message FootprintPoint {
 // mutable props travel only with the observation that captured this record.
 // All distances are canonical FEET. A renderer converts units once, resolves ref
 // through its asset catalog, and never fits the art from a blocker rectangle.
-// IDs are unique within each supplied collection; malformed present records are
+// IDs are unique within each supplied collection; fixed collections are sorted
+// by id. Every numeric value must be finite: NaN/Infinity are malformed, including
+// origin coordinates, elevation, facing and scale. Malformed present records are
 // refused rather than silently omitted. Absence does not authorize a source fetch.
 message PropPresentation {
+  // Required, nonempty identity in the SAME PropID namespace as AtlasProp.id
+  // and AtlasPlacedProp.id (and the shape carried by PropSighting). Matching IDs
+  // describe one object, not additional instances to render. A supplied render
+  // record replaces that object's legacy visual representation, never its rules.
   string id = 1;
-  // Opaque asset/content reference; rules do not interpret it.
+  // Required, nonempty opaque asset/content reference; rules do not interpret it.
   string ref = 2;
   // Required planar origin, independent of the collider's local offset.
   FootprintPoint origin = 3;
@@ -1894,22 +1901,32 @@ message PropPresentation {
   // Optional canonical gameplay DoorID for a standalone bound door. State comes
   // only from this recipient's DoorSighting; no observation means unknown, not
   // closed. Empty means no gameplay-door binding, regardless of asset name.
+  // An opening-attached door rendered through AtlasStructuralDoor must NEVER
+  // also be supplied as PropPresentation: its structural appearance is the sole
+  // rendering channel. No client tie-break or guessed placed-item id is needed.
   string door_id = 8;
   string label = 9;
 }
 
 // PropPointLight is an explicitly authored visual light relative to its prop.
 // Its planar offset rotates with that prop's facing. It supplies no rule facts.
+// An absent record means no authored visual light. A present record must be
+// complete and valid even when disabled; no style defaults are inferred.
+// All numeric values must be finite. Invalid records are refused, not ignored.
 message PropPointLight {
+  // Omitted/false means disabled; neither means an implicit asset-derived light.
   bool enabled = 1;
-  // Local planar offset in canonical feet; required when the record is present.
+  // Required local planar offset in feet. Individual coordinates default to 0.
   FootprintPoint offset = 2;
+  // Local height offset in feet; omitted means 0 (level with the prop origin).
   double offset_elevation = 3;
-  // Six-digit hexadecimal RGB with leading #.
+  // Required six-digit hexadecimal RGB with leading #; empty is invalid.
   string color = 4;
-  // Nonnegative renderer scalar, not physical light intensity.
+  // Nonnegative renderer scalar; omitted means 0 (no emission), not a guessed
+  // brightness. It is not physical light intensity.
   double intensity = 5;
-  // Positive visual range in feet, not a mechanical visibility distance.
+  // Positive visual range in feet. Omitted/zero is invalid on a present record,
+  // not an implicit default or a mechanical visibility distance.
   double range = 6;
 }
 

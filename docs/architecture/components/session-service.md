@@ -773,6 +773,46 @@ This is schema-first. Provider discovery, observation support, persistence,
 recovery sequencing, permitted appearance/source protection and the authenticated
 two-player walk still require runtime work. Schema gates do not establish them.
 
+## Permitted prop presentation
+
+`PropPresentation` supplies the existing prop renderer's input without exposing the
+builder document: identity, opaque asset reference, planar origin and elevation in
+canonical feet, canonical facing in degrees, positive visual height scale, label,
+optional visual point light and optional supplied gameplay DoorID. It carries no
+blocker or editor hierarchy. Collider dimensions/offsets never determine art pose
+or scale. The renderer converts units and facing once and uses its asset catalog.
+An absent door observation means unknown state, not a closed leaf. Presentation
+IDs use the same PropID namespace as legacy props/placed rows and sighting shapes;
+matching IDs denote one object whose legacy visual is replaced, not duplicated.
+Opening-attached doors render only through `AtlasStructuralDoor` and never also
+through `PropPresentation`; producers enforce that exclusion rather than asking
+clients to infer a tie-break from incompatible IDs.
+
+Fixed records ride `GetAtlasResponse.prop_presentations` (field19). Existing
+`RegionRevealed`/`ConcealmentRevealed` carry full introductions/upserts under the
+same name (field13); absent collections add nothing and do not delete old entries.
+Provider selection includes decorative props with no mechanical declaration, but
+never unpermitted room contents or explicitly concealed identities. A record's
+presence is permission already decided by toolkit, not a client-side visibility
+instruction. Validate complete updates before applying them. Numeric fields must be finite.
+Present lights require an offset, valid RGB color and positive range even when
+disabled. Offsets/elevation/intensity default to zero, enabled to false; no asset
+style is guessed. A sighting with both observed-empty and a presentation is malformed
+and refused, not silently stripped. Fixed collections are sorted by PropID.
+
+Mutable appearances instead ride `PropSighting.presentation` (field8), captured
+with the observed pose and its existing currency. An observed-empty sighting has
+no presentation. Remembered objects keep the captured record; neither a later live
+pose nor edited source may enrich it. Historical reveal records likewise retain
+original-recipient content. Appearance is separate from the authoritative placement,
+and a visual point light supplies no mechanical illumination or sight facts.
+
+This is additive contract work, not evidence of a shipped renderer repair. Legacy
+encounters without captured appearance omit the records; clients must not fetch
+full YAML or infer the missing ref from a collider. Providers and consumers adopt
+CI-published bindings, and joined snapshot/event/reload rendering must be verified.
+The deprecated `room_scene_json` stays deprecated. No new RPC is introduced.
+
 ## The Atlas
 
 `GetAtlasResponse` remains one map in one coordinate frame: grid/layout and the

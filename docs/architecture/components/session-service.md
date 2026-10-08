@@ -70,7 +70,9 @@ facts from the assembled action. It precedes, but does not replace, existing
 still explains itself; an unavailable compiled offer retains its information.
 Absent information or empty description identifies missing metadata, not a
 permission to synthesize rules from names. Detail labels may repeat and their
-order is preserved.
+order is preserved. A present detail row has a non-empty label and value; a
+blank field is a producer defect, never a missing game fact for the client to
+invent.
 
 `CastOption.description` explains the current option alongside its unchanged
 ID and label. Reading either message is inert: no command, cost, target rule,

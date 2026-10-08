@@ -1442,6 +1442,8 @@ message ActionInformation {
 // ActionInformationDetail is one provider-authored display fact. Both fields
 // are plain text, not expressions for clients to parse, evaluate or use as
 // eligibility, cost or target authority. Semantic gameplay fields keep that job.
+// A present row has a non-empty label and value. A blank field is a producer
+// defect, not permission for a consumer to invent a missing game fact.
 message ActionInformationDetail {
   string label = 1;
   string value = 2;

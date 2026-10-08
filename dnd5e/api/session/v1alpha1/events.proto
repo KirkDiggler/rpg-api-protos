@@ -2646,7 +2646,8 @@ message EquipmentChanged {
 // Rested: a seated member rested (EVENT_KIND_RESTED).
 //
 // THE OUTCOME OF SessionService.Rest LIVES HERE, not on RestResponse (design
-// rule 2), so the resting player and everyone watching read one account.
+// rule 2), so the resting player and everyone watching read one account. A
+// group rest raises one of these per rester; the hour they shared passed once.
 //
 // What refilled is named by the resources themselves, never by the rest: a
 // resource is listed because its own reset kind said this rest refills it.

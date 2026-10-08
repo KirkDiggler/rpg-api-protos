@@ -61,6 +61,29 @@ repo, and each apparent oddity is the SDK's, faithfully carried:
   (rpg-toolkit#1160 tracks closing that gap). `payload` stays, for channels
   the SDK has not typed.
 
+## Action information (consumer adoption pending)
+
+`Declaration.information` carries `ActionInformation`: the content owner's
+plain-text `description` and ordered `ActionInformationDetail` label/value
+facts from the assembled action. It precedes, but does not replace, existing
+`effects` and target-specific answers in an inspection. A zero-effect action
+still explains itself; an unavailable compiled offer retains its information.
+Absent information or empty description identifies missing metadata, not a
+permission to synthesize rules from names. Detail labels may repeat and their
+order is preserved. A present detail row has a non-empty label and value; a
+blank field is a producer defect, never a missing game fact for the client to
+invent.
+
+`CastOption.description` explains the current option alongside its unchanged
+ID and label. Reading either message is inert: no command, cost, target rule,
+selector material or predicted outcome is derived from text. Clients echo the
+existing selectors and option IDs only. The shared offer refresh lifecycle
+owns currency; there is no separate inspection RPC or event.
+
+Design: `rpg-project/ideas/action-information/design.md`, tracking
+KirkDiggler/rpg-project#543. Publishing this contract does not establish toolkit,
+API or web adoption; those consumers require separate integration evidence.
+
 ## CloseDoor intent (in-flight adoption)
 
 `CloseDoor` transcribes the existing toolkit close operation exposed by the

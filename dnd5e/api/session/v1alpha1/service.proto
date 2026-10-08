@@ -2005,35 +2005,56 @@ message HoldResponse {
 // Rest
 // =============================================================================
 
-// RestRequest rests one seated member, as `member`. Mirrors session.RestInput
+// RestRequest rests seated members together. Mirrors session.RestInput
 // (design rpg-project#542, "Rest").
 //
-// A REST INSIDE A RUN IS A SHORT REST OUTSIDE A FIGHT (R5). It spends the hit
-// dice asked for, refills every resource whose own reset kind says a short
-// rest refills it, and advances the world clock by the letter's hour — the
-// encounter owns that clock and moves it; nothing here counts rounds. The long
-// rest is the first admission to a run, which Join and the lobby's launch
-// apply; no verb long-rests a member inside a run (R13, deferred until a use
-// case), so REST_KIND_LONG is refused here today rather than absent from the
-// vocabulary the SDK's input already speaks.
+// A REST IS THE PARTY'S ACT. Everyone in `resters` rests at once: one hour
+// passes on the world clock ONCE for the group, never once per rester, and each
+// rester raises their own RESTED beat — one per rester, each naming that member
+// and what their rest restored.
 //
-// Refused FAILED_PRECONDITION while the member is in a fight (ErrInFight) or
-// when hit_dice exceeds what the character has left, either of which spends
-// nothing; NOT_FOUND when the session, the member or the member's sheet is
-// absent (ErrNoCharacter).
+// A REST INSIDE A RUN IS A SHORT REST OUTSIDE A FIGHT (R5). Each rester spends
+// the hit dice asked for them and refills every resource whose own reset kind
+// says a short rest refills it, and the encounter advances the world clock by
+// the letter's hour — the encounter owns that clock and moves it; nothing here
+// counts rounds. The long rest is the first admission to a run, which Join and
+// the lobby's launch apply; no verb long-rests a member inside a run (R13,
+// deferred until a use case), so REST_KIND_LONG is refused here today rather
+// than absent from the vocabulary the SDK's input already speaks.
+//
+// ALL OR NOTHING. Every rester must be out of a fight. The whole request is
+// refused FAILED_PRECONDITION, spending nothing for anyone, when any rester is
+// in a fight (ErrInFight) or asks for more hit dice than their character has
+// left; NOT_FOUND when the session, a rester or a rester's sheet is absent
+// (ErrNoCharacter); INVALID_ARGUMENT when a member is named twice.
 message RestRequest {
   string session = 1;
-  // Who rests. Bound to the authenticated caller by the host, the same
-  // acting-as law every verb keeps.
-  string member = 2;
-  // Which rest. REST_KIND_SHORT is the only kind this verb grants today.
+  // Deprecated: use `resters`. The single rester from before a rest was the
+  // party's act; a request with no `resters` reads this and hit_dice as one
+  // rester. Never removed.
+  string member = 2 [deprecated = true];
+  // Which rest, for every rester. REST_KIND_SHORT is the only kind this verb
+  // grants today.
   RestKind kind = 3;
-  // How many hit dice to spend on a short rest. Zero is a legal answer, not an
-  // omission: a member who spends none still refills short-rest resources and
-  // still spends the hour. Each die spent rolls the class hit die plus the
-  // Constitution modifier, at least zero, capped at maximum hit points, and
-  // names the resting character as its source.
-  int32 hit_dice = 4;
+  // Deprecated: use `resters` — each RestingMember carries its own hit_dice.
+  // Never removed.
+  int32 hit_dice = 4 [deprecated = true];
+  // Who rests, and how many hit dice each spends. The group rests together:
+  // one hour for all of them, one RESTED beat each.
+  repeated RestingMember resters = 5;
+}
+
+// RestingMember is one member resting with the group, and what they spend.
+message RestingMember {
+  // Who rests. A member id.
+  string member = 1;
+  // How many hit dice this member spends on a short rest. Zero is a legal
+  // answer, not an omission: a member who spends none still refills
+  // short-rest resources and still spends the hour with the group. Each die
+  // spent rolls the class hit die plus the Constitution modifier, at least
+  // zero, capped at maximum hit points, and names the resting character as
+  // its source.
+  int32 hit_dice = 2;
 }
 
 // RestResponse acknowledges the rest: the seam's standard reports, and
@@ -2199,11 +2220,12 @@ service SessionService {
   // was chosen so that when it does, the verb already says it.
   rpc Hold(HoldRequest) returns (HoldResponse);
 
-  // Rest takes a short rest for one seated member outside a fight: hit dice
-  // spent, short-rest resources refilled, the world clock advanced an hour.
-  // Refused FAILED_PRECONDITION in a fight (ErrInFight) and for a long rest
-  // (R13). The response is an ack carrying the seam's two reports; what was
-  // restored arrives as the RESTED beat. Replaces EncounterService's legacy
+  // Rest takes a short rest for seated members together, outside a fight: each
+  // rester's hit dice spent and short-rest resources refilled, the world clock
+  // advanced one hour for the group. Refused FAILED_PRECONDITION, for everyone,
+  // when any rester is in a fight (ErrInFight), and for a long rest (R13). The
+  // response is an ack carrying the seam's two reports; what was restored
+  // arrives as one RESTED beat per rester. Replaces EncounterService's legacy
   // ShortRest and LongRest, which were never implemented.
   rpc Rest(RestRequest) returns (RestResponse);
 

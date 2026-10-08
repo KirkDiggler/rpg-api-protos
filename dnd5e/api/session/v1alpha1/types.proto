@@ -590,6 +590,23 @@ enum Slot {
   SLOT_REACTION = 4;
 }
 
+// RestKind names which rest a character takes. Mirrors the SDK's rest kind
+// (design rpg-project#542, "Rest").
+//
+// What each kind refills is not listed here and never will be: a resource
+// refills because its own reset kind on the sheet says so, so Second Wind, Rage
+// uses and spell slots need no value of this enum to name them.
+enum RestKind {
+  REST_KIND_UNSPECIFIED = 0;
+  // Spend hit dice, refill short-rest resources, one hour on the world clock.
+  REST_KIND_SHORT = 1;
+  // All hit points, half the hit dice back (at least one), short- and
+  // long-rest resources refilled, death saves cleared. Applied on a
+  // character's first admission to a run; SessionService.Rest refuses it
+  // (R13).
+  REST_KIND_LONG = 2;
+}
+
 // ReactChoice is the answer to an open reaction window: take the reaction, or
 // let it pass. Mirrors session.ReactChoice ("strike" / "hold").
 //

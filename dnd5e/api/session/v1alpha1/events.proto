@@ -446,6 +446,15 @@ enum EventKind {
   EVENT_KIND_ROOM_REVEALED = 41;
   // Automatic discovery roll; audience follows the actor's sharing preference.
   EVENT_KIND_DISCOVERY_CHECKED = 42;
+  // A seated member put an item into a slot or took one out — "draws a
+  // longsword", "stows a dagger" (design rpg-project#542, R8: every seated
+  // equip tells a beat, a draw into an empty hand included). An unseated
+  // character's equip is a plain sheet edit and tells none. Audience: every
+  // member the encounter tells that member's acts.
+  EVENT_KIND_EQUIPMENT_CHANGED = 43;
+  // A seated member rested outside a fight, naming the kind and what it
+  // restored (design rpg-project#542, "Rest").
+  EVENT_KIND_RESTED = 44;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -577,6 +586,8 @@ message Event {
     // Reuses the room atlas payload; the legacy REGION_REVEALED arm remains.
     RegionRevealed room_revealed = 47;
     DiscoveryChecked discovery_checked = 48;
+    EquipmentChanged equipment_changed = 49;
+    Rested rested = 50;
   }
 }
 
@@ -2584,4 +2595,86 @@ message ExperienceGrant {
   // second copy on this beat would be a derived fact free to disagree with the
   // one the character read carries.
   int32 total = 3;
+}
+
+// EquipmentChange says which way an item moved through a slot. The two verbs
+// the rules price differently (R1): stowing a held item costs the action,
+// drawing into an empty hand the object interaction.
+//
+// TWO VALUES, NOT A THIRD FOR A SWAP. A swap is both motions and is told as
+// both — a STOW beat for what left the slot, then a DRAW beat for what entered
+// it, under one Event.correlation — so a client narrates each half from one
+// body shape and never unpacks a compound.
+//
+// The words are the weapon's, and a shield or a suit of armour takes them too:
+// donning is a DRAW into its slot, doffing a STOW. Which word a client prints
+// for which item is presentation, read from the item, not a value here.
+enum EquipmentChange {
+  EQUIPMENT_CHANGE_UNSPECIFIED = 0;
+  // An item entered the slot.
+  EQUIPMENT_CHANGE_DRAW = 1;
+  // An item left the slot, back to the character's inventory.
+  EQUIPMENT_CHANGE_STOW = 2;
+}
+
+// EquipmentChanged: a seated member moved one item through one slot
+// (EVENT_KIND_EQUIPMENT_CHANGED).
+//
+// THE RESPONSE IS NOT THIS. CharacterService.EquipItem answers the actor with
+// their own sheet; this beat is what every watcher learns, and it carries the
+// public half only — who, which slot, which item, which way. Inventory, armour
+// class and the rest of the sheet stay the owner's read.
+//
+// Watchers' sight is rechecked inside the verb, so a watcher's held-equipment
+// testimony (Seen.equipment) refreshes through SIGHTED/GetView as for any
+// other change of appearance; this beat is the story, not that patch.
+message EquipmentChanged {
+  // Who moved the item. A member id.
+  string member = 1;
+  // The slot key the item moved through — the same open vocabulary
+  // dnd5e.api.v1alpha2.encounter.SlotDef speaks ("main_hand", "off_hand",
+  // "armor").
+  string slot = 2;
+  // The item, as a full ref — "dnd5e:weapons:longsword". Plain string, as
+  // AttackRef.ref is. The encounter does not know what an item is; it carries
+  // the ref as a name to show.
+  string item = 3;
+  // Which way it moved.
+  EquipmentChange change = 4;
+}
+
+// Rested: a seated member rested (EVENT_KIND_RESTED).
+//
+// THE OUTCOME OF SessionService.Rest LIVES HERE, not on RestResponse (design
+// rule 2), so the resting player and everyone watching read one account.
+//
+// What refilled is named by the resources themselves, never by the rest: a
+// resource is listed because its own reset kind said this rest refills it.
+message Rested {
+  // Who rested. A member id.
+  string member = 1;
+  // Which rest.
+  RestKind kind = 2;
+  // Hit points healed, after the cap at maximum. Zero is a true answer — no
+  // dice spent, or a character already whole.
+  int32 hit_points_restored = 3;
+  // The character's hit points after the rest, so a client can show the rest
+  // landing without re-reading the sheet.
+  int32 hit_points = 4;
+  // Hit dice spent on a short rest. Zero on a long rest.
+  int32 hit_dice_spent = 5;
+  // Hit dice returned by a long rest — half the total, at least one, never
+  // past the total. Zero on a short rest.
+  int32 hit_dice_returned = 6;
+  // Hit dice the character has left to spend after the rest.
+  int32 hit_dice_remaining = 7;
+  // Every resource the rest refilled, as full refs —
+  // "dnd5e:features:second_wind". Empty when nothing had been spent or
+  // nothing resets on this kind.
+  repeated string resources_refilled = 8;
+  // The hit dice as thrown, every die naming the resting character as its
+  // source (every die knows whose it is), with the Constitution modifier each
+  // die adds. total is the healing before the cap, so it can exceed
+  // hit_points_restored. Absent when no die was rolled.
+  RollCalculation calculation = 9;
 }

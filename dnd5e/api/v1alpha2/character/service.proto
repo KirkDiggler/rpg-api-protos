@@ -12,10 +12,11 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.v1alpha2.character";
 // RPC request / response messages
 // =============================================================================
 
-// EquipItemRequest equips an item from inventory into a slot. Character-scoped, out of
-// combat (protos#187 design doc: encounter-scoped equip with an action-economy cost is
-// deferred to rpg-project#94). Two-handed occupancy and slot-swap semantics are toolkit
-// rules — the caller sends a Ref + slot key, nothing else.
+// EquipItemRequest equips an item from inventory into a slot. Two-handed occupancy and
+// slot-swap semantics are toolkit rules — the caller sends a Ref + slot key, nothing else.
+// The same request serves every seat a character can be in; what it costs and who hears of
+// it is decided by the session SDK's Equip verb, never by this message (see EquipItem below
+// and rpg-project#542).
 message EquipItemRequest {
   string character_id = 1;
   dnd5e.api.v1alpha2.encounter.Ref item = 2; // item from inventory to equip
@@ -69,9 +70,9 @@ message GetCharacterDataResponse {
 // Service
 // =============================================================================
 
-// CharacterService is the authenticated-owner character surface. Equip/unequip here is
-// sheet editing between encounters; a future in-encounter equipment verb may announce its
-// public consequences on the session stream, but exact CharacterData fields 9-14 remain an
+// CharacterService is the authenticated-owner character surface. Equip/unequip here is the
+// one equip path, between runs and inside them; its public consequence inside a run is the
+// session stream's EQUIPMENT_CHANGED beat, but exact CharacterData fields 9-14 remain an
 // owner read and are never projected to peers. See CharacterData's disclosure rule in
 // dnd5e/api/v1alpha2/encounter/types.proto.
 service CharacterService {
@@ -79,6 +80,20 @@ service CharacterService {
   // initial state from this on the session stack (rpg-project#249 §2). Read-only; bound to
   // the owner.
   rpc GetCharacterData(GetCharacterDataRequest) returns (GetCharacterDataResponse);
+
+  // EquipItem puts an item into a slot through the session SDK's Equip verb, the one equip
+  // path for every surface (rpg-project#542). Where the character is seated decides the rest:
+  //   - unseated: a plain sheet edit — no cost, no beat;
+  //   - seated, outside a fight: no cost; every member who sees the character hears the
+  //     EQUIPMENT_CHANGED beat on the session stream (R8, a draw into an empty hand included);
+  //   - seated, in a fight: a turn action, priced by the rulebook (stowing a held item costs
+  //     the action, drawing into an empty hand the object interaction, a swap both — R1; a
+  //     shield costs the action — R6), and told as the same beat.
+  // In a fight it is refused FAILED_PRECONDITION, writing nothing, when it is not the
+  // character's turn (ErrNotYourTurn), the character is downed (ErrDowned), the price cannot be
+  // paid (ErrCannotAfford), or the slot is body armour, which cannot change in a fight (R6).
   rpc EquipItem(EquipItemRequest) returns (EquipItemResponse);
+  // UnequipItem clears a slot through the session SDK's Unequip verb — EquipItem's seats,
+  // price, beat (a STOW) and in-fight refusals, unchanged.
   rpc UnequipItem(UnequipItemRequest) returns (UnequipItemResponse);
 }

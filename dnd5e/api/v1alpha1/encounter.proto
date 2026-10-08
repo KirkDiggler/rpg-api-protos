@@ -1227,9 +1227,19 @@ service EncounterService {
 
   // === Rest ===
 
+  // Deprecated: never implemented. Use dnd5e.api.session.v1alpha1.SessionService.Rest
+  // (REST_KIND_SHORT) — one seated member rests outside a fight, and what it restored
+  // arrives as the RESTED beat (rpg-project#542).
   // ShortRest performs a short rest for the party between rooms
-  rpc ShortRest(ShortRestRequest) returns (ShortRestResponse);
+  rpc ShortRest(ShortRestRequest) returns (ShortRestResponse) {
+    option deprecated = true;
+  }
 
+  // Deprecated: never implemented. A long rest is a character's first admission to a
+  // run, applied by the session itself; no verb long-rests inside a run. See
+  // dnd5e.api.session.v1alpha1.SessionService.Rest (rpg-project#542).
   // LongRest performs a long rest for the party
-  rpc LongRest(LongRestRequest) returns (LongRestResponse);
+  rpc LongRest(LongRestRequest) returns (LongRestResponse) {
+    option deprecated = true;
+  }
 }

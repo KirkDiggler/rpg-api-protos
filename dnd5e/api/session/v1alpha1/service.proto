@@ -2002,6 +2002,61 @@ message HoldResponse {
 }
 
 // =============================================================================
+// Rest
+// =============================================================================
+
+// RestRequest rests one seated member, as `member`. Mirrors session.RestInput
+// (design rpg-project#542, "Rest").
+//
+// A REST INSIDE A RUN IS A SHORT REST OUTSIDE A FIGHT (R5). It spends the hit
+// dice asked for, refills every resource whose own reset kind says a short
+// rest refills it, and advances the world clock by the letter's hour — the
+// encounter owns that clock and moves it; nothing here counts rounds. The long
+// rest is the first admission to a run, which Join and the lobby's launch
+// apply; no verb long-rests a member inside a run (R13, deferred until a use
+// case), so REST_KIND_LONG is refused here today rather than absent from the
+// vocabulary the SDK's input already speaks.
+//
+// Refused FAILED_PRECONDITION while the member is in a fight (ErrInFight) or
+// when hit_dice exceeds what the character has left, either of which spends
+// nothing; NOT_FOUND when the session, the member or the member's sheet is
+// absent (ErrNoCharacter).
+message RestRequest {
+  string session = 1;
+  // Who rests. Bound to the authenticated caller by the host, the same
+  // acting-as law every verb keeps.
+  string member = 2;
+  // Which rest. REST_KIND_SHORT is the only kind this verb grants today.
+  RestKind kind = 3;
+  // How many hit dice to spend on a short rest. Zero is a legal answer, not an
+  // omission: a member who spends none still refills short-rest resources and
+  // still spends the hour. Each die spent rolls the class hit die plus the
+  // Constitution modifier, at least zero, capped at maximum hit points, and
+  // names the resting character as its source.
+  int32 hit_dice = 4;
+}
+
+// RestResponse acknowledges the rest: the seam's standard reports, and
+// NOTHING ABOUT WHAT WAS RESTORED.
+//
+// THE BEAT IS THE ANSWER (HoldResponse's shape, for its reasons). What the rest
+// healed, spent, returned and refilled is on the RESTED beat, which reaches the
+// caller too — design rule 2: a verb's response describes only the caller's own
+// action, and a rest is a thing that happened at the table, not a private
+// reply. A copy here would be a second account of one fact, free to disagree
+// with the first. A rest has no offer window, so nothing else belongs to the
+// caller alone.
+//
+// saved and delivery are S6's law, kept by every mutating verb at this seam: a
+// rest writes the character's sheet and the run's clock and publishes a beat,
+// any of which can half-fail, and a partial save is an error carrying a
+// populated report.
+message RestResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
+// =============================================================================
 // Stream
 // =============================================================================
 
@@ -2143,6 +2198,14 @@ service SessionService {
   // keep hold of. Nothing on this contract prices a hold yet, and the word
   // was chosen so that when it does, the verb already says it.
   rpc Hold(HoldRequest) returns (HoldResponse);
+
+  // Rest takes a short rest for one seated member outside a fight: hit dice
+  // spent, short-rest resources refilled, the world clock advanced an hour.
+  // Refused FAILED_PRECONDITION in a fight (ErrInFight) and for a long rest
+  // (R13). The response is an ack carrying the seam's two reports; what was
+  // restored arrives as the RESTED beat. Replaces EncounterService's legacy
+  // ShortRest and LongRest, which were never implemented.
+  rpc Rest(RestRequest) returns (RestResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.

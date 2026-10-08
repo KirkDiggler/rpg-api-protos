@@ -2678,4 +2678,13 @@ message Rested {
   // die adds. total is the healing before the cap, so it can exceed
   // hit_points_restored. Absent when no die was rolled.
   RollCalculation calculation = 9;
+  // The concentrations the rest ended (reason "rest"). A rest ends the
+  // rester's held concentrations and the fight-scoped conditions on them; both
+  // are told on this event, not as standalone events.
+  repeated ConcentrationEnded concentration_ended = 10;
+  // The conditions the rest ended on the rester — prone, dodging, blessed. A
+  // rest ends the rester's held concentrations (reason "rest") and the
+  // fight-scoped conditions on them; both are told on this event, not as
+  // standalone events. The same body an activation carries for its removals.
+  repeated ConditionRemoved ended = 11;
 }

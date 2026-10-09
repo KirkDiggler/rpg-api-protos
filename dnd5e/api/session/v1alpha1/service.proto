@@ -114,11 +114,10 @@ message GetSeatRequest {
 // seat is a character id and the session that holds it, nothing more.
 //
 // READ-ONLY testimony of where the character is right now. The handler answers
-// NotFound for a character that was never seated, so a response always names a
-// seat the SDK recorded.
+// NotFound whenever the character holds no live seat, whether it was never
+// seated or its seat was cleared, so a successful response always names a run.
 message GetSeatResponse {
-  // The run holding the character. Empty means the seat was held and has since
-  // been cleared: the character is unseated, and may launch or join a run.
+  // The run holding the character. Never empty in a successful response.
   string session = 1;
 }
 
@@ -2160,8 +2159,8 @@ service SessionService {
   // the session that holds the character, and offers Exit on that run; leaving
   // is the player's explicit verb, not something launch does for them.
   //
-  // A character that was never seated is NotFound, not an empty response. A
-  // character whose seat was cleared answers OK with an empty session.
+  // A character that holds no live seat, never seated or since cleared, is
+  // NotFound. A successful response always carries a non-empty session.
   rpc GetSeat(GetSeatRequest) returns (GetSeatResponse);
 
   // Move walks a member along a path, one cell at a time, crossing doorways as

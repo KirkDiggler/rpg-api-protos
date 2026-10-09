@@ -99,6 +99,29 @@ message JoinResponse {
   DeliveryReport delivery = 8;
 }
 
+// GetSeatRequest asks which run holds a character.
+//
+// READ-ONLY. The seat is a fact about the character (rpg-project#542), so it is
+// asked by character id and carries no session id: the caller who needs this
+// does not know the run. Any caller who may read the character may call it;
+// nothing is written, granted or cleared by asking.
+message GetSeatRequest {
+  // The character whose seat is read.
+  string character = 1;
+}
+
+// GetSeatResponse mirrors the SDK's SeatData beyond the character id: the
+// seat is a character id and the session that holds it, nothing more.
+//
+// READ-ONLY testimony of where the character is right now. The handler answers
+// NotFound for a character that was never seated, so a response always names a
+// seat the SDK recorded.
+message GetSeatResponse {
+  // The run holding the character. Empty means the seat was held and has since
+  // been cleared: the character is unseated, and may launch or join a run.
+  string session = 1;
+}
+
 // ExitRequest removes a member from the session's encounter.
 message ExitRequest {
   string session = 1;
@@ -2125,6 +2148,21 @@ service SessionService {
   // now carries the exit id and the holdings carried out, and — when the run
   // ended — in ExitResponse.closed and the ENDED beat.
   rpc Exit(ExitRequest) returns (ExitResponse);
+
+  // GetSeat reads which run holds a character, from outside that run.
+  //
+  // READ-ONLY, and any caller who may read the character may call it. The seat
+  // is a fact the character can read (rpg-project#542): where it is right now,
+  // keyed by character, answerable without knowing the session id.
+  //
+  // The server NEVER exits a character during launch. A client that is refused
+  // launch with FailedPrecondition "seated in another run" calls GetSeat, reads
+  // the session that holds the character, and offers Exit on that run; leaving
+  // is the player's explicit verb, not something launch does for them.
+  //
+  // A character that was never seated is NotFound, not an empty response. A
+  // character whose seat was cleared answers OK with an empty session.
+  rpc GetSeat(GetSeatRequest) returns (GetSeatResponse);
 
   // Move walks a member along a path, one cell at a time, crossing doorways as
   // ordinary steps. A short walk is an answer, not an error. On the turn clock

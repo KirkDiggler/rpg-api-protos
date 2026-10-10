@@ -104,6 +104,59 @@ message PutDungeonResponse {
   // was lying. Returning the atlas itself leaves the builder nothing to keep
   // in step.
   dnd5e.api.session.v1alpha1.GetAtlasResponse atlas = 2;
+  // One derived stat block per template the file declares, so the builder
+  // shows the numbers the toolkit computed instead of computing its own. A
+  // client never derives a number; it shows what it is told.
+  //
+  // Empty when the yaml declares no templates, AND empty whenever `errors`
+  // is non-empty: a file that does not compile has no blocks to vouch for,
+  // and a partial list beside a failed compile would read as "these are
+  // fine" when the compile said nothing of the kind. A template that fails
+  // derivation is a FieldError naming its path, never a block.
+  repeated DerivedStatBlock templates = 3;
+}
+
+// DerivedStatBlock is one authored template after the toolkit merged it onto
+// its base: the numbers a creature placed from this template plays with.
+//
+// Absence never reads as zero. An unstated score is the base's, an unstated
+// weapon list is the base's, and a template with no base is refused by name
+// in `errors` rather than echoed here with empty numbers.
+message DerivedStatBlock {
+  // The id the author wrote for the template, e.g. "guard".
+  string template_id = 1;
+  // The monster ref placements use to name this template, e.g.
+  // "dnd5e:monsters:guard".
+  string ref = 2;
+  // The display name, after the merge.
+  string name = 3;
+  // Hit points at spawn. Never zero for a derived block: a template that
+  // cannot produce hit points fails derivation and appears in `errors`.
+  int32 hit_points = 4;
+  // Armor class after the merge.
+  int32 armor_class = 5;
+  // Passive Perception after the merge.
+  int32 passive_perception = 6;
+  // Proficiency bonus after the merge.
+  int32 proficiency_bonus = 7;
+  // Ability scores after merging the base, keyed `str`, `dex`, `con`, `int`,
+  // `wis`, `cha`. A score the template does not state is the base's.
+  map<string, int32> abilities = 8;
+  // The attacks a creature from this template makes, in authored order.
+  repeated DerivedAttack attacks = 9;
+  // Experience granted for defeating one. Absent in the yaml is worth
+  // nothing, which is zero here.
+  int32 experience = 10;
+}
+
+// DerivedAttack is one weapon attack on a derived stat block.
+message DerivedAttack {
+  // The weapon ref, e.g. "dnd5e:weapons:spear".
+  string weapon_ref = 1;
+  // The total to-hit bonus: everything added to the d20, already summed.
+  int32 attack_bonus = 2;
+  // Damage as dice notation, e.g. "1d6+2".
+  string damage = 3;
 }
 
 // FieldError is one compile problem and the YAML path it is about.

@@ -1074,6 +1074,10 @@ message ConditionApplied {
   // The character or entity responsible for this condition. Together with
   // target and ref, this qualifies the condition being described.
   string source_id = 4;
+  // What this condition instance says about itself, as free text the
+  // toolkit wrote: the word a Command gave. Empty when the instance has
+  // nothing to say. Shown, never parsed.
+  string detail = 5;
 }
 
 // ConditionRemoved identifies a condition removed from a target and the

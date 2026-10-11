@@ -575,6 +575,20 @@ Consumer adoption follows the published proto SDK release:
 These consumer changes and pins are follow-on work. The root Cleric acquisition
 slice in toolkit #1713 is not a prerequisite for this additive contract.
 
+## Observed body appearance
+
+`PublicMemberInfo.appearance_ref = 9` is an optional opaque appearance identity,
+independent of `monster_ref` (the rules/template identity) and faction. Toolkit
+projects it from the recipient's captured sight testimony, not current hidden
+member data or a freshly loaded authoring document. Remembered appearance stays
+captured; a never-seen NPC has no roster row.
+
+An empty ref preserves legacy model resolution. A nonempty ref uses exact catalog
+lookup; an unavailable explicit ref is a diagnostic, not a fallback to another
+model. API only copies the field. No new stats/faction messages, asset paths or
+binary content accompany it. The contract does not by itself claim provider or
+consumer implementation.
+
 ## Public roster customization
 
 `PublicMemberInfo.customization = 7` remains the public identity shelf and now

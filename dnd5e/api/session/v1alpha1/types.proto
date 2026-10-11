@@ -708,10 +708,10 @@ message PublicMemberInfo {
   // monsters.
   string class_ref = 4;
   string race_ref = 5;
-  // The body, for MONSTER members: the authored monster ref (e.g.
-  // "dnd5e:monsters:skeleton"), so a client resolves the model from the ref
-  // itself instead of deriving it from the member id's naming convention.
-  // Empty for players.
+  // Rules identity for MONSTER members: the authored monster/template ref
+  // (e.g. "dnd5e:monsters:skeleton"). Also the legacy model-resolution input
+  // when appearance_ref is empty; never derive a ref from the member id.
+  // Empty for players. Choosing an appearance does not change this ref.
   string monster_ref = 6;
   // Public visual identity projected to the roster. Always set; see
   // Customization.
@@ -740,6 +740,15 @@ message PublicMemberInfo {
   // into the faction graph is a named shelf (design §11), not a default
   // applied here.
   string faction = 8;
+
+  // Optional opaque body appearance ref captured by this observer's sight.
+  // Empty means no explicit observed override: preserve legacy model resolution.
+  // A nonempty ref is resolved exactly by the consumer's asset catalog; an
+  // unavailable ref is not permission to substitute another appearance.
+  // Remembered identity retains its captured ref, never a newer live-member or
+  // source-document value. Never-seen creatures remain absent from this roster.
+  // This is presentation only: no stat block, faction, file path or asset bytes.
+  string appearance_ref = 9;
 }
 
 // Customization is public visual identity, not owner-private sheet or rules

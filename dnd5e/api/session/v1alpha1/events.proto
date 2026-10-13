@@ -466,6 +466,12 @@ enum EventKind {
   // the line said; speaking to a prop lands none. What the creature does about
   // it arrives as ANSWERED, keyed SUCCESS or FAILURE.
   EVENT_KIND_SPOKE = 45;
+  // A sound reached one listener (rpg-project#569, "Hearing"). Recipient-
+  // scoped: only the listener's client receives it. Carries what kind of
+  // sound, where it was made and how far it travelled — never who made it
+  // (R4). Hearing is passive (R5): no roll on the wire, the listener simply
+  // heard it.
+  EVENT_KIND_HEARD = 46;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -600,6 +606,7 @@ message Event {
     EquipmentChanged equipment_changed = 49;
     Rested rested = 50;
     Spoke spoke = 51;
+    Heard heard = 52;
   }
 }
 
@@ -2137,6 +2144,36 @@ message SpeakCheck {
   // disadvantage, with the keep record; the remaining components are the
   // named sources.
   RollCalculation calculation = 4;
+}
+
+// Heard: a sound reached one listener (EVENT_KIND_HEARD, rpg-project#569).
+// The kind of sound, the cell it was made at, and how many regions it
+// crossed to get here.
+//
+// NEVER NAMES WHO MADE THE SOUND (R4). A heard report is kind + position +
+// when; the when is the event's own clock. There is deliberately no actor,
+// source or member field: a listener hears a clang in the next room, not
+// "skeleton-2 struck the fighter". Adding one would hand the client an
+// identity the listener's ears never gave them.
+//
+// RECIPIENT-SCOPED. One beat per listener, delivered only to that listener's
+// stream; a second listener who heard the same sound gets their own beat
+// with their own hops. Hearing is passive (R5): the encounter decides who
+// heard, so there is no roll here.
+message Heard {
+  // The member who heard the sound. A member id; always the recipient.
+  string listener = 1;
+  // Opaque rulebook word naming the kind of sound, e.g. "clang", "boom",
+  // "voice", "crash" — a sealed vocabulary the rulebook owns. Carried, not
+  // interpreted. Empty is a producer defect, never "an unknown sound".
+  string kind = 2;
+  // The cell the sound was made at, dungeon-absolute like every position on
+  // this seam. Where, not who: the cell is a place, and whoever stood on it
+  // is not reported.
+  Position position = 3;
+  // The region distance the sound crossed to reach the listener. 0 means
+  // the same room.
+  int32 hops = 4;
 }
 
 // AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer

@@ -1023,10 +1023,10 @@ message PersuadeResponse {
 // Priced as an action and offered on the world clock as well as the turn
 // clock, as Persuade was.
 message SpeakRequest {
-  string session_id = 1;
+  string session = 1;
   // Who speaks. Bound to the authenticated caller by the host — the same
   // acting-as gate every verb has.
-  string actor_member_id = 2;
+  string member = 2;
   // Who is spoken to. Exactly one arm must be set; an unset target is refused
   // INVALID_ARGUMENT, never read as "anybody".
   oneof target {

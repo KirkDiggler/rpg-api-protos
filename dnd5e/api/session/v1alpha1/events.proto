@@ -2111,12 +2111,13 @@ message Spoke {
   // The player's line, verbatim as authored. Empty means the author wrote
   // none; the engine never composes one.
   string line = 5;
-  // Opaque rulebook ref for the skill the option's check rolled, e.g.
+  // Opaque rulebook ref naming the approach the check rolled, e.g.
   // "intimidation", "persuasion", "religion". Carried, not interpreted.
-  // Empty means the option carried no check, and then `check` is absent.
+  // Always set: every option carries a check by law, and the encounter
+  // refuses an option authored without one.
   string skill = 6;
-  // The check as rolled. Absent only when the option carried no check
-  // (`skill` empty); a client never reads absence as a failed roll.
+  // The check as rolled. Always set on a well-formed beat, for the same law;
+  // an absent check is a producer defect, never a failed roll.
   SpeakCheck check = 7;
 }
 
@@ -2261,9 +2262,8 @@ enum AnswerKey {
   // with it. No verb and no check stand behind a pick on this key, which is
   // why Answered.verb and Answered.beaten are never filled for it.
   ANSWER_KEY_TIME = 5;
-  // The picked option's success table: a Speak whose check was beaten, or an
-  // option with no check (rpg-project#569, R2). Answered.option_id names
-  // which option's table.
+  // The picked option's success table: a Speak whose check was beaten
+  // (rpg-project#569, R2). Answered.option_id names which option's table.
   ANSWER_KEY_SUCCESS = 6;
   // The picked option's failure table: a Speak whose check was not beaten.
   // Answered.option_id names which option's table.

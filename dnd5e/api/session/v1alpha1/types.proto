@@ -365,6 +365,14 @@ enum ShortfallReason {
   // spelled as one. A client that collapsed the two would tell a fighter to
   // come back next turn while the fight waits on that fighter.
   SHORTFALL_REASON_WINDOW_OPEN = 8;
+  // No candidate target offers an option available to this actor (VERB_SPEAK,
+  // rpg-project#569). The declaration-level refusal for Speak: every target in
+  // sight either authored no options or gated every one it authored behind a
+  // `requires` this actor does not meet. A creature with no options cannot be
+  // talked to, and a dock reads this to hide or disable the verb rather than
+  // offer a row that resolves to nothing. Never set on a declaration that
+  // carries at least one available SpeakOption.
+  SHORTFALL_REASON_NO_OPTION = 9;
 }
 
 // Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.
@@ -485,7 +493,10 @@ enum Verb {
   // Activate, Cast and React each echo one because each picks from a set —
   // a weapon offer, an ability list, a known spell, an open window — and this
   // verb has none.
-  VERB_INTIMIDATE = 8;
+  //
+  // DEPRECATED — SUPERSEDED BY VERB_SPEAK (rpg-project#569, R2). Intimidation
+  // is now an option whose check lists the Intimidation skill.
+  VERB_INTIMIDATE = 8 [deprecated = true];
 
   // Persuade — talking one creature that can see you round to your side, on
   // the action (design rpg-project#458). Intimidate's twin on the same
@@ -514,7 +525,25 @@ enum Verb {
   // and prices the row, and there is simply nothing for a selector to have
   // chosen between. Its target kind is MEMBER, which Attack and Help already
   // had; no new TargetKind arrives with this verb.
-  VERB_PERSUADE = 9;
+  //
+  // DEPRECATED — SUPERSEDED BY VERB_SPEAK (rpg-project#569, R2). Persuasion is
+  // now an option whose check lists the Persuasion skill.
+  VERB_PERSUADE = 9 [deprecated = true];
+
+  // Speak — saying one authored line to a creature or a prop (rpg-project#569,
+  // R2). The one social verb: Intimidate and Persuade became options whose
+  // check lists their skill, and every option names its own answer table.
+  //
+  // THE ROW CARRIES ITS MENU. Declaration.speak_options lists every option
+  // every target in sight offers this actor, available or not, and the
+  // request echoes one option_id with the target that offered it. A target
+  // with no options mints no SpeakOption; when no target offers an available
+  // option the declaration is unavailable with SHORTFALL_REASON_NO_OPTION.
+  //
+  // Priced and clocked as VERB_PERSUADE was: an action, compiled on the world
+  // clock as well as the turn clock. The outcome stays off this seam — the
+  // check lands as a Spoke beat and the world's answer as Answered.
+  VERB_SPEAK = 10;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -1427,6 +1456,17 @@ message Declaration {
   // Shares this declaration's identity/freshness; never authorizes execution
   // and never participates in its selector. See rpg-project#543.
   ActionInformation information = 22;
+  // The authored lines this actor could speak, one row per (target, option)
+  // pair across every target in sight (rpg-project#569). Present only on a
+  // VERB_SPEAK declaration; empty for every other verb and for an early
+  // blocker that could not compile the menu.
+  //
+  // NAMED speak_options BECAUSE `options` (19) IS ALREADY THE CAST MENU, and a
+  // field never changes type in place. Unavailable rows stay in the list with
+  // their reason, the way TargetCandidate rows do. An empty list on a compiled
+  // Speak row means no target offered anything, and `why` then says
+  // SHORTFALL_REASON_NO_OPTION.
+  repeated SpeakOption speak_options = 23;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -1665,6 +1705,36 @@ message CastOption {
   // it selects nothing, and Cast/React still echo only the option's id. This
   // text does not change the action selector or make the option executable.
   string description = 3;
+}
+
+// SpeakOption is one authored line a target offers an actor (rpg-project#569,
+// R1–R2). Options are flat: a target lists them, facts gate which show up,
+// and each names its own answer table. It rides Declaration.speak_options as
+// the menu and comes back as option_id plus the same target on SpeakRequest.
+message SpeakOption {
+  // Who offers this option. Exactly one arm is set on a well-formed row; an
+  // unset oneof is a producer defect, never "anybody".
+  oneof target {
+    // A member id: a creature that can be talked to.
+    string member_id = 1;
+    // A placed prop id: a thing that can be spoken to (an altar, a portrait).
+    // Speaking to a prop lands no deed; the check still runs.
+    string prop_id = 2;
+  }
+  // Opaque author-owned id for this option, unique within its target and
+  // echoed verbatim on SpeakRequest.option_id. Always set; a client never
+  // branches on it.
+  string option_id = 3;
+  // The player's line, verbatim as authored. Empty means the author wrote
+  // none, and a client labels the row from the option id only as a fallback.
+  string line = 4;
+  // Whether this actor may pick this option right now: its `requires` hold
+  // against the actor's own holdings and the target can perceive the actor.
+  // Independent of the declaration's turn and economy gate.
+  bool available = 5;
+  // Why the option is unavailable. SHORTFALL_REASON_UNSPECIFIED when
+  // `available` is true; never UNSPECIFIED when it is false.
+  ShortfallReason shortfall = 6;
 }
 
 // ReactionRef identifies WHAT a strike was taken as, when the strike was a

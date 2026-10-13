@@ -313,7 +313,9 @@ enum EventKind {
   // next turn, narrated from the beats that turn produces, and it differs by
   // the mind behind the creature — the same threat sends one monster running
   // and brings another one at you.
-  EVENT_KIND_INTIMIDATED = 32;
+  //
+  // DEPRECATED — SUPERSEDED BY EVENT_KIND_SPOKE (rpg-project#569).
+  EVENT_KIND_INTIMIDATED = 32 [deprecated = true];
 
   // A member talked a creature round, and the table saw the die (design
   // rpg-project#458). INTIMIDATED's twin, and published BEATEN OR NOT for the
@@ -326,7 +328,9 @@ enum EventKind {
   // WHAT THE PERSUADED CREATURE DOES ABOUT IT IS NOT THIS BEAT. The world's
   // answer is rolled off the author's answer table and arrives as ANSWERED;
   // the creature's own mind has the turn after that.
-  EVENT_KIND_PERSUADED = 33;
+  //
+  // DEPRECATED — SUPERSEDED BY EVENT_KIND_SPOKE (rpg-project#569).
+  EVENT_KIND_PERSUADED = 33 [deprecated = true];
 
   // THE CREATURE'S AUTHORED ANSWER TO A CHECK, ROLLED BY THE WORLD (design
   // rpg-project#458, "The two rolls"). THE SECOND ROLL OF THE PAIR: the
@@ -455,6 +459,13 @@ enum EventKind {
   // A seated member rested outside a fight, naming the kind and what it
   // restored (design rpg-project#542, "Rest").
   EVENT_KIND_RESTED = 44;
+  // A member spoke an authored option to a creature or a prop, and the table
+  // saw the die (rpg-project#569). Published beaten or not. Audience: every
+  // member whose sight reaches the actor's cell. The deed is the skill's (R3):
+  // a beaten Intimidation lands an intimidated deed on the witnesses whatever
+  // the line said; speaking to a prop lands none. What the creature does about
+  // it arrives as ANSWERED, keyed SUCCESS or FAILURE.
+  EVENT_KIND_SPOKE = 45;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -574,8 +585,8 @@ message Event {
     ConcentrationEnded concentration_ended = 35;
     Sighted sighted = 36;
     CastMissed cast_missed = 37;
-    Intimidated intimidated = 38;
-    Persuaded persuaded = 39;
+    Intimidated intimidated = 38 [deprecated = true];
+    Persuaded persuaded = 39 [deprecated = true];
     Answered answered = 40;
     Tempered tempered = 41;
     Warded warded = 42;
@@ -588,6 +599,7 @@ message Event {
     DiscoveryChecked discovery_checked = 48;
     EquipmentChanged equipment_changed = 49;
     Rested rested = 50;
+    Spoke spoke = 51;
   }
 }
 
@@ -2001,7 +2013,11 @@ message RollWindowOpened {
 // mirroring is five field numbers; the cost of sharing is every consumer
 // branching twice. A third social verb joins as a third body, not as a third
 // value of a discriminator.
+//
+// DEPRECATED — SUPERSEDED BY Spoke (rpg-project#569).
 message Intimidated {
+  option deprecated = true;
+
   // Who threatened. A member id, the same vocabulary every other body speaks.
   string actor = 1;
   // Who was threatened. A member id.
@@ -2048,7 +2064,11 @@ message Intimidated {
 // its next turn. A "helping" field here would make the outcome this verb's
 // instead of the world's and the mind's, which is the first cut Intimidate's
 // design broke and recorded so it is not proposed again.
+//
+// DEPRECATED — SUPERSEDED BY Spoke (rpg-project#569).
 message Persuaded {
+  option deprecated = true;
+
   // Who talked. A member id, the same vocabulary every other body speaks.
   string actor = 1;
   // Who was talked to. A member id.
@@ -2065,6 +2085,57 @@ message Persuaded {
   // the d20 as actually rolled, both faces under advantage or disadvantage,
   // with the keep record.
   RollCalculation calculation = 6;
+}
+
+// Spoke: a member spoke one authored option to a creature or a prop
+// (EVENT_KIND_SPOKE, rpg-project#569). Who spoke, to whom, which option, the
+// line as authored, the skill the option's check rolled, and the check.
+//
+// ONE BODY FOR EVERY SOCIAL CHECK. Intimidated and Persuaded were two bodies
+// because the verb was the discriminator; now the option is, and the skill
+// rides here as data (R3, "the deed is the skill"). The check block is its
+// own message, copied from the shape Intimidated carried, so retiring that
+// body never touches this one.
+message Spoke {
+  // Who spoke. A member id.
+  string actor = 1;
+  // Who was spoken to. Exactly one arm is set on a well-formed beat.
+  oneof target {
+    // A member id: the creature spoken to.
+    string member_id = 2;
+    // A placed prop id: the thing spoken to. No deed lands on a prop beat.
+    string prop_id = 3;
+  }
+  // The option picked, as offered on SpeakOption.option_id. Always set.
+  string option_id = 4;
+  // The player's line, verbatim as authored. Empty means the author wrote
+  // none; the engine never composes one.
+  string line = 5;
+  // Opaque rulebook ref for the skill the option's check rolled, e.g.
+  // "intimidation", "persuasion", "religion". Carried, not interpreted.
+  // Empty means the option carried no check, and then `check` is absent.
+  string skill = 6;
+  // The check as rolled. Absent only when the option carried no check
+  // (`skill` empty); a client never reads absence as a failed roll.
+  SpeakCheck check = 7;
+}
+
+// SpeakCheck is the check a Spoke beat carries: the same five facts
+// Intimidated and Persuaded carried, as a message of their own.
+message SpeakCheck {
+  // What the check had to reach — the DC of the one approach the resolver
+  // applied. Always set on a present check.
+  int32 dc = 1;
+  // What the check totalled.
+  int32 total = 2;
+  // The rulebook's own reading of total against dc; never a client's
+  // comparison.
+  bool beaten = 3;
+  // The authoritative sourced calculation behind total. Its first component
+  // is the d20 as actually rolled, both faces under advantage or
+  // disadvantage, with the keep record; the remaining components are the
+  // named sources.
+  RollCalculation calculation = 4;
 }
 
 // AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer
@@ -2173,19 +2244,30 @@ enum AnswerWord {
 enum AnswerKey {
   ANSWER_KEY_UNSPECIFIED = 0;
   // The author's `intimidated` list: a threat that beat the creature's DC.
-  ANSWER_KEY_INTIMIDATED = 1;
+  // Deprecated: superseded by SUCCESS/FAILURE on an option (rpg-project#569).
+  ANSWER_KEY_INTIMIDATED = 1 [deprecated = true];
   // The author's `intimidate_failed` list: a threat that did not. Failure has
   // a table on purpose — a failed threat that raises the alarm is what makes
   // attempting worse than not attempting.
-  ANSWER_KEY_INTIMIDATE_FAILED = 2;
+  // Deprecated: superseded by SUCCESS/FAILURE on an option (rpg-project#569).
+  ANSWER_KEY_INTIMIDATE_FAILED = 2 [deprecated = true];
   // The author's `persuaded` list: an attempt that beat the creature's DC.
-  ANSWER_KEY_PERSUADED = 3;
+  // Deprecated: superseded by SUCCESS/FAILURE on an option (rpg-project#569).
+  ANSWER_KEY_PERSUADED = 3 [deprecated = true];
   // The author's `persuade_failed` list: an attempt that did not.
-  ANSWER_KEY_PERSUADE_FAILED = 4;
+  // Deprecated: superseded by SUCCESS/FAILURE on an option (rpg-project#569).
+  ANSWER_KEY_PERSUADE_FAILED = 4 [deprecated = true];
   // The author's `time` list: the creature had time and this is what it did
   // with it. No verb and no check stand behind a pick on this key, which is
   // why Answered.verb and Answered.beaten are never filled for it.
   ANSWER_KEY_TIME = 5;
+  // The picked option's success table: a Speak whose check was beaten, or an
+  // option with no check (rpg-project#569, R2). Answered.option_id names
+  // which option's table.
+  ANSWER_KEY_SUCCESS = 6;
+  // The picked option's failure table: a Speak whose check was not beaten.
+  // Answered.option_id names which option's table.
+  ANSWER_KEY_FAILURE = 7;
 }
 
 // Temper is A CREATURE'S TEMPERAMENT: a weight profile and nothing else — a
@@ -2453,6 +2535,11 @@ message Answered {
   // TEMPERED beat that dealt it, and a creature whose temperament was authored
   // rather than dealt raised no such beat to join to.
   Temper temper = 12;
+  // Which option's table the world rolled on, as offered on
+  // SpeakOption.option_id (rpg-project#569). Set on every SUCCESS or FAILURE
+  // answer. Empty means a `time` pick (ANSWER_KEY_TIME), where no option
+  // stands behind the roll, and on the deprecated social keys.
+  string option_id = 13;
 }
 
 // Tempered: a creature's temperament was dealt from its faction's mix at spawn

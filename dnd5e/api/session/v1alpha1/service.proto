@@ -829,7 +829,11 @@ message ReactResponse {
 // (approach choice is postponed by ruling, rpg-project#350). A target with no
 // authored list is checked against its derived passive Insight — see
 // Intimidated.dc, which is where every number this verb produces is read.
+//
+// DEPRECATED — SUPERSEDED BY SpeakRequest (rpg-project#569).
 message IntimidateRequest {
+  option deprecated = true;
+
   string session = 1;
   // Who threatens. Bound to the authenticated caller by the host — the same
   // acting-as gate every verb has.
@@ -861,7 +865,11 @@ message IntimidateRequest {
 // clients as the target's next turn. A "fleeing" field here would make the
 // outcome this verb's instead of the mind's, which is the first cut the design
 // broke and recorded so it is not proposed again (rpg-project#454).
+//
+// DEPRECATED — SUPERSEDED BY SpeakResponse (rpg-project#569).
 message IntimidateResponse {
+  option deprecated = true;
+
   // True when the attempt stopped to ask the member whether to spend a held
   // offer (Bardic Inspiration, Guidance) before the verdict is settled —
   // UnlockResponse.paused's own shape, applied to a threat instead of a lock
@@ -931,7 +939,11 @@ message IntimidateResponse {
 // rpg-project#458). That is a rule the resolver applies as one named source on
 // the roll, not a gate at this seam and not a field on this message: the
 // attempt is open to everyone, and the log says which source imposed what.
+//
+// DEPRECATED — SUPERSEDED BY SpeakRequest (rpg-project#569).
 message PersuadeRequest {
+  option deprecated = true;
+
   string session = 1;
   // Who talks. Bound to the authenticated caller by the host — the same
   // acting-as gate every verb has.
@@ -961,7 +973,11 @@ message PersuadeRequest {
 // deed is worth to the creature is its own mind's on its next turn. A
 // "helping" or "friendly" field here would make the outcome this verb's
 // instead of theirs.
+//
+// DEPRECATED — SUPERSEDED BY SpeakResponse (rpg-project#569).
 message PersuadeResponse {
+  option deprecated = true;
+
   // True when the attempt stopped to ask the member whether to spend a held
   // offer (Bardic Inspiration, Guidance) before the verdict is settled —
   // IntimidateResponse.paused's own shape. While true, saved and delivery stay
@@ -990,6 +1006,52 @@ message PersuadeResponse {
   // publishes a beat and the world's Answered after it — any of which can
   // half-fail, and a partial save is an error carrying a populated report,
   // never a silent shrug (IntimidateResponse's shape, for its reasons).
+  SaveReport saved = 3;
+  DeliveryReport delivery = 4;
+}
+
+// SpeakRequest says one authored option to one target that can perceive the
+// actor (rpg-project#569, R2). The one social verb: Intimidate and Persuade
+// are options whose check lists their skill.
+//
+// THE CALLER NAMES THE OPTION AND ITS TARGET, both echoed from a SpeakOption
+// on the VERB_SPEAK declaration. An option the target does not offer, or one
+// whose `requires` this actor does not meet, is refused FAILED_PRECONDITION
+// with ErrNoOption — the same answer Afford announced first as
+// SHORTFALL_REASON_NO_OPTION or as the option's own shortfall.
+//
+// Priced as an action and offered on the world clock as well as the turn
+// clock, as Persuade was.
+message SpeakRequest {
+  string session_id = 1;
+  // Who speaks. Bound to the authenticated caller by the host — the same
+  // acting-as gate every verb has.
+  string actor_member_id = 2;
+  // Who is spoken to. Exactly one arm must be set; an unset target is refused
+  // INVALID_ARGUMENT, never read as "anybody".
+  oneof target {
+    // A member id: a creature that can perceive the actor.
+    string member_id = 3;
+    // A placed prop id. Speaking to a prop lands no deed; the check still runs.
+    string prop_id = 4;
+  }
+  // The option picked, verbatim from SpeakOption.option_id. Required; empty
+  // is refused INVALID_ARGUMENT.
+  string option_id = 5;
+}
+
+// SpeakResponse carries only what is the CALLER'S ALONE, and is
+// PersuadeResponse field for field. The outcome reaches the actor as beats:
+// Spoke on the log, then Answered when the world rolls the option's table.
+message SpeakResponse {
+  // True when the attempt stopped to ask the member whether to spend a held
+  // offer before the verdict is settled. While true, saved and delivery stay
+  // at their zero value. Answered via the session's generic React verb.
+  bool paused = 1;
+  // The d20 as rolled, present only when paused; absent otherwise. The
+  // target's DC is deliberately not surfaced alongside it.
+  optional int32 roll = 2;
+  // S6's law, kept by every mutating verb at this seam. Zero while paused.
   SaveReport saved = 3;
   DeliveryReport delivery = 4;
 }
@@ -2300,7 +2362,11 @@ service SessionService {
   // FAILED_PRECONDITION off the actor's turn, with the action spent, or when
   // the target cannot perceive the actor. What a beaten threat is WORTH is the
   // target's mind's to decide, and arrives as its next turn on the stream.
-  rpc Intimidate(IntimidateRequest) returns (IntimidateResponse);
+  //
+  // DEPRECATED — SUPERSEDED BY Speak (rpg-project#569).
+  rpc Intimidate(IntimidateRequest) returns (IntimidateResponse) {
+    option deprecated = true;
+  }
 
   // Persuade talks one creature round as `member`: the server rolls the
   // authored check against the target's own DC, and every member who can see
@@ -2313,7 +2379,21 @@ service SessionService {
   // it is. What a beaten persuasion is WORTH is the world's reaction table and
   // then the target's mind: it arrives as an Answered beat and that creature's
   // next turn.
-  rpc Persuade(PersuadeRequest) returns (PersuadeResponse);
+  //
+  // DEPRECATED — SUPERSEDED BY Speak (rpg-project#569).
+  rpc Persuade(PersuadeRequest) returns (PersuadeResponse) {
+    option deprecated = true;
+  }
+
+  // Speak says one authored option to one creature or prop as the actor
+  // (rpg-project#569): the server rolls the option's check, every member who
+  // can see the actor reads it off one Spoke beat, beaten or not, and the
+  // world rolls the option's success or failure table as Answered. Costs the
+  // action; refused FAILED_PRECONDITION when the action is spent, off the
+  // actor's turn when there is a turn, when the target cannot perceive the
+  // actor, or with ErrNoOption when the target does not offer that option to
+  // this actor.
+  rpc Speak(SpeakRequest) returns (SpeakResponse);
 
   // EndTurn ends a member's turn and hands the fight to whoever is next.
   rpc EndTurn(EndTurnRequest) returns (EndTurnResponse);

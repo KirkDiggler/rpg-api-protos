@@ -447,7 +447,12 @@ enum EventKind {
   // A room entered this recipient's knowledge. Carries its full fixed atlas
   // data, including geometry behind LOS obstructions within that room. Mutable
   // subjects and door state are learned separately through observation.
-  EVENT_KIND_ROOM_REVEALED = 41;
+  //
+  // DEPRECATED: superseded by CELLS_REVEALED (rpg-project#586). Discovery is per
+  // cell, not per room, so no producer emits this kind any more. The value and
+  // its body arm remain so an old client still decodes a stored or replayed
+  // beat; a client reads CELLS_REVEALED instead.
+  EVENT_KIND_ROOM_REVEALED = 41 [deprecated = true];
   // Automatic discovery roll; audience follows the actor's sharing preference.
   EVENT_KIND_DISCOVERY_CHECKED = 42;
   // A seated member put an item into a slot or took one out — "draws a
@@ -472,6 +477,14 @@ enum EventKind {
   // (R4). Hearing is passive (R5): no roll on the wire, the listener simply
   // heard it.
   EVENT_KIND_HEARD = 46;
+  // Cells entered this recipient's knowledge (rpg-project#586, fog of war).
+  // One beat per member per sight pass that learned cells, never before
+  // SCENE_OPENED. Recipient-scoped: the audience is that member alone, so one
+  // seat's discoveries never reach another seat's atlas through this beat.
+  // Carries only the newly known cells and the fixed records that touch them;
+  // see CellsRevealed. Mutable subjects and door state are still learned
+  // through observation (Sighted/GetView).
+  EVENT_KIND_CELLS_REVEALED = 47;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -601,12 +614,15 @@ message Event {
     ConcealmentRevealed concealment_revealed = 45;
     ExperienceGained experience_gained = 46;
     // Reuses the room atlas payload; the legacy REGION_REVEALED arm remains.
-    RegionRevealed room_revealed = 47;
+    // DEPRECATED with EVENT_KIND_ROOM_REVEALED: no longer produced; read
+    // cells_revealed.
+    RegionRevealed room_revealed = 47 [deprecated = true];
     DiscoveryChecked discovery_checked = 48;
     EquipmentChanged equipment_changed = 49;
     Rested rested = 50;
     Spoke spoke = 51;
     Heard heard = 52;
+    CellsRevealed cells_revealed = 53;
   }
 }
 
@@ -1312,8 +1328,8 @@ message Sighted {
   repeated string changed = 3;
   // This observer's mutable prop, door or sight-area knowledge changed. Re-read
   // GetView, just as for the member lists above. This carries no world-truth
-  // fact and does not cause an atlas read; fixed room data arrives separately
-  // through ROOM_REVEALED. May be true with all member lists empty.
+  // fact and does not cause an atlas read; fixed atlas data arrives separately
+  // through CELLS_REVEALED. May be true with all member lists empty.
   bool knowledge_changed = 4;
 }
 
@@ -1595,6 +1611,70 @@ message RegionRevealed {
   // Full introductions/upserts of newly permitted fixed prop render records,
   // keyed by id. Absence is no addition, never a collection clear. Mutable
   // subjects retain their independent observation lifecycle.
+  repeated PropPresentation prop_presentations = 13;
+}
+
+// CellsRevealed is EVENT_KIND_CELLS_REVEALED's body: the fixed atlas records
+// this recipient learned in one sight pass (rpg-project#586). It supersedes
+// ROOM_REVEALED's RegionRevealed for ordinary discovery, because discovery is
+// now per cell: a member learns the hexes its sight reaches, not the whole
+// room they belong to.
+//
+// A SEPARATE MESSAGE, NOT A REUSE OF RegionRevealed, on purpose. A client
+// applies RegionRevealed by REPLACING the region keyed by id. A partial region
+// delivered through that arm would truncate the client's cached region to the
+// cells of the latest pass, and the earlier cells would vanish from its map.
+// The merge law differs, so the message does.
+//
+// Every list is a difference: what this recipient's GetAtlas answers after the
+// pass, less what it answered before. Applying the beat to the cached atlas
+// leaves it equal to a fresh GetAtlas on these fixed records. Replay is
+// idempotent: records already held stay the same and nothing is duplicated.
+// Shared boundary geometry may appear in more than one beat as its cells
+// arrive. It carries no mutable prop placement and no door state.
+message CellsRevealed {
+  // Each region with newly known cells, carrying ONLY those cells, in the same
+  // absolute frame and comparator as AtlasRegion.cells. PARTIAL, NOT WHOLE:
+  // merge by region id with a union of cells, never by replacement. A region's
+  // name, archetype and lighting arrive with its first known cell and are
+  // repeated unchanged on later beats.
+  repeated AtlasRegion regions = 1;
+  // The props on the newly known cells, exactly as GetAtlasResponse.props
+  // would carry them.
+  repeated AtlasProp props = 2;
+  // Every boundary that touches a newly known cell and that this recipient's
+  // GetAtlas withheld before the pass, exactly as GetAtlasResponse.boundaries
+  // would carry them. A boundary touching only unknown cells is absent.
+  repeated AtlasBoundary boundaries = 3;
+  // Authored wall segments newly permitted by the pass, exactly as
+  // GetAtlasResponse.segments would carry them now. Presentation only, like
+  // their GetAtlasResponse twin; `boundaries` stays the mechanical truth.
+  repeated AtlasSegment segments = 4;
+  // The newly known cells nobody can stand on. A subset of the cells carried
+  // in `regions` and `scenery`, never additional undisclosed floor. Same
+  // meaning as RegionRevealed.sealed.
+  repeated Position sealed = 5;
+  // Fixed doorway crossings newly presented by the pass, without live door
+  // state. A doorway is presented once any of its edge cells is known.
+  repeated AtlasDoorway doorways = 6;
+  // Fixed footprint scenery newly known; mutable footprints are PropSightings.
+  repeated AtlasPlacedProp placed = 7;
+  // Exits on newly known cells, not undiscovered exits elsewhere.
+  repeated AtlasExit exits = 8;
+  // Newly known unowned floor, such as wall footing. Add it to atlas cells,
+  // not to any region's cells. Same meaning as RegionRevealed.scenery.
+  repeated Position scenery = 9;
+  // Complete recipient-permitted structural records, upserted by identity,
+  // with the same semantics as RegionRevealed fields 10–12. Empty means no
+  // changes, not deletion of previously known structures.
+  repeated AtlasStructuralWall structural_walls = 10;
+  repeated AtlasStructuralDoor structural_doors = 11;
+  // Atomic with the introductions above, as RegionRevealed field 12. Do not
+  // send both a full wall and a replacement for its ID in one event.
+  repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
+  // Full introductions/upserts of newly permitted fixed prop render records,
+  // keyed by id, as RegionRevealed field 13. Absence is no addition, never a
+  // collection clear.
   repeated PropPresentation prop_presentations = 13;
 }
 

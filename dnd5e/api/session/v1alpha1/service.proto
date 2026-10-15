@@ -1282,6 +1282,19 @@ message GetViewResponse {
   // Latest observed door states, including remembered states. Fixed doorway
   // geometry alone does not make an unobserved state known.
   repeated DoorSighting doors = 4;
+  // The cells this authenticated member's seat sees NOW (rpg-project#586). A
+  // subset of this member's GetAtlasResponse.cells, sorted by the same
+  // comparator as AtlasRegion.cells, never including a cell concealed from it.
+  // Empty means it sees nothing now, such as an unplaced member.
+  //
+  // PER SEAT, NEVER A PARTY UNION. Another member's sight never widens this
+  // list, so two seats in one encounter draw different lit hexes.
+  //
+  // DERIVED ON READ, NEVER STORED. The server answers it from the same sight
+  // test that teaches cells, at the moment of the read. A known atlas cell
+  // absent from this list is remembered, not seen; a client draws the two
+  // differently and computes no visibility of its own.
+  repeated Position visible_cells = 5;
 }
 
 // GetWhereRequest asks where one member stands.
@@ -1348,12 +1361,18 @@ message GetAtlasRequest {
 
 // GetAtlasResponse mirrors session.Atlas.
 //
-// FIXED DATA FROM THIS MEMBER'S KNOWN ROOMS, unchanged once revealed within
-// the first slice. Full room geometry is supplied even behind internal LOS
-// obstructions. Unknown rooms remain absent; movable/holdable props and door
-// state are GetView's observation answer, not fixed atlas records. The builder's
-// author view may contain the complete atlas, separately from player delivery.
-// Concealed structure additionally preserves the existing absence law:
+// FIXED DATA FOR THE CELLS THIS MEMBER HAS LEARNED, per cell, not per room
+// (rpg-project#586). A member learns the cells its sight reaches; a room it has
+// partly seen contributes only those cells. Unknown cells are absent, and so is
+// every wall, door, boundary, segment and placement that touches only unknown
+// cells: an AtlasRegion carries only its known cells, and a doorway is present
+// once any of its edge cells is known. Room geometry behind an obstruction is
+// not supplied until a cell of it is learned. Known cells stay known after
+// sight leaves them; GetViewResponse.visible_cells says which are seen now.
+// Movable/holdable props and door state are GetView's observation answer, not
+// fixed atlas records. The builder's author view may contain the complete
+// atlas, separately from player delivery. Concealed structure additionally
+// preserves the existing absence law:
 //
 //   - ABSENT FROM EVERY DOOR-LIST: a concealed unfound door's
 //     AtlasDoorway entries do not appear in `doorways`, nor its DoorInfo
@@ -1370,9 +1389,9 @@ message GetAtlasRequest {
 //     concealed door IS a wall until found. At a concealed region's
 //     border NO mask applies — see the third half.
 //   - THE ROOM HIDES WITH ITS DOOR, BY THE NEVER-AUTHORED YARDSTICK
-//     (ruled on rpg-project#351, refined in review round 3: client fog
-//     does not hide unexplored space, so the map itself must keep the
-//     secret). A non-knower's answer is BYTE-IDENTICAL to an atlas in
+//     (ruled on rpg-project#351, refined in review round 3: the map
+//     itself must keep the secret, never the client's drawing of it). A
+//     non-knower's answer is BYTE-IDENTICAL to an atlas in
 //     which the concealed region was never authored: its cells withheld
 //     from `cells`, its AtlasRegion from `regions`, its props from
 //     `props`, and EVERY boundary touching its cells from `boundaries` —
@@ -1391,11 +1410,12 @@ message GetAtlasRequest {
 //
 // That is rpg-api-protos#266 — rpg-toolkit#1020's shelf coming due for
 // doors, per the standing ruling that detection beats are per-player from
-// birth. Ordinary unknown rooms are also absent from player delivery.
+// birth. Ordinary unknown cells are also absent from player delivery.
 //
 // Hydrate through GetKnowledge (or this member-scoped atlas read), retain the
-// fixed records and merge newly known room data from ROOM_REVEALED. No atlas
-// refetch is needed for ordinary room revelation or mutable observation updates.
+// fixed records and merge newly known cells from CELLS_REVEALED, uniting each
+// region's cells by id. No atlas refetch is needed for ordinary discovery or
+// mutable observation updates.
 //
 // The builder's PutDungeon answers with this same message as the AUTHOR'S
 // view — an all-knowing member's, since an author already knows
@@ -1434,7 +1454,7 @@ message GetAtlasResponse {
   // map that still came out room-by-room would be the old shape wearing a new
   // type.
   repeated Position cells = 4;
-  // Fixed cell scenery in known rooms. Movable/holdable props use GetView.props,
+  // Fixed cell scenery on known cells. Movable/holdable props use GetView.props,
   // not this list; an unseen pickup must not remove another observer's memory.
   // Reuses AtlasProp's resolved shape and blocking answers.
   repeated AtlasProp props = 7;
@@ -2424,8 +2444,8 @@ service SessionService {
   // the cells of members the client has never perceived.
   rpc GetWhere(GetWhereRequest) returns (GetWhereResponse);
 
-  // GetAtlas returns fixed geometry from this member's known rooms. Cache the
-  // records and merge newly known fixed room data from ROOM_REVEALED.
+  // GetAtlas returns fixed geometry for this member's known cells. Cache the
+  // records and merge newly known cells from CELLS_REVEALED.
   rpc GetAtlas(GetAtlasRequest) returns (GetAtlasResponse);
 
   // GetRoster reports public identity/appearance for self and known creatures,

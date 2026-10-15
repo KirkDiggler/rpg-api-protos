@@ -1630,8 +1630,10 @@ message RegionRevealed {
 // pass, less what it answered before. Applying the beat to the cached atlas
 // leaves it equal to a fresh GetAtlas on these fixed records. Replay is
 // idempotent: records already held stay the same and nothing is duplicated.
-// Shared boundary geometry may appear in more than one beat as its cells
-// arrive. It carries no mutable prop placement and no door state.
+// Records are upserted by identity: a region by id with its cells unioned; a
+// wall, door, opening, placed thing or prop presentation by its id, later
+// beats replacing earlier ones; so a boundary shared by two cells is sent once
+// and never duplicated. It carries no mutable prop placement and no door state.
 message CellsRevealed {
   // Each region with newly known cells, carrying ONLY those cells, in the same
   // absolute frame and comparator as AtlasRegion.cells. PARTIAL, NOT WHOLE:

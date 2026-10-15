@@ -2082,6 +2082,14 @@ message AtlasStructuralWall {
   // whole: no id, position, width or placeholder marks the secret. A known
   // doorway remains a cut even when its mutable state has not been observed.
   repeated AtlasStructuralOpening openings = 8;
+  // The floor cells this wall's blocker footprint overlaps by positive area,
+  // in order along the wall from `from` to `to`. Every such cell is listed
+  // whether or not the recipient knows it: this is the wall's geometry, and the
+  // recipient's knowledge of each cell is carried by the atlas cells. The client
+  // grades the wall's drawn stretches by the knowledge state of these cells and
+  // never re-derives them from the line. Empty from a producer that predates
+  // this field.
+  repeated Position footprint_cells = 9;
 }
 
 // AtlasStructuralOpening is a permitted cut, without door state or private

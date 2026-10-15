@@ -96,7 +96,8 @@ message StartEncounterRequest {
   // from. Empty uses the server's existing caller -> env -> default
   // precedence (rpg-api's lobby orchestrator,
   // StartEncounterInput.DungeonKey) -- additive, every existing caller
-  // is unaffected.
+  // is unaffected. The key resolves in the host's world, then shipped
+  // (rpg-project#585), so the party plays the bytes the host's world holds.
   string dungeon_key = 2;
 }
 
@@ -173,14 +174,40 @@ message GetMyActiveLobbyResponse {
 }
 
 // ListDungeonsRequest has no fields -- ListDungeons returns every dungeon
-// key + display name the server can StartEncounter from.
+// key + display name the caller can StartEncounter from. No world field
+// either, and none is coming: the world is the one the auth boundary
+// verified for the request, never something a client names (rpg-project#585).
 message ListDungeonsRequest {}
 
-// DungeonSummary is one authored dungeon's key + display name, as seen by
-// the lobby dropdown.
+// DungeonSource says which store a listed dungeon lives in. It answers
+// WHERE, never WHOSE: ownership is read from DungeonSummary.owner, and a
+// client that took WORLD to mean "mine" would offer Rename and Delete on
+// another member's encounter.
+enum DungeonSource {
+  DUNGEON_SOURCE_UNSPECIFIED = 0;
+  // A reference the server ships. Read-only: it is opened as a copy and
+  // saved under the author's own key; it is never renamed or deleted.
+  DUNGEON_SOURCE_SHIPPED = 1;
+  // A record in the caller's world store. `owner` says whose.
+  DUNGEON_SOURCE_WORLD = 2;
+}
+
+// DungeonSummary is one dungeon's key + display name, and where it lives, as
+// seen by the lobby dropdown and the studio's Open panel. One message for
+// both lists (AuthoringService.ListDungeons repeats it), so the two cannot
+// drift.
 message DungeonSummary {
+  // Unique within the caller's world. A reference whose key the world also
+  // holds is not listed: the world's record is the one that key resolves to.
   string key = 1;
   string name = 2;
+  // Which store the key resolved in. UNSPECIFIED is only ever a server that
+  // predates this field.
+  DungeonSource source = 3;
+  // The owning player id for a WORLD record; empty for a SHIPPED one. A
+  // client marks its own by comparing this to its own player id, and shows
+  // it for everyone else's.
+  string owner = 4;
 }
 
 message ListDungeonsResponse {
@@ -232,9 +259,17 @@ service LobbyService {
   // lobby is STARTED and the encounter has been verified still live.
   rpc GetMyActiveLobby(GetMyActiveLobbyRequest) returns (GetMyActiveLobbyResponse);
 
-  // ListDungeons returns every dungeon key + display name the server
-  // can StartEncounter from. NOT behind the authoring gate -- reads
-  // content, mutates nothing; the lobby dropdown needs this with
-  // authoring off (design.md's post-approval correction, 2026-07-30).
+  // ListDungeons returns every dungeon key + display name the caller
+  // can StartEncounter from, for the caller: every record in the caller's
+  // world sorted by key (source WORLD, owner set; the caller's own among
+  // them, and every other member's, so a host can launch any of them), then
+  // the References sorted by key (source SHIPPED, owner empty). A reference
+  // whose key the world holds is left out, and so is every shipped file
+  // below the single-room dialect (root `version: 3`). A request with no
+  // trusted world is FailedPrecondition "trusted world context is required".
+  //
+  // NOT behind the authoring gate -- reads content, mutates nothing; the
+  // lobby dropdown needs this with authoring off (design.md's post-approval
+  // correction, 2026-07-30).
   rpc ListDungeons(ListDungeonsRequest) returns (ListDungeonsResponse);
 }

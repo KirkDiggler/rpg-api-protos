@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package dnd5e.api.authoring.v1alpha1;
 
+import "dnd5e/api/lobby/v1alpha1/service.proto";
 import "dnd5e/api/session/v1alpha1/service.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/authoring/v1alpha1;authoringpb";
@@ -25,13 +26,42 @@ option java_package = "com.kirkdiggler.rpg.api.dnd5e.authoring.v1alpha1";
 // a malformed REQUEST is a gRPC status, a file that fails to COMPILE is a
 // body. See PutDungeonRequest.
 //
-// There is no DeleteDungeon. Not now: nothing in the builder's first loop
-// (draw, validate, save, play, reopen) deletes, and an RPC with no caller is
-// the Rule 4 violation this repo is still paying down elsewhere.
+// ListDungeons, DeleteDungeon and RenameDungeon were deliberately absent
+// while nothing in the builder's loop (draw, validate, save, play, reopen)
+// listed, deleted or renamed — an RPC with no caller is the Rule 4 violation
+// this repo is still paying down elsewhere. The studio's Open panel is their
+// caller (rpg-project#585): it lists what the author can open, and renames
+// and deletes the author's own.
+//
+// TWO STORES, ONE WORLD (rpg-project#585, design R20–R24). Every dungeon RPC
+// here acts for the caller in the caller's world — the one the auth boundary
+// verified for the request, never a request field. Writes land only in that
+// world's store, each record owned by the caller's player id; the server's
+// shipped references are read-only. A key is unique within a world and
+// resolves world store first, then shipped. A request with no trusted world
+// is FailedPrecondition "trusted world context is required".
+//
+// The refusal sentences below are the status messages, verbatim: a client
+// shows them where the author is looking (the key field, the panel row), so
+// they are part of the contract.
 service AuthoringService {
   // PutDungeon compiles a dungeon file and, unless validate_only, stores it
-  // under its key so StartEncounter can find it. Either way it answers with
-  // the compiled atlas — the same GetAtlasResponse the game plays from.
+  // under its key in the caller's world store, owned by the caller, so
+  // StartEncounter can find it. Either way it answers with the compiled atlas
+  // — the same GetAtlasResponse the game plays from. It never writes a
+  // shipped reference.
+  //
+  // Under a key the caller already owns in the world it replaces the record
+  // (the overwrite case). Two refusals, for validate_only too and with
+  // nothing written, so the per-edit preview surfaces them at the key field
+  // before a save is attempted:
+  //
+  //   - another member of the world owns the key: PermissionDenied
+  //     "that key belongs to another member of this world"
+  //   - the key names a shipped reference: PermissionDenied
+  //     "that key is a reference; save it under your own key"
+  //
+  // An author who opened a reference saves a copy under a key of their own.
   //
   // Gated server-side by RPG_AUTHORING_ENABLED: with the gate off the RPC is
   // not registered and callers see Unimplemented, which is how a client tells
@@ -39,8 +69,53 @@ service AuthoringService {
   // not here.
   rpc PutDungeon(PutDungeonRequest) returns (PutDungeonResponse);
   // GetDungeon returns the stored file for a key so an author can reopen it.
+  // The key resolves for the caller: their world store, then shipped — any
+  // member's record in the world, since every member opens and plays them.
   // Unknown key is NotFound. Ungated: reading content mutates nothing.
   rpc GetDungeon(GetDungeonRequest) returns (GetDungeonResponse);
+  // ListDungeons is the studio Open panel's list, the same answer and order
+  // as LobbyService.ListDungeons for the same caller: every record in the
+  // caller's world sorted by key (source WORLD, owner set), then the
+  // References sorted by key (source SHIPPED, owner empty). A reference whose
+  // key the world holds is left out, and so is every shipped file below the
+  // single-room dialect (root `version: 3`), which the studio cannot open.
+  //
+  // Ownership is read from `owner`, never from `source`: a WORLD row may be
+  // another member's, and only the owner renames or deletes it. Ungated, for
+  // GetDungeon's reason: it reads and mutates nothing.
+  rpc ListDungeons(ListDungeonsRequest) returns (ListDungeonsResponse);
+  // DeleteDungeon removes one of the caller's own records from the world
+  // store. Refusals:
+  //
+  //   - another member owns the key: PermissionDenied
+  //     "that key belongs to another member of this world"
+  //   - the key is a shipped reference not held in the world:
+  //     PermissionDenied
+  //     "that key is a reference; references cannot be renamed or deleted"
+  //   - no record or reference has the key: NotFound
+  //
+  // Gated by RPG_AUTHORING_ENABLED, as PutDungeon: it writes.
+  rpc DeleteDungeon(DeleteDungeonRequest) returns (DeleteDungeonResponse);
+  // RenameDungeon moves one of the caller's own records from `key` to
+  // `new_key`, atomically, and rewrites the file's one root-level `key:`
+  // line to `new_key` so the file still names itself. Every other byte, and
+  // the owner, are unchanged. Refusals, nothing moved:
+  //
+  //   - `new_key` outside the key grammar `[a-z0-9-]`: InvalidArgument
+  //   - `new_key` equal to `key`, or already one of the caller's records:
+  //     AlreadyExists "new key already names one of your encounters"
+  //   - `new_key` owned by another member: PermissionDenied
+  //     "that key belongs to another member of this world"
+  //   - `new_key` a shipped reference: PermissionDenied
+  //     "that key is a reference; save it under your own key"
+  //   - `key` owned by another member: PermissionDenied
+  //     "that key belongs to another member of this world"
+  //   - `key` a shipped reference not held in the world: PermissionDenied
+  //     "that key is a reference; references cannot be renamed or deleted"
+  //   - no record or reference has `key`: NotFound
+  //
+  // Gated by RPG_AUTHORING_ENABLED, as PutDungeon: it writes.
+  rpc RenameDungeon(RenameDungeonRequest) returns (RenameDungeonResponse);
   // ListScenarios reports every scenario a dungeon may be bound to, and the
   // form each one needs filled in. Ungated, for GetDungeon's reason: it
   // reads a registry and mutates nothing.
@@ -130,6 +205,37 @@ message GetDungeonResponse {
   // model would hand back its opinion of the file instead of the file.
   string yaml = 1;
 }
+
+// ListDungeonsRequest has no fields: the caller and their world come from
+// the verified request identity, never from the request.
+message ListDungeonsRequest {}
+
+// ListDungeonsResponse is the caller's list, in the server's order (see
+// AuthoringService.ListDungeons). It repeats the lobby's DungeonSummary
+// rather than copying it, so the studio and the lobby picker read one shape.
+message ListDungeonsResponse {
+  repeated dnd5e.api.lobby.v1alpha1.DungeonSummary dungeons = 1;
+}
+
+// DeleteDungeonRequest names one of the caller's own records by key.
+message DeleteDungeonRequest {
+  string key = 1;
+}
+
+// DeleteDungeonResponse is empty: OK means the record is gone.
+message DeleteDungeonResponse {}
+
+// RenameDungeonRequest moves one of the caller's own records to a new key.
+message RenameDungeonRequest {
+  // The record's current key, in the caller's world.
+  string key = 1;
+  // The key it moves to. Same grammar as PutDungeonRequest.key.
+  string new_key = 2;
+}
+
+// RenameDungeonResponse is empty: OK means the record now lives under
+// `new_key`, and `key` names nothing in the world.
+message RenameDungeonResponse {}
 
 // ListScenariosRequest asks for the whole registry. No fields, and none are
 // coming: the set of scenarios is a property of the SERVER'S rulebook build,

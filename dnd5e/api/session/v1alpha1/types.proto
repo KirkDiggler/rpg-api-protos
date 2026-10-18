@@ -886,8 +886,25 @@ message Seen {
   // keeps the position and the equipment — a ghost must not disclose a turn it
   // never witnessed.
   //
+  // THE FRAME IS THE PLANE'S, NOT POSITION'S. Position is an axial q/r cell,
+  // and no axial axis points due north, so north is named on the planar frame
+  // FootprintPoint measures in, where +X is east and +Y is south (see
+  // FootprintPlacement.facing: 0 is east, positive 90 points south). Map north
+  // is that plane's -Y: 0 is -Y, 90 is +X (east), 180 is +Y (south), 270 is
+  // -X (west).
+  //
+  // A COMPASS BEARING, NOT PropPresentation's ANGLE. PropPresentation's
+  // facing_degrees and FootprintPlacement.facing measure from +X toward +Y,
+  // so 0 there is east. The same direction converts as
+  // plane_degrees = (facing_degrees - 90) mod 360. The two frames differ on
+  // purpose: this one is the rules bearing cones read (rpg-project
+  // ideas/sneaking design R13), that one is the renderer's placement angle.
+  //
+  // Double, not float, because the engine holds facing as float64 and float32
+  // rounds a bearing just under 360 up to 360, outside [0, 360).
+  //
   // Absent means the testimony predates facing; it is not "facing north".
-  optional float facing_degrees = 4;
+  optional double facing_degrees = 4;
 }
 
 // SeenEquipment is what a subject was observed holding, as one observer saw it.

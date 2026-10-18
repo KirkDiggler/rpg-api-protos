@@ -1269,9 +1269,13 @@ message SetSneakingRequest {
   optional bool sneaking = 3;
 }
 
-// SetSneakingResponse is the mode as the server now holds it.
+// SetSneakingResponse is the mode as the server now holds it, with the save
+// and delivery reports of the write: the verb persists encounter state and
+// refreshes sight, as SetDiscoverySharing persists and delivers.
 message SetSneakingResponse {
   bool sneaking = 1;
+  SaveReport saved = 2;
+  DeliveryReport delivery = 3;
 }
 
 // GetViewRequest asks what one member currently perceives.

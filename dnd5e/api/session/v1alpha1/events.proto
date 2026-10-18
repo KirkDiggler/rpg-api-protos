@@ -2266,8 +2266,11 @@ message Heard {
 }
 
 // Snuck: a sneaking mover was judged against one watcher (EVENT_KIND_SNUCK,
-// rpg-project#606). A roll happens when the mover's cell passes into the
-// watcher's zone while the pair is armed; this beat is that roll, whole.
+// rpg-project#606). A roll happens when, between two sight refreshes, the
+// sneaking mover's cell passes from outside the watcher's zone to inside it
+// while the pair is armed. Either party's move produces that entry: the
+// mover's step, the watcher's walk or turn, or a change in the geometry such
+// as a door opening. This beat is that roll, whole.
 //
 // RECIPIENT-SCOPED TO THE MOVER (R12). One beat per judged pair, delivered
 // only to the mover's stream. The roll is the mover's to see; no other seat

@@ -1326,6 +1326,29 @@ message GetViewResponse {
   // client reads it here and keeps no flag of its own. Always this member's
   // own mode, never another member's.
   bool sneaking = 6;
+  // The red zones this authenticated member must avoid while sneaking
+  // (rpg-project#619, sneaking R15). PRESENT ONLY WHILE THIS MEMBER IS
+  // SNEAKING: a member who is not sneaking is sent none.
+  //
+  // One zone per watcher this member holds live, meaning a watcher it sees
+  // now. Each zone's cells are a subset of this member's
+  // GetAtlasResponse.cells, sorted by the same comparator as visible_cells.
+  //
+  // DERIVED BY THE SERVER, NEVER BY THE CLIENT. The client computes no zone,
+  // line of sight or cone of its own (fog-of-war R5); it draws what it is sent.
+  repeated WatchZone watch_zones = 7;
+}
+
+// WatchZone is one watcher's red zone as sent to a sneaking viewer
+// (rpg-project#619, sneaking design R15): the cells the watcher's sight would
+// reach, intersected with the viewer's known unconcealed cells. It never names
+// a cell the viewer does not know or one concealed from it.
+message WatchZone {
+  // The watcher whose sight this zone describes.
+  string watcher = 1;
+  // The cells of the zone, sorted by the same comparator as
+  // GetViewResponse.visible_cells.
+  repeated Position cells = 2;
 }
 
 // GetWhereRequest asks where one member stands.

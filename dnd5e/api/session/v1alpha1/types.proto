@@ -879,6 +879,15 @@ message Seen {
   // for the same reason session.CastProfile makes concentration a pointer
   // rather than a bool beside a duration (rpg-toolkit#1615).
   SeenEquipment equipment = 3;
+  // Which way the sighted subject was observed facing: a bearing in degrees,
+  // 0 is map north, increasing clockwise, in [0, 360). Sight-channel
+  // knowledge, so it belongs here rather than on Sighting (ADR-0041's rule).
+  // A memory (current_via empty) keeps the facing it last saw, exactly as it
+  // keeps the position and the equipment — a ghost must not disclose a turn it
+  // never witnessed.
+  //
+  // Absent means the testimony predates facing; it is not "facing north".
+  optional float facing_degrees = 4;
 }
 
 // SeenEquipment is what a subject was observed holding, as one observer saw it.

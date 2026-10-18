@@ -1252,6 +1252,28 @@ message SetDiscoverySharingResponse {
   DeliveryReport delivery = 3;
 }
 
+// SetSneaking sets or clears sneaking on one seated character (rpg-project#606,
+// sneaking R6). A mode the player declares, on the world clock only; it spends
+// no time. Setting it refreshes sight, so the declaration is judged at once:
+// any roll it causes arrives as a SNUCK beat on the mover's own stream, never
+// in this response.
+//
+// DECLARING THE MODE ALREADY HELD IS A NO-OP: no roll, no re-arm, no sight
+// refresh, no beat. A monster never sneaks. The mode is encounter state the
+// server holds; a client never keeps its own flag.
+message SetSneakingRequest {
+  string session = 1;
+  // The seated character declaring the mode.
+  string member = 2;
+  // Required presence, including when clearing the mode.
+  optional bool sneaking = 3;
+}
+
+// SetSneakingResponse is the mode as the server now holds it.
+message SetSneakingResponse {
+  bool sneaking = 1;
+}
+
 // GetViewRequest asks what one member currently perceives.
 message GetViewRequest {
   string session = 1;
@@ -1295,6 +1317,11 @@ message GetViewResponse {
   // absent from this list is remembered, not seen; a client draws the two
   // differently and computes no visibility of its own.
   repeated Position visible_cells = 5;
+  // Whether this authenticated member is sneaking now (rpg-project#606,
+  // sneaking R6). Encounter state the server holds and SetSneaking sets; the
+  // client reads it here and keeps no flag of its own. Always this member's
+  // own mode, never another member's.
+  bool sneaking = 6;
 }
 
 // GetWhereRequest asks where one member stands.
@@ -2291,6 +2318,11 @@ service SessionService {
 
   // Caller must control this exact seated character.
   rpc SetDiscoverySharing(SetDiscoverySharingRequest) returns (SetDiscoverySharingResponse);
+
+  // SetSneaking declares or clears sneaking on one seated character
+  // (rpg-project#606, sneaking R6). World clock only; spends no time. Caller
+  // must control this exact seated character.
+  rpc SetSneaking(SetSneakingRequest) returns (SetSneakingResponse);
 
   // Interact reaches for a placed world NPC and reports what it is — identity,
   // capabilities, and resolved vendor stock if it has any. Placement itself

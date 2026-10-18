@@ -485,6 +485,12 @@ enum EventKind {
   // see CellsRevealed. Mutable subjects and door state are still learned
   // through observation (Sighted/GetView).
   EVENT_KIND_CELLS_REVEALED = 47;
+  // A sneaking mover was judged against one watcher (rpg-project#606,
+  // sneaking R12). Recipient-scoped: only the mover's client receives it, one
+  // beat per judged (mover, watcher) pair. Carries the Stealth roll against
+  // the watcher's passive Perception and whether it beat it. Names the
+  // watcher only when the mover sees it; see Snuck.
+  EVENT_KIND_SNUCK = 48;
 
   // A beat the producing toolkit version does not recognise. See the enum
   // comment: deliberately delivered, and NOT the same as UNSPECIFIED.
@@ -623,6 +629,7 @@ message Event {
     Spoke spoke = 51;
     Heard heard = 52;
     CellsRevealed cells_revealed = 53;
+    Snuck snuck = 54;
   }
 }
 
@@ -2256,6 +2263,39 @@ message Heard {
   // The region distance the sound crossed to reach the listener. 0 means
   // the same room.
   int32 hops = 4;
+}
+
+// Snuck: a sneaking mover was judged against one watcher (EVENT_KIND_SNUCK,
+// rpg-project#606). A roll happens when, between two sight refreshes, the
+// sneaking mover's cell passes from outside the watcher's zone to inside it
+// while the pair is armed. Either party's move produces that entry: the
+// mover's step, the watcher's walk or turn, or a change in the geometry such
+// as a door opening. This beat is that roll, whole.
+//
+// RECIPIENT-SCOPED TO THE MOVER (R12). One beat per judged pair, delivered
+// only to the mover's stream. The roll is the mover's to see; no other seat
+// learns a sneak was rolled.
+//
+// NAMES ONLY A WATCHER THE MOVER SEES (R12). `watcher` is empty when the
+// mover does not hold that watcher live at the judging refresh. A beat that
+// named an unseen creature would hand the client an identity its eyes never
+// gave it, so empty is "a watcher you cannot see", never a producer defect.
+message Snuck {
+  // The sneaking member who rolled. A member id; always the recipient.
+  string member = 1;
+  // The watcher the roll was against, a member id — or empty when the mover
+  // does not see that watcher.
+  string watcher = 2;
+  // The difficulty the roll was against: the watcher's passive Perception.
+  int32 dc = 3;
+  // The mover's Stealth total, as the producing rulebook asserts it. The same
+  // value as calculation.total.
+  int32 total = 4;
+  // Whether the roll beat the DC. The rulebook's verdict, carried; a client
+  // never compares total to dc itself.
+  bool beaten = 5;
+  // The ordered inputs to the roll.
+  RollCalculation calculation = 6;
 }
 
 // AnswerWord is WHAT A CREATURE DID when the world rolled the author's answer

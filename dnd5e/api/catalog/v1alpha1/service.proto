@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package dnd5e.api.catalog.v1alpha1;
+
+// CatalogService describes rulebook content without a character or an action
+// offer. Reading an entry grants no access, equipment or execution permission.
+service CatalogService {
+  // ListCatalog returns the complete weapon/spell catalog supported by this
+  // read surface. Selection eligibility remains with character requirements;
+  // current execution availability remains with session declarations.
+  rpc ListCatalog(ListCatalogRequest) returns (ListCatalogResponse);
+}
+
+// ListCatalogRequest has no actor, turn or affordability input.
+message ListCatalogRequest {}
+
+// ListCatalogResponse is an ordered, complete snapshot of catalog entries.
+// Clients join choices by canonical ref; they need not guess spell levels or
+// weapon categories to discover the catalog. This bounded content read is not
+// paginated. A failed provider projection fails the read rather than silently
+// omitting an entry.
+message ListCatalogResponse {
+  repeated CatalogEntry entries = 1;
+}
+
+// CatalogEntry contains authored identity/prose and provider-projected base
+// information. It contains no character-specific modifier or action selector.
+message CatalogEntry {
+  // Canonical content ref, e.g. dnd5e:spells:bless or dnd5e:weapons:longsword.
+  string ref = 1;
+  string name = 2;
+  string description = 3;
+
+  // Ordered display facts derived by the rulebook. These are a read projection,
+  // not an executable rule format; clients render the values without parsing
+  // formulas, deriving rules or manufacturing missing facts.
+  repeated CatalogFact facts = 4;
+
+  // Exactly one content kind is present.
+  oneof content {
+    SpellCatalogInfo spell = 5;
+    WeaponCatalogInfo weapon = 6;
+  }
+}
+
+// CatalogFact is one named piece of base information such as range, damage,
+// casting time or concentration. Labels and values are authored by the provider.
+message CatalogFact {
+  // Stable within this entry; for rendering identity, never game-rule branching.
+  string key = 1;
+  string label = 2;
+  string value = 3;
+}
+
+// SpellCatalogInfo describes content coverage, not this character's spell access.
+message SpellCatalogInfo {
+  // Zero is a cantrip, not an unknown value.
+  int32 level = 1;
+  // Whether this build has executable cast content for the spell. False does
+  // not prevent reading its catalog description. True does not grant a cast.
+  bool has_cast_profile = 2;
+  // Existing provider-authored catalog-only selection/grant metadata. This is
+  // not inferred by negating has_cast_profile and is not a selection authority.
+  bool not_yet_implemented = 3;
+}
+
+// WeaponCatalogInfo identifies the provider-authored weapon category. Equipped
+// grip, attack ability, proficiency and live effects belong to a character read.
+message WeaponCatalogInfo {
+  string category = 1;
+}

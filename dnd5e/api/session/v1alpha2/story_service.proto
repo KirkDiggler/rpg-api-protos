@@ -46,8 +46,11 @@ message StreamEventsResponse {
 // same-id run. last_id names the last id whose WHOLE run was delivered on this
 // stream, so catching up after it loses nothing and repeats nothing. When
 // nothing was delivered on this stream it is the request's `after_id`: the
-// resume point the subscriber already holds, never empty-as-start, which would
-// re-read the whole run.
+// resume point the subscriber already holds. ONE EXCEPTION: on a stream that
+// opened with `restarted`, a lag before any whole run was delivered names an
+// empty last_id, because the request's `after_id` is older than retention;
+// catching up after "" reads from the oldest retained beat, the replay
+// `restarted` already began.
 message StoryLagged {
   string last_id = 1;
 }

@@ -40,7 +40,7 @@ message Act {
   // and resuming after the id skips them all. StreamEvents closes a lagging
   // subscriber, and GetStory ends a page, only between two ids, never inside
   // a same-id run; cutting inside one would lose the rest of it with no
-  // signal (R28). Acts that share only an act tag (`act`), such as a line and
+  // signal (R28). The last act of every run carries `run_end`. Acts that share only an act tag (`act`), such as a line and
   // its own table answer, are separate entries with their own ids.
   string id = 2;
 
@@ -72,6 +72,13 @@ message Act {
 
   // refusal is why the act was refused; empty unless `refused`.
   string refusal = 9;
+
+  // run_end is true on the LAST act of a same-id run (see `id`), and on every
+  // act that is a run of one. The producer knows the unit, so it marks it: a
+  // transport may cut — end a page, close a lagging stream — only after an act
+  // with run_end, and a client closes a live run when it sees one, never on a
+  // timer or on the next id.
+  bool run_end = 10;
 
   // body is the family's typed body: one of the act bodies for FAMILY_ACT and
   // FAMILY_REACTION, and table_answer, state, perception or clock for the
@@ -178,6 +185,31 @@ message Roll {
   // with its source, in the order the rulebook recorded them (R17: a roll
   // carries its sources). Empty when nothing granted or imposed either.
   repeated RollInfluence influences = 8;
+
+  // terms are the roll's dice pools, one per pool the rulebook rolled, in
+  // calculation order, each with the source that brought it: the attack's own
+  // d20, Bless's +1d4, Bane's -1d4. `dice` is these terms' kept faces
+  // concatenated. Empty when the beat carried no calculation.
+  repeated RollDiceTerm terms = 9;
+}
+
+// RollDiceTerm is one dice pool of a roll and the source that brought it.
+message RollDiceTerm {
+  // count and die_size are the pool as rolled: 1 and 4 for a 1d4.
+  int32 count = 1;
+  int32 die_size = 2;
+  // faces are the faces that counted, in order; a face a keep rule discarded
+  // is not here.
+  repeated int32 faces = 3;
+  // subtract is true when the pool is taken from the total (Bane's -1d4).
+  bool subtract = 4;
+  // source_ref is the source's full ref ("dnd5e:spells:bless"), verbatim.
+  string source_ref = 5;
+  // source_name is the source's display name ("Bless").
+  string source_name = 6;
+  // source_id is the entity the source belongs to, when the rulebook named
+  // one; empty otherwise.
+  string source_id = 7;
 }
 
 // InfluenceKind is whether a source granted advantage or imposed
@@ -196,6 +228,8 @@ message RollInfluence {
   // source_id is the entity the source belongs to, when the rulebook named
   // one; empty otherwise.
   string source_id = 3;
+  // name is the source's display name ("Prone"), as the rulebook recorded it.
+  string name = 4;
 }
 
 // DamageType is the rulebook's closed set of thirteen damage types.

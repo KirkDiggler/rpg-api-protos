@@ -12,7 +12,9 @@ import "dnd5e/api/session/v1alpha2/record.proto";
 // The stream CATCHES UP, THEN GOES LIVE. It first delivers every retained
 // beat with an id after `after_id`, then every beat written from then on,
 // each exactly once and in id order. An empty `after_id` replays from the
-// oldest retained beat. There is no seq range (R12).
+// oldest retained beat. An `after_id` older than retention is answered with
+// `restarted` as the FIRST message, then a replay from the oldest retained
+// beat: the subscriber replaces what it holds. There is no seq range (R12).
 message StreamRecordRequest {
   string session = 1;
   string member = 2;
@@ -23,18 +25,25 @@ message StreamRecordRequest {
 //
 // `lagged` is ALWAYS THE LAST MESSAGE when it appears: the server ends the
 // stream after sending it, and the subscriber catches up from
-// RecordLagged.last_id (R28).
+// RecordLagged.last_id (R28). `restarted` is ALWAYS THE FIRST MESSAGE when it
+// appears (see StreamRecordRequest).
 message StreamRecordResponse {
   oneof item {
     RecordEvent event = 1;
     RecordLagged lagged = 2;
+    RecordRestarted restarted = 3;
   }
 }
 
 // GetRecordRequest reads the retained record after an id: the catch-up read
 // beside the stream, so the debug panel keeps its history on reconnect and
 // after a lag (R15). `member` is the seat gate, as on StreamRecordRequest.
-// `limit` caps the events returned; zero or less means no cap.
+//
+// PAGING IS KEYSET, on the id. `limit` caps the events one read returns. To
+// read everything after an id, repeat with `after_id` set to the last
+// returned event's id until a page returns fewer than `limit` events: that
+// short page is the end. A `limit` of zero or less returns every retained
+// event after `after_id` in one page.
 message GetRecordRequest {
   string session = 1;
   string member = 2;

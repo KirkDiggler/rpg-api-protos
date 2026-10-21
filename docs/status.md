@@ -22,7 +22,9 @@ shape and consumer drift, it shows up here as a "rough edge."
   act, beat, fields as `google.protobuf.Struct`). Not per recipient: every
   seated client receives the whole record before release (R13, R26). The id is
   a ULID-style ordering key, never a counter (R27); a subscriber that falls
-  behind gets a final `lagged` message and catches up with GetRecord (R28).
+  behind gets a final `lagged` message and catches up with GetRecord (R28); a
+  resume from an id older than retention opens with a `restarted` message
+  (R25). GetRecord pages by keyset on the id: a short page is the end.
   Additive only: v1alpha1 is untouched.
 
 - **Room revelation and mutable observations (rpg-project#508 / design #509)** —

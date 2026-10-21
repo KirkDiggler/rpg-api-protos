@@ -59,3 +59,11 @@ message RecordLagged {
   // ended; empty when nothing was delivered.
   string last_id = 1;
 }
+
+// RecordRestarted tells a StreamRecord subscriber that the `after_id` it
+// resumed from is older than the retention window (R25): beats between that
+// id and the oldest retained beat are gone. It is the stream's FIRST message
+// when sent, and the beats that follow start at the oldest retained beat, so
+// the subscriber replaces what it holds rather than appending to it — the
+// stream's counterpart of GetRecordResponse.restarted (R28).
+message RecordRestarted {}

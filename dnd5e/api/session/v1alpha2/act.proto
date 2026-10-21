@@ -226,7 +226,9 @@ message RollDiceTerm {
   // when the rulebook recorded no trace for the pool.
   repeated int32 rolled = 8;
   // kept_indices are the indices into `rolled` whose (possibly rerolled)
-  // faces counted, in order. Empty means every die was kept.
+  // faces counted, in order. Empty means every die was kept. A plain d20 is
+  // rolled [12], kept_indices [], faces [12]; advantage is rolled [7,15],
+  // kept_indices [1], faces [15].
   repeated int32 kept_indices = 9;
   // rerolls are the dice of `rolled` a feature rerolled, each with the source
   // that rerolled it, in the order they happened. `faces` already holds each
@@ -254,6 +256,9 @@ message RollReroll {
   // source_id is the entity the source belongs to, when the rulebook named
   // one; empty otherwise.
   string source_id = 6;
+  // source_label is the rerolling source's role within the roll's
+  // calculation, when the rulebook recorded one; empty otherwise.
+  string source_label = 7;
 }
 
 // InfluenceKind is whether a source granted advantage or imposed

@@ -24,7 +24,8 @@ shape and consumer drift, it shows up here as a "rough edge."
   a ULID-style ordering key, never a counter (R27); a subscriber that falls
   behind gets a final `lagged` message and catches up with GetRecord (R28); a
   resume from an id older than retention opens with a `restarted` message
-  (R25). GetRecord pages by keyset on the id: a short page is the end.
+  (R25). GetRecord pages by keyset on the id while `more` is true; a page is
+  never unbounded.
   Additive only: v1alpha1 is untouched.
 
 - **Room revelation and mutable observations (rpg-project#508 / design #509)** —

@@ -39,11 +39,12 @@ message StreamRecordResponse {
 // beside the stream, so the debug panel keeps its history on reconnect and
 // after a lag (R15). `member` is the seat gate, as on StreamRecordRequest.
 //
-// PAGING IS KEYSET, on the id. `limit` caps the events one read returns. To
-// read everything after an id, repeat with `after_id` set to the last
-// returned event's id until a page returns fewer than `limit` events: that
-// short page is the end. A `limit` of zero or less returns every retained
-// event after `after_id` in one page.
+// PAGING IS KEYSET, on the id. `limit` caps the events one read returns; a
+// `limit` of zero or less, or one above the server's maximum page size,
+// means the server's maximum page size. A read is never unbounded: a run's
+// record is retained whole, so one page of it could exceed a message limit.
+// To read everything after an id, repeat with `after_id` set to the last
+// returned event's id while GetRecordResponse.more is true.
 message GetRecordRequest {
   string session = 1;
   string member = 2;
@@ -61,6 +62,11 @@ message GetRecordResponse {
   // caller replaces what it holds rather than appending to it — a short
   // answer would otherwise look complete.
   bool restarted = 2;
+
+  // more is true when retained events after the last one returned did not
+  // fit this page. It is the end signal: read again after the last returned
+  // id while it is true. A page's length says nothing about the end.
+  bool more = 3;
 }
 
 // RecordService serves the record stream: every beat the encounter writes,

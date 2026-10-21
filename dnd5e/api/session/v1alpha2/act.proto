@@ -195,7 +195,9 @@ message Roll {
 
 // RollDiceTerm is one dice pool of a roll and the source that brought it.
 message RollDiceTerm {
-  // count and die_size are the pool as rolled: 1 and 4 for a 1d4.
+  // count is how many faces counted: len(faces). A die a keep rule discarded
+  // is not counted (advantage's d20 [7,15] is count 1, faces [15]); the keep
+  // itself is the roll's `influences`. die_size is each die's size.
   int32 count = 1;
   int32 die_size = 2;
   // faces are the faces that counted, in order; a face a keep rule discarded

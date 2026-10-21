@@ -33,13 +33,15 @@ message Act {
   // It is the RESUME POINT: StreamEvents and GetStory after an id return
   // exactly the acts that follow it.
   //
-  // ACTS SHARING AN ID ARE ONE DELIVERY UNIT. One record beat can fold into
-  // several acts (a rest and the concentrations and conditions it ended, a
-  // departure and the conditions it lifted, a failed line and its own table
-  // answer), and each carries that beat's id. They are always adjacent, and a
-  // transport never splits them: StreamEvents closes a lagging subscriber only
-  // between two ids, and GetStory ends a page only between two ids. Resuming
-  // after an id skips the whole run.
+  // ACTS SHARING AN ID ARE ONE DELIVERY UNIT. One record entry can fold into
+  // several acts — a rest and the concentrations and conditions it ended, a
+  // departure or an ending and the conditions it lifted — and each carries
+  // that entry's id. They are always adjacent, a transport never splits them,
+  // and resuming after the id skips them all. StreamEvents closes a lagging
+  // subscriber, and GetStory ends a page, only between two ids, never inside
+  // a same-id run; cutting inside one would lose the rest of it with no
+  // signal (R28). Acts that share only an act tag (`act`), such as a line and
+  // its own table answer, are separate entries with their own ids.
   string id = 2;
 
   // at is the world-clock reading, in rounds, of the last folded beat.
@@ -239,6 +241,9 @@ message DamageComponent {
   optional double multiplier = 3;
   // roll is the part's own dice and modifier, said as a Roll (R17).
   Roll roll = 4;
+  // source_ref is the part's provider identity, the full catalog ref
+  // ("dnd5e:weapons:longsword"); empty when the beat named none.
+  string source_ref = 5;
 }
 
 // WalkStep is one cell of a walk.
@@ -368,7 +373,8 @@ message ActivationResult {
   int32 after = 9;
   // roll is a healing's or a damage's roll; absent otherwise.
   Roll roll = 10;
-  string damage_type = 11;
+  // damage_type is a damage result's type; unspecified otherwise.
+  DamageType damage_type = 11;
   // detail is a condition's own detail.
   string detail = 12;
   // description is a granted capacity.
@@ -404,8 +410,8 @@ message SpeakAct {
   // roll is the line's check; absent when the line rolled nothing.
   Roll roll = 6;
   // answer is the target's answer when it folded into the line. A line whose
-  // answer did not fold in has its answer as its own FAMILY_TABLE_ANSWER act
-  // under the same act id.
+  // answer did not fold in has its answer as its own FAMILY_TABLE_ANSWER act:
+  // its own record id, under the same act tag (`Act.act`).
   TableAnswer answer = 7;
 }
 

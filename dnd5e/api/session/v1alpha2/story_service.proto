@@ -44,8 +44,10 @@ message StreamEventsResponse {
 //
 // The server closes a lagging subscriber ONLY BETWEEN TWO IDS, never inside a
 // same-id run. last_id names the last id whose WHOLE run was delivered on this
-// stream, so catching up after it loses nothing and repeats nothing. Empty when
-// nothing was delivered.
+// stream, so catching up after it loses nothing and repeats nothing. When
+// nothing was delivered on this stream it is the request's `after_id`: the
+// resume point the subscriber already holds, never empty-as-start, which would
+// re-read the whole run.
 message StoryLagged {
   string last_id = 1;
 }

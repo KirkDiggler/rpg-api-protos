@@ -149,9 +149,18 @@ message Party {
 
 // RollModifier is one flat contribution to a roll, named by its source.
 message RollModifier {
-  // source is the contribution's source name ("Strength", "Proficiency").
+  // source is the contribution's source name ("Strength", "Fighter").
   string source = 1;
   int32 value = 2;
+  // source_ref is the source's full ref ("dnd5e:classes:fighter"), verbatim.
+  // Empty when the rulebook recorded a name only.
+  string source_ref = 3;
+  // source_id is the entity the source belongs to, when the rulebook named
+  // one; empty otherwise.
+  string source_id = 4;
+  // source_label is the source's role within the roll's calculation, when the
+  // rulebook recorded one ("Fighter level"); empty otherwise.
+  string source_label = 5;
 }
 
 // Roll is one roll as an act states it (R17): every die an act carries, said
@@ -212,6 +221,39 @@ message RollDiceTerm {
   // source_id is the entity the source belongs to, when the rulebook named
   // one; empty otherwise.
   string source_id = 7;
+  // rolled is the pool as first rolled, before any reroll and before any keep
+  // rule: advantage's d20 [7,15], Great Weapon Fighting's 2d6 [1,5]. Empty
+  // when the rulebook recorded no trace for the pool.
+  repeated int32 rolled = 8;
+  // kept_indices are the indices into `rolled` whose (possibly rerolled)
+  // faces counted, in order. Empty means every die was kept.
+  repeated int32 kept_indices = 9;
+  // rerolls are the dice of `rolled` a feature rerolled, each with the source
+  // that rerolled it, in the order they happened. `faces` already holds each
+  // die's final face.
+  repeated RollReroll rerolls = 10;
+  // source_label is the source's role within the roll's calculation, when the
+  // rulebook recorded one; empty otherwise.
+  string source_label = 11;
+}
+
+// RollReroll is one die of a pool rerolled, and the source that rerolled it
+// (Great Weapon Fighting rerolling a 1).
+message RollReroll {
+  // die_index is the die's index into its term's `rolled`.
+  int32 die_index = 1;
+  // before is the face the die showed before the reroll.
+  int32 before = 2;
+  // after is the face the reroll produced.
+  int32 after = 3;
+  // source_ref is the rerolling source's full ref
+  // ("dnd5e:fighting-styles:great-weapon-fighting"), verbatim.
+  string source_ref = 4;
+  // source_name is the rerolling source's display name.
+  string source_name = 5;
+  // source_id is the entity the source belongs to, when the rulebook named
+  // one; empty otherwise.
+  string source_id = 6;
 }
 
 // InfluenceKind is whether a source granted advantage or imposed
@@ -232,6 +274,9 @@ message RollInfluence {
   string source_id = 3;
   // name is the source's display name ("Prone"), as the rulebook recorded it.
   string name = 4;
+  // source_label is the source's role within the roll's calculation, when the
+  // rulebook recorded one; empty otherwise.
+  string source_label = 5;
 }
 
 // DamageType is the rulebook's closed set of thirteen damage types.

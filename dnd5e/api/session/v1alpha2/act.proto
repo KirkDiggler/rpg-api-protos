@@ -173,6 +173,29 @@ message Roll {
   // of is the die size of a table roll: a roll of N on a table of `of`
   // entries. 0 otherwise.
   int32 of = 7;
+
+  // influences are the advantage and disadvantage that shaped the roll, each
+  // with its source, in the order the rulebook recorded them (R17: a roll
+  // carries its sources). Empty when nothing granted or imposed either.
+  repeated RollInfluence influences = 8;
+}
+
+// InfluenceKind is whether a source granted advantage or imposed
+// disadvantage on a roll.
+enum InfluenceKind {
+  INFLUENCE_KIND_UNSPECIFIED = 0;
+  INFLUENCE_KIND_ADVANTAGE = 1;
+  INFLUENCE_KIND_DISADVANTAGE = 2;
+}
+
+// RollInfluence is one source of advantage or disadvantage on a roll.
+message RollInfluence {
+  InfluenceKind kind = 1;
+  // source_ref is the source's full ref ("dnd5e:conditions:prone"), verbatim.
+  string source_ref = 2;
+  // source_id is the entity the source belongs to, when the rulebook named
+  // one; empty otherwise.
+  string source_id = 3;
 }
 
 // DamageType is the rulebook's closed set of thirteen damage types.

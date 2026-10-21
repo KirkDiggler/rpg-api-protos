@@ -1,0 +1,788 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha2;
+
+import "dnd5e/api/session/v1alpha2/act_geometry.proto";
+
+// THE ACT, AS ONE RECIPIENT RECEIVES IT (rpg-project ideas/event-stream R5,
+// R6, R16, R17, R19, R22, R27, R30, R31, Laws 6, 7 and 11).
+//
+// The act stream is the record folded into acts: who did what, to whom, how it
+// was decided and what changed. Each member's acts are folded from that
+// member's own story, so an act holds only what its recipient perceived. The
+// recipient is the subscription's and the read's `member`, never a field here.
+//
+// Every message mirrors the session SDK's act type of the same name, field for
+// field. Content-authored words stay strings (an ability, a skill, a slot, an
+// item, a cause, a reason, a temper); every set the code closes is an enum
+// (Law 8). Nothing here imports v1alpha1 (Law 11, R18).
+
+// Act is one segment of one act, as one recipient receives it.
+//
+// IT CARRIES NO SEQ (R30). Its ids are the record's wire id and the act tag,
+// and nothing else.
+message Act {
+  // session is the session the act happened in.
+  string session = 1;
+
+  // id is the record id of the LAST record beat this segment folds (R31), the
+  // same id space as RecordEvent.id: an ordering key, not a counter (R27).
+  // Compare two ids as strings to order them. A gap between two ids means
+  // nothing.
+  //
+  // It is the RESUME POINT: StreamEvents and GetStory after an id return
+  // exactly the acts that follow it.
+  //
+  // ACTS SHARING AN ID ARE ONE DELIVERY UNIT. One record beat can fold into
+  // several acts (a rest and the concentrations and conditions it ended, a
+  // departure and the conditions it lifted, a failed line and its own table
+  // answer), and each carries that beat's id. They are always adjacent, and a
+  // transport never splits them: StreamEvents closes a lagging subscriber only
+  // between two ids, and GetStory ends a page only between two ids. Resuming
+  // after an id skips the whole run.
+  string id = 2;
+
+  // at is the world-clock reading, in rounds, of the last folded beat.
+  uint64 at = 3;
+
+  // act is the act id, `<verb>:<id>` (R27). Every segment, reaction, state,
+  // answer and perception the act caused carries it. Empty only for an entry
+  // outside any act, such as a tick or a join.
+  string act = 4;
+
+  // verb is the verb half of `act`; empty when `act` is empty.
+  string verb = 5;
+
+  // family is what kind of entry this is (R16). The beat decides it, never the
+  // verb.
+  Family family = 6;
+
+  // segment numbers this recipient's FAMILY_ACT segments of one act, from 1: a
+  // walk interrupted by a reaction is segments 1 and 2. Every other family is
+  // 0.
+  int32 segment = 7;
+
+  // refused is true when this act could not be read into its body (R22). It
+  // keeps its id and its place in the stream, carries `refusal` and no body,
+  // and the acts after it still arrive: one bad act fails that act, not the
+  // read.
+  bool refused = 8;
+
+  // refusal is why the act was refused; empty unless `refused`.
+  string refusal = 9;
+
+  // body is the family's typed body: one of the act bodies for FAMILY_ACT and
+  // FAMILY_REACTION, and table_answer, state, perception or clock for the
+  // others. Unset exactly when `refused`.
+  //
+  // A REACTION IS A FAMILY, NOT A BODY (Law 6): an opportunity attack is
+  // `family = FAMILY_REACTION` with `attack` set and `attack.reaction` present.
+  oneof body {
+    WalkAct walk = 20;
+    AttackAct attack = 21;
+    CastAct cast = 22;
+    ActivateAct activate = 23;
+    SpeakAct speak = 24;
+    DeathSaveAct death_save = 25;
+    LootAct loot = 26;
+    HoldAct hold = 27;
+    DropAct drop = 28;
+    DoorAct door = 29;
+    EquipAct equip = 30;
+    StayAct stay = 31;
+    SneakAct sneak = 32;
+    RestAct rest = 33;
+    TableAnswer table_answer = 34;
+    StateChange state = 35;
+    Perception perception = 36;
+    ClockEntry clock = 37;
+  }
+}
+
+// Family is which kind of thing an act entry is (R16).
+enum Family {
+  FAMILY_UNSPECIFIED = 0;
+  // FAMILY_ACT is a verb's own deed: a walk, a swing, a cast, a line.
+  FAMILY_ACT = 1;
+  // FAMILY_REACTION is a deed done in answer to another act, under that act's
+  // id: an opportunity attack inside the walk that provoked it.
+  FAMILY_REACTION = 2;
+  // FAMILY_TABLE_ANSWER is a table roll: a creature's or a prop's answer, a
+  // faction's temperament deal.
+  FAMILY_TABLE_ANSWER = 3;
+  // FAMILY_STATE is a change of standing an act caused: a fall, a stance, a
+  // concentration ended, a condition lifted, experience paid.
+  FAMILY_STATE = 4;
+  // FAMILY_PERCEPTION is what one observer newly perceived.
+  FAMILY_PERCEPTION = 5;
+  // FAMILY_CLOCK is the table's own bookkeeping: ticks, turns, fights,
+  // arrivals and departures, windows.
+  FAMILY_CLOCK = 6;
+}
+
+// PartyKind is what a Party names.
+enum PartyKind {
+  PARTY_KIND_UNSPECIFIED = 0;
+  // PARTY_KIND_MEMBER is an encounter member: a character or a creature.
+  PARTY_KIND_MEMBER = 1;
+  PARTY_KIND_PROP = 2;
+  PARTY_KIND_FACTION = 3;
+  // PARTY_KIND_WORLD is the world itself: a change with no party behind it.
+  PARTY_KIND_WORLD = 4;
+}
+
+// Party is who did something, or had it done to them (R17). A Party field is
+// absent when the act names nobody there.
+message Party {
+  PartyKind kind = 1;
+  string id = 2;
+}
+
+// RollModifier is one flat contribution to a roll, named by its source.
+message RollModifier {
+  // source is the contribution's source name ("Strength", "Proficiency").
+  string source = 1;
+  int32 value = 2;
+}
+
+// Roll is one roll as an act states it (R17): every die an act carries, said
+// one way. Nothing is re-added on the client: total is authoritative.
+message Roll {
+  // expression is the roll as dice and a flat modifier, "1d20+5". Empty when
+  // the beat carried no calculation to build it from.
+  string expression = 1;
+
+  // dice are the faces that counted, in order. A die a keep rule discarded
+  // (the low face of advantage) is not here.
+  repeated int32 dice = 2;
+
+  repeated RollModifier modifiers = 3;
+
+  int32 total = 4;
+
+  // against is the number the roll was made against: a DC or an AC. Absent for
+  // an unopposed roll such as damage, healing or a table die.
+  optional int32 against = 5;
+
+  // beaten is whether the roll beat `against`, as the beat says it. Absent
+  // when `against` is absent.
+  optional bool beaten = 6;
+
+  // of is the die size of a table roll: a roll of N on a table of `of`
+  // entries. 0 otherwise.
+  int32 of = 7;
+}
+
+// DamageType is the rulebook's closed set of thirteen damage types.
+enum DamageType {
+  DAMAGE_TYPE_UNSPECIFIED = 0;
+  DAMAGE_TYPE_ACID = 1;
+  DAMAGE_TYPE_BLUDGEONING = 2;
+  DAMAGE_TYPE_COLD = 3;
+  DAMAGE_TYPE_FIRE = 4;
+  DAMAGE_TYPE_FORCE = 5;
+  DAMAGE_TYPE_LIGHTNING = 6;
+  DAMAGE_TYPE_NECROTIC = 7;
+  DAMAGE_TYPE_PIERCING = 8;
+  DAMAGE_TYPE_POISON = 9;
+  DAMAGE_TYPE_PSYCHIC = 10;
+  DAMAGE_TYPE_RADIANT = 11;
+  DAMAGE_TYPE_SLASHING = 12;
+  DAMAGE_TYPE_THUNDER = 13;
+}
+
+// AttackRef identifies what was swung.
+message AttackRef {
+  // ref is the full catalog ref, "dnd5e:weapons:longsword". An open set.
+  string ref = 1;
+  // name is the catalog's display name, "Longsword".
+  string name = 2;
+  DamageType damage_type = 3;
+}
+
+// ReactionRef identifies what a deed was taken as, when it was a reaction.
+message ReactionRef {
+  // ref is the reacting condition's or feature's ref,
+  // "dnd5e:conditions:opportunity_attack".
+  string ref = 1;
+  // name is its display name, "Opportunity Attack".
+  string name = 2;
+}
+
+// SequenceRef names the multiattack a swing was performed inside.
+message SequenceRef {
+  string ref = 1;
+  string name = 2;
+}
+
+// SpellRef identifies a spell.
+message SpellRef {
+  // ref is "dnd5e:spells:vicious-mockery". An open set.
+  string ref = 1;
+  string name = 2;
+}
+
+// AbilityRef identifies an activated ability or feature.
+message AbilityRef {
+  // ref is "dnd5e:features:rage". An open set.
+  string ref = 1;
+  string name = 2;
+}
+
+// DamageComponent is one part of an attack's damage.
+message DamageComponent {
+  // source is the part's source name.
+  string source = 1;
+  DamageType damage_type = 2;
+  // multiplier is resistance, vulnerability or immunity applied to the part;
+  // absent when none applied.
+  optional double multiplier = 3;
+  // roll is the part's own dice and modifier, said as a Roll (R17).
+  Roll roll = 4;
+}
+
+// WalkStep is one cell of a walk.
+message WalkStep {
+  // cell is where the step landed.
+  Position cell = 1;
+  // doors are the doors the step went through.
+  repeated string doors = 2;
+}
+
+// WalkAct is a walk: one mover's steps under one act. A walk's later segment
+// starts at the cell its earlier segment left the mover on.
+message WalkAct {
+  Party mover = 1;
+  // path is the walk's cells in order.
+  repeated WalkStep path = 2;
+  // cause is what moved them, when something did.
+  string cause = 3;
+}
+
+// AttackOutcome is how a swing ended (Law 6).
+enum AttackOutcome {
+  ATTACK_OUTCOME_UNSPECIFIED = 0;
+  ATTACK_OUTCOME_HIT = 1;
+  ATTACK_OUTCOME_MISS = 2;
+  // ATTACK_OUTCOME_WARDED is a ward stopping the swing before a roll.
+  ATTACK_OUTCOME_WARDED = 3;
+}
+
+// WardSave is the save a ward forced on an attacker.
+message WardSave {
+  // source is the warding creature.
+  Party source = 1;
+  string ability = 2;
+  Roll roll = 3;
+}
+
+// AttackAct is one swing, with its outcome inside it (Law 6).
+message AttackAct {
+  Party by = 1;
+  Party to = 2;
+  AttackRef attack = 3;
+  AttackOutcome outcome = 4;
+  bool critical = 5;
+  int32 damage = 6;
+  repeated DamageComponent damage_components = 7;
+  // roll is the attack roll; absent on a warded swing, which rolled nothing.
+  Roll roll = 8;
+  // ward is the save the ward forced; present only on a warded swing.
+  WardSave ward = 9;
+  // sequence is the multiattack the swing was inside; absent on a lone swing.
+  SequenceRef sequence = 10;
+  // reaction is present when the swing was a reaction (family
+  // FAMILY_REACTION).
+  ReactionRef reaction = 11;
+  // presentation_id is the swing's shared-dice token.
+  string presentation_id = 12;
+}
+
+// CastOutcome is how a cast ended for one target.
+enum CastOutcome {
+  CAST_OUTCOME_UNSPECIFIED = 0;
+  CAST_OUTCOME_MISS = 1;
+  CAST_OUTCOME_WARDED = 2;
+  // CAST_OUTCOME_SAVED is a save that succeeded.
+  CAST_OUTCOME_SAVED = 3;
+  // CAST_OUTCOME_FAILED is a save that failed.
+  CAST_OUTCOME_FAILED = 4;
+}
+
+// CastResult is one target's result of a cast.
+message CastResult {
+  Party target = 1;
+  CastOutcome outcome = 2;
+  // ability is the save's or ward's ability.
+  string ability = 3;
+  // save is the save or ward roll; absent on a miss.
+  Roll save = 4;
+  // source is the warding creature on a warded result.
+  Party source = 5;
+}
+
+// CastAct is a cast and each target's result, in record order.
+message CastAct {
+  Party by = 1;
+  SpellRef spell = 2;
+  repeated Party targets = 3;
+  repeated CastResult results = 4;
+}
+
+// SaveResult is a save an activation forced.
+message SaveResult {
+  Party saver = 1;
+  string ability = 2;
+  // source is what forced it.
+  SpellRef source = 3;
+  Roll roll = 4;
+}
+
+// Stabilization is a stabilized result's detail.
+message Stabilization {
+  string before = 1;
+  string after = 2;
+  int32 hit_points = 3;
+  int32 successes = 4;
+  int32 failures = 5;
+  int32 successes_needed = 6;
+  int32 failures_remaining = 7;
+  bool stabilized = 8;
+  bool dead = 9;
+}
+
+// ActivationResult is one result of an activation.
+message ActivationResult {
+  // kind is the result's kind, as the activation states it.
+  string kind = 1;
+  Party target = 2;
+  // ref and name are the result's source identity.
+  string ref = 3;
+  string name = 4;
+  // source_id is a condition's source entity.
+  string source_id = 5;
+  // amount, requested, before and after are a healing's or a damage's numbers.
+  int32 amount = 6;
+  int32 requested = 7;
+  int32 before = 8;
+  int32 after = 9;
+  // roll is a healing's or a damage's roll; absent otherwise.
+  Roll roll = 10;
+  string damage_type = 11;
+  // detail is a condition's own detail.
+  string detail = 12;
+  // description is a granted capacity.
+  string description = 13;
+  // moved and stopped_by are a push's distance and what stopped it.
+  int32 moved = 14;
+  string stopped_by = 15;
+  // stabilization is present on a stabilized result.
+  Stabilization stabilization = 16;
+}
+
+// ActivateAct is an activation and its results. A removed condition is not a
+// result here: it is a state entry under the same act.
+message ActivateAct {
+  Party by = 1;
+  AbilityRef ability = 2;
+  // target is the selected target; absent when none was selected.
+  Party target = 3;
+  repeated ActivationResult results = 4;
+  repeated SaveResult saves = 5;
+}
+
+// SpeakAct is a line spoken, and its answer.
+message SpeakAct {
+  Party by = 1;
+  // to is who or what was spoken to.
+  Party to = 2;
+  // option is the line's option id.
+  string option = 3;
+  // line is the line's text, verbatim as authored.
+  string line = 4;
+  string skill = 5;
+  // roll is the line's check; absent when the line rolled nothing.
+  Roll roll = 6;
+  // answer is the target's answer when it folded into the line. A line whose
+  // answer did not fold in has its answer as its own FAMILY_TABLE_ANSWER act
+  // under the same act id.
+  TableAnswer answer = 7;
+}
+
+// DeathSaveAct is one death save.
+message DeathSaveAct {
+  Party by = 1;
+  Roll roll = 2;
+  string outcome = 3;
+  int32 successes_added = 4;
+  int32 failures_added = 5;
+  int32 successes = 6;
+  int32 failures = 7;
+  int32 successes_needed = 8;
+  int32 failures_remaining = 9;
+  bool stabilized = 10;
+  bool dead = 11;
+  bool recovered = 12;
+  // hp_restored is hit points a natural 20 restored.
+  int32 hp_restored = 13;
+  // continuation is what the save does to the turn.
+  string continuation = 14;
+  string presentation_id = 15;
+}
+
+// LootAct is a body looted.
+message LootAct {
+  Party by = 1;
+  // from is the body.
+  Party from = 2;
+}
+
+// HoldAct is a prop taken in hand.
+message HoldAct {
+  Party by = 1;
+  Party prop = 2;
+}
+
+// DropAct is a prop put down.
+message DropAct {
+  Party by = 1;
+  Party prop = 2;
+  // cell is where it landed.
+  Position cell = 3;
+}
+
+// DoorAct is a door changing.
+message DoorAct {
+  // by is who changed it; absent for an unattributed change.
+  Party by = 1;
+  string door = 2;
+  // state is what it is now.
+  string state = 3;
+  // roll is an unlock attempt's check; absent for an open or a close.
+  Roll roll = 4;
+}
+
+// EquipAct is an item drawn or stowed.
+message EquipAct {
+  Party by = 1;
+  string slot = 2;
+  string item = 3;
+  // change is draw or stow.
+  string change = 4;
+}
+
+// StayAct is a driven word that did nothing.
+message StayAct {
+  Party member = 1;
+  // cause is what drove the word.
+  string cause = 2;
+  // why is the reason nothing happened.
+  string why = 3;
+}
+
+// SneakAct is a sneaker's Stealth roll against one watcher.
+message SneakAct {
+  Party by = 1;
+  // watcher is present when the sneaker sees it.
+  Party watcher = 2;
+  Roll roll = 3;
+}
+
+// RestAct is a rest. The concentrations and conditions it ended are state
+// entries under the same act, sharing this act's id.
+message RestAct {
+  Party by = 1;
+  // kind is short or long.
+  string kind = 2;
+  int32 hit_points_restored = 3;
+  int32 hit_points = 4;
+  int32 hit_dice_spent = 5;
+  int32 hit_dice_returned = 6;
+  int32 hit_dice_remaining = 7;
+  repeated string resources_refilled = 8;
+  // roll is the hit dice spent; absent when none were.
+  Roll roll = 9;
+}
+
+// TableCandidate is one row a table roll could have landed on.
+message TableCandidate {
+  int32 entry = 1;
+  int32 weight = 2;
+  int32 percent = 3;
+  int32 loaded = 4;
+}
+
+// Temper is a faction's temperament deal for one creature.
+message Temper {
+  // faction is the die's owner.
+  Party faction = 1;
+  // temper is the dealt word.
+  string temper = 2;
+  Roll roll = 3;
+}
+
+// TableAnswer is a table roll's answer: a creature's or a prop's pick, or a
+// temperament deal. It never carries the answer's fact (R10).
+message TableAnswer {
+  // who answered.
+  Party who = 1;
+  string option = 2;
+  // key is the table key.
+  string key = 3;
+  // word is the outcome word.
+  string word = 4;
+  // selector is the outcome's selector word.
+  string selector = 5;
+  // say is what was said.
+  string say = 6;
+  // temperament is the temperament column the pick read.
+  string temperament = 7;
+  // entry is the row picked.
+  int32 entry = 8;
+  repeated TableCandidate candidates = 9;
+  // roll is the table die; absent on a hold with nothing eligible.
+  Roll roll = 10;
+  // dealt is present on a temperament deal, absent on a pick.
+  Temper dealt = 11;
+}
+
+// StateKind is what a state entry changed.
+enum StateKind {
+  STATE_KIND_UNSPECIFIED = 0;
+  STATE_KIND_DOWNED = 1;
+  STATE_KIND_STANCE = 2;
+  STATE_KIND_CONCENTRATION_ENDED = 3;
+  STATE_KIND_CONDITION_REMOVED = 4;
+  STATE_KIND_EXPERIENCE = 5;
+}
+
+// Downed is a fall's detail.
+message Downed {
+  // kind is the fallen member's kind.
+  string kind = 1;
+}
+
+// StanceTurn is two factions' stance turning.
+message StanceTurn {
+  repeated Party between = 1;
+  string stance = 2;
+  string cause = 3;
+}
+
+// ConditionLifted is a removed condition's detail.
+message ConditionLifted {
+  string ref = 1;
+  string name = 2;
+  string source_id = 3;
+  string reason = 4;
+}
+
+// ConcentrationEnded is a concentration's end.
+message ConcentrationEnded {
+  SpellRef spell = 1;
+  string reason = 2;
+}
+
+// ExperienceGrant is one character's share of one grant.
+message ExperienceGrant {
+  string character = 1;
+  int32 amount = 2;
+  // total is their cumulative experience after the grant.
+  int32 total = 3;
+}
+
+// StateChange is a change of standing, under the act that caused it. Exactly
+// the part matching `change` is set.
+message StateChange {
+  // party is who changed; absent for a stance, which names no party.
+  Party party = 1;
+  StateKind change = 2;
+  Downed downed = 3;
+  StanceTurn stance = 4;
+  ConcentrationEnded concentration = 5;
+  ConditionLifted condition = 6;
+  repeated ExperienceGrant experience = 7;
+}
+
+// Sense is how a perception entry was perceived.
+enum Sense {
+  SENSE_UNSPECIFIED = 0;
+  SENSE_SIGHT = 1;
+  SENSE_HEARING = 2;
+  SENSE_DISCOVERY = 3;
+  SENSE_REVEAL = 4;
+  SENSE_CELLS = 5;
+}
+
+// SightChange is what came into or out of sight. The lists are member ids.
+message SightChange {
+  repeated string gained = 1;
+  repeated string lost = 2;
+  repeated string changed = 3;
+  bool knowledge_changed = 4;
+}
+
+// Sound is a sound heard.
+message Sound {
+  string kind = 1;
+  // cell is where it came from.
+  Position cell = 2;
+  // hops is how far it carried.
+  int32 hops = 3;
+}
+
+// DiscoveryCheck is a search's check.
+message DiscoveryCheck {
+  string ability = 1;
+  Roll roll = 2;
+}
+
+// SecretRevealed is a concealment's contents, revealed to the observer.
+message SecretRevealed {
+  string concealment = 1;
+  repeated Position cells = 2;
+  repeated AtlasProp props = 3;
+  repeated RevealedDoor doors = 4;
+  repeated AtlasRegion regions = 5;
+  repeated AtlasBoundary boundaries = 6;
+  repeated AtlasSegment segments = 7;
+  repeated Position sealed = 8;
+  repeated AtlasStructuralWall structural_walls = 9;
+  repeated AtlasStructuralDoor structural_doors = 10;
+  repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 11;
+  repeated PropPresentation prop_presentations = 12;
+}
+
+// CellsLearned is fixed layout the observer newly learned.
+message CellsLearned {
+  // regions are the regions' newly known cells.
+  repeated AtlasRegion regions = 1;
+  repeated Position scenery = 2;
+  repeated AtlasProp props = 3;
+  repeated AtlasBoundary boundaries = 4;
+  repeated AtlasSegment segments = 5;
+  repeated Position sealed = 6;
+  repeated AtlasDoorway doorways = 7;
+  repeated AtlasPlacedProp placed = 8;
+  repeated AtlasExit exits = 9;
+  repeated AtlasStructuralWall structural_walls = 10;
+  repeated AtlasStructuralDoor structural_doors = 11;
+  repeated StructuralWallOpeningsReplacement structural_wall_openings_replacements = 12;
+  repeated PropPresentation prop_presentations = 13;
+}
+
+// Perception is what one observer newly perceived. It is folded from the
+// observer's own entries, so it never reaches anybody else. Exactly the part
+// matching `sense` is set.
+message Perception {
+  Party observer = 1;
+  Sense sense = 2;
+  SightChange sighted = 3;
+  Sound heard = 4;
+  DiscoveryCheck discovery = 5;
+  SecretRevealed revealed = 6;
+  CellsLearned cells = 7;
+}
+
+// ClockMark is which piece of the table's bookkeeping a clock entry is.
+enum ClockMark {
+  CLOCK_MARK_UNSPECIFIED = 0;
+  CLOCK_MARK_TICK = 1;
+  CLOCK_MARK_TURN_ENDED = 2;
+  CLOCK_MARK_FIGHT_FORMED = 3;
+  CLOCK_MARK_FIGHT_DISSOLVED = 4;
+  CLOCK_MARK_JOINED = 5;
+  CLOCK_MARK_EXITED = 6;
+  CLOCK_MARK_ARRIVED = 7;
+  CLOCK_MARK_SCENE_OPENED = 8;
+  // CLOCK_MARK_ENDED is the run ending.
+  CLOCK_MARK_ENDED = 9;
+  // CLOCK_MARK_WINDOW_OPENED is a step stopping to ask somebody.
+  CLOCK_MARK_WINDOW_OPENED = 10;
+  // CLOCK_MARK_ROLL_WINDOW_OPENED is a roll stopping to ask its roller.
+  CLOCK_MARK_ROLL_WINDOW_OPENED = 11;
+}
+
+// TurnPassed is a turn ending.
+message TurnPassed {
+  // member is whose turn ended.
+  Party member = 1;
+  // next is whose turn it is now.
+  Party next = 2;
+}
+
+// FightFormed is a fight forming.
+message FightFormed {
+  // order is the initiative order.
+  repeated Party order = 1;
+  repeated Party surprised = 2;
+}
+
+// FightDissolved is a fight ending.
+message FightDissolved {
+  repeated Party members = 1;
+  string cause = 2;
+}
+
+// Departure is a member leaving. The conditions it lifted are state entries
+// sharing this act's id.
+message Departure {
+  Party member = 1;
+  // holding is what left with them.
+  repeated string holding = 2;
+  // exit is the authored exit they took.
+  string exit = 3;
+}
+
+// Arrival is a reserved placement entering.
+message Arrival {
+  string id = 1;
+  string kind = 2;
+  Position cell = 3;
+}
+
+// WindowOffer is one recipient of a window and what it offers.
+message WindowOffer {
+  Party audience = 1;
+  ReactionRef reaction = 2;
+}
+
+// WindowOpened is a step stopping to ask.
+message WindowOpened {
+  // member is the mover.
+  Party member = 1;
+  // from and to are the step asked about.
+  Position from = 2;
+  Position to = 3;
+  repeated WindowOffer windows = 4;
+}
+
+// RollWindowOpened is a roll stopping to ask its roller.
+message RollWindowOpened {
+  string presentation_id = 1;
+  // audience is the roller.
+  Party audience = 2;
+  // offer is what they may spend.
+  ReactionRef offer = 3;
+  Roll roll = 4;
+}
+
+// ClockEntry is the table's bookkeeping. A clock entry inside an act carries
+// that act's id and closes the act's open segment. Exactly the part matching
+// `mark` is set; a scene opening carries none.
+message ClockEntry {
+  ClockMark mark = 1;
+  // tick is the world clock's reading on a tick.
+  uint64 tick = 2;
+  TurnPassed turn = 3;
+  FightFormed fight = 4;
+  FightDissolved dissolved = 5;
+  // member is who joined.
+  Party member = 6;
+  Departure departure = 7;
+  Arrival arrival = 8;
+  // ending is the ending reached.
+  string ending = 9;
+  WindowOpened window = 10;
+  RollWindowOpened roll_window = 11;
+}

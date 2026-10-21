@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-10-01
+updated: 2026-10-21
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,21 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **The act stream, session v1alpha2 (rpg-project#630 / design
+  ideas/event-stream)** — `StoryService` (`StreamEvents`, `GetStory`) beside
+  `RecordService`, and the `Act` envelope: id, at, act, verb, family, segment,
+  refused/refusal, and one typed body per family member (walk, attack, cast,
+  activate, speak, death save, loot, hold, drop, door, equip, stay, sneak,
+  rest, table answer, state, perception, clock). Shared `Party` and `Roll`
+  (R17); the closed sets are enums (family, party kind, attack outcome, cast
+  outcome, state kind, sense, clock mark, damage type). `act_geometry.proto`
+  redefines the atlas geometry a perception act carries (R18). The recipient
+  is the request's `member`, never an act field. An act's id is the id of the
+  last record beat it folds (R31); acts sharing an id are one delivery unit,
+  so the stream closes on lag and GetStory ends a page only between ids. A
+  refused act keeps its id and carries no body (R22).
+  Additive only: v1alpha1 and the record files are untouched.
 
 - **The record stream, session v1alpha2 (rpg-project#628 / design
   ideas/event-stream)** — new package `dnd5e.api.session.v1alpha2` with

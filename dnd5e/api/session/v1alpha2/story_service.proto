@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha2;
+
+import "dnd5e/api/session/v1alpha2/act.proto";
+
+// StreamEventsRequest subscribes to one member's acts.
+//
+// `member` is THE RECIPIENT AND THE SEAT GATE: the server verifies the caller
+// is seated as that member, then delivers the acts folded from that member's
+// own story. The Act message carries no recipient; the subscription is it.
+//
+// The stream CATCHES UP, THEN GOES LIVE. It first delivers every retained act
+// with an id after `after_id`, then every act folded from then on, each exactly
+// once and in id order. An empty `after_id` replays from the oldest retained
+// beat. An `after_id` older than retention is answered with `restarted` as the
+// FIRST message, then a replay from the oldest retained beat: the subscriber
+// replaces what it holds.
+//
+// ACTS SHARING AN ID ARE ONE DELIVERY UNIT (see Act.id): the stream delivers a
+// same-id run whole or not at all.
+message StreamEventsRequest {
+  string session = 1;
+  string member = 2;
+  string after_id = 3;
+}
+
+// StreamEventsResponse is one message of the act stream.
+//
+// `lagged` is ALWAYS THE LAST MESSAGE when it appears: the server ends the
+// stream after sending it, and the subscriber catches up with GetStory after
+// StoryLagged.last_id (R28). `restarted` is ALWAYS THE FIRST MESSAGE when it
+// appears.
+message StreamEventsResponse {
+  oneof item {
+    Act act = 1;
+    StoryLagged lagged = 2;
+    StoryRestarted restarted = 3;
+  }
+}
+
+// StoryLagged tells a subscriber it fell behind and the server ended its stream
+// rather than skip an act (R28, Law 4).
+//
+// The server closes a lagging subscriber ONLY BETWEEN TWO IDS, never inside a
+// same-id run. last_id names the last id whose WHOLE run was delivered on this
+// stream, so catching up after it loses nothing and repeats nothing. Empty when
+// nothing was delivered.
+message StoryLagged {
+  string last_id = 1;
+}
+
+// StoryRestarted tells a StreamEvents subscriber that its `after_id` is older
+// than the retention window (R25): it is the stream's first message when sent,
+// and the acts that follow start at the oldest retained beat, so the subscriber
+// replaces what it holds rather than appending.
+message StoryRestarted {}
+
+// GetStoryRequest reads one member's acts after an id: the catch-up read beside
+// the stream, after a lag or on reconnect. `member` is the recipient and the
+// seat gate, as on StreamEventsRequest.
+//
+// PAGING IS KEYSET, on the id. `limit` asks for at most that many acts; a
+// `limit` of zero or less, or one above the server's maximum page size, means
+// the server's maximum page size. A PAGE ENDS ONLY ON AN ID BOUNDARY, so a page
+// may exceed `limit` by the rest of one same-id run. To read everything after
+// an id, repeat with `after_id` set to the last returned act's id while
+// GetStoryResponse.more is true. The pages, concatenated, are the acts a live
+// subscriber received.
+message GetStoryRequest {
+  string session = 1;
+  string member = 2;
+  string after_id = 3;
+  int32 limit = 4;
+}
+
+// GetStoryResponse is the member's acts after the requested id, in id order.
+message GetStoryResponse {
+  repeated Act acts = 1;
+
+  // restarted is true when `after_id` names a beat older than the retention
+  // window (R25). The acts then start at the oldest retained beat, and the
+  // caller replaces what it holds rather than appending to it.
+  bool restarted = 2;
+
+  // more is true when acts after the last one returned did not fit this page.
+  // It is the end signal: read again after the last returned id while it is
+  // true. A page's length says nothing about the end.
+  bool more = 3;
+}
+
+// StoryService serves the act stream: the record folded into acts, per
+// recipient (R5, R6, R12, R14).
+//
+// A SECOND SERVICE BESIDE RecordService, not a merge into it: the record is an
+// entitlement at release (R13) and the acts are for every player, so access
+// policy attaches per service.
+service StoryService {
+  // StreamEvents delivers a member's acts after an id, then live. A subscriber
+  // that falls behind is told so with a final `lagged` message, sent only
+  // between two ids; no act is skipped silently (R28). PERMISSION_DENIED when
+  // the caller is not seated as `member`; NOT_FOUND when the session is absent.
+  rpc StreamEvents(StreamEventsRequest) returns (stream StreamEventsResponse);
+
+  // GetStory reads a member's acts after an id, paged on id boundaries. An act
+  // that cannot be read arrives refused with its id kept; the read continues
+  // (R22). PERMISSION_DENIED when the caller is not seated as `member`;
+  // NOT_FOUND when the session is absent.
+  rpc GetStory(GetStoryRequest) returns (GetStoryResponse);
+}

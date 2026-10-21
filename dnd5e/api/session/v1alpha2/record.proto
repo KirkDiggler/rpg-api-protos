@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha2;
+
+import "google/protobuf/struct.proto";
+
+// THE RECORD, AS WRITTEN (rpg-project ideas/event-stream/design.md Law 5,
+// R5, R12, R27, R28).
+//
+// Session v1alpha2 holds only the streams; the verbs stay in v1alpha1 (R2).
+// This file is the record stream's vocabulary: every beat the encounter
+// writes, untyped, with the four things a reader narrows it by. It imports
+// nothing from v1alpha1 (Law 11, R18).
+
+// RecordEvent is one beat of the record exactly as the encounter wrote it.
+//
+// It is NOT PER RECIPIENT. There is no recipient field and no per-member
+// numbering: before release every seated client receives the whole record,
+// per-observer beats included (R13, R26). Filtering, when it arrives, is a
+// layer outside this shape (R7).
+message RecordEvent {
+  // id is the record's own wire id: an ORDERING KEY, NOT A COUNTER (R27). It
+  // is a 26-character, ULID-style string that increases over time and is
+  // unique within a session; compare two ids as strings to order them. A gap
+  // between two ids means nothing — ids skip whatever was written in between,
+  // including beats this viewer was never sent — so a client never infers a
+  // missed beat from the ids. Loss is the transport's to report
+  // (StreamRecordResponse.lagged, R28).
+  string id = 1;
+
+  // at is the world-clock reading in rounds when the beat was written (R4).
+  // Every beat in a round shares it; order is the id, never at.
+  uint64 at = 2;
+
+  // act is the act id of the verb or driven activation that caused the beat,
+  // in the v1alpha2 form `<verb>:<id>` (R3, R27, Law 2). A reaction carries
+  // its trigger's act id. Empty for a beat written outside any act, such as
+  // the scene opening.
+  string act = 3;
+
+  // beat is the encounter's beat name as written ("moved", "struck",
+  // "answered"). A string, not an enum: a beat the encounter starts writing
+  // tomorrow appears here with no contract change (Law 5).
+  string beat = 4;
+
+  // fields are the encounter's payload for the beat, whole and untyped. There
+  // is no typed body on the record stream (Law 5); a typed reading of a beat
+  // is the act stream's job. Every number in a Struct is a double, so an
+  // integer like `amount: 6` reads back as 6.0.
+  google.protobuf.Struct fields = 5;
+}
+
+// RecordLagged tells a subscriber it fell behind and the server ended its
+// stream rather than skip a beat (R28, Law 4). The subscriber catches up
+// with GetRecord after last_id and reopens StreamRecord from the newest id it
+// then holds.
+message RecordLagged {
+  // last_id is the id of the last event delivered on this stream before it
+  // ended; empty when nothing was delivered.
+  string last_id = 1;
+}

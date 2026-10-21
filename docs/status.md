@@ -16,6 +16,15 @@ shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
 
+- **The record stream, session v1alpha2 (rpg-project#628 / design
+  ideas/event-stream)** — new package `dnd5e.api.session.v1alpha2` with
+  `RecordService` (`StreamRecord`, `GetRecord`) and `RecordEvent` (id, at,
+  act, beat, fields as `google.protobuf.Struct`). Not per recipient: every
+  seated client receives the whole record before release (R13, R26). The id is
+  a ULID-style ordering key, never a counter (R27); a subscriber that falls
+  behind gets a final `lagged` message and catches up with GetRecord (R28).
+  Additive only: v1alpha1 is untouched.
+
 - **Room revelation and mutable observations (rpg-project#508 / design #509)** —
   GetKnowledge restores a coherent known atlas, latest view, own position/holdings
   and known public identities. ROOM_REVEALED supplies a full newly known fixed

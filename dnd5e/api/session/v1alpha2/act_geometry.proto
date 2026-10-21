@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha2;
+
+// THE GEOMETRY A PERCEPTION ACT CARRIES (rpg-project ideas/event-stream R18,
+// Law 7, Law 11).
+//
+// A perception act says what one observer newly learned, and what they learned
+// is layout: cells, props, walls, doorways, structural rows. So the act stream
+// carries that layout itself rather than an id the client must go and refetch
+// (Law 7: an act says what changed).
+//
+// Every message here mirrors the session SDK's own atlas type of the same name,
+// field for field. v1alpha1 has wire types with the same shapes; this package
+// redefines them because v1alpha2 imports nothing from v1alpha1 (R18). The
+// duplication lasts until v1alpha1's stream is deleted (R2).
+
+// Position is one cell or point on the map, mirroring the toolkit's
+// spatial.Position. Cells on this map are hex cells named in the atlas's own
+// frame; x and y are carried verbatim and never re-derived.
+message Position {
+  double x = 1;
+  double y = 2;
+}
+
+// AxialPoint is a point in FRACTIONAL axial coordinates: the frame every cell on
+// the map lives in, with the halves a wall endpoint needs (a side midpoint is
+// half a step from its cell's centre). Mirrors the SDK's AxialPointF.
+message AxialPoint {
+  double q = 1;
+  double r = 2;
+}
+
+// FootprintPoint is one point on the map's continuous plane, IN FEET. Not a
+// cell and not an AxialPoint: the same spot carries different numbers in the
+// two frames.
+message FootprintPoint {
+  double x = 1;
+  double y = 2;
+}
+
+// FootprintPlacement is one rectangle on the plane: its size, where it sits,
+// which way it faces and how far it is nudged inside its own axes. What a client
+// draws, never what it decides with.
+message FootprintPlacement {
+  // width is the rectangle's extent ACROSS its facing, in feet.
+  double width = 1;
+  // depth is its extent ALONG its facing, in feet.
+  double depth = 2;
+  // origin is where the placement is anchored, in feet.
+  FootprintPoint origin = 3;
+  // facing is in degrees from east in the plane's numeric frame; positive 90
+  // points south. Zero is a real facing (due east).
+  double facing = 4;
+  // local_offset is the box centre's offset from origin in the placement's own
+  // axes: x along the facing, y across it.
+  FootprintPoint local_offset = 5;
+}
+
+// Lighting is an area's light level. Zero intensity is dark, an answer.
+message Lighting {
+  double intensity = 1;
+}
+
+// AtlasRegion is one named set of cells with the world facts it carries.
+message AtlasRegion {
+  string id = 1;
+  // name is the region's display name, verbatim; may be empty.
+  string name = 2;
+  // cells are the region's newly known cells, sorted by coordinate.
+  repeated Position cells = 3;
+  // archetype is the presentation profile ("crypt"). Never a mechanic.
+  string archetype = 4;
+  Lighting lighting = 5;
+}
+
+// AtlasProp is one thing standing on a cell. The two blocking answers are
+// independent, and false is an answer on both.
+message AtlasProp {
+  // id is the author's name for the placement; empty when none was authored.
+  string id = 1;
+  // holdable is the author's flag, verbatim. A client offers hold only where it
+  // is true and never guesses from an id.
+  bool holdable = 2;
+  // ref names what this is, so a client can draw it.
+  string ref = 3;
+  Position at = 4;
+  bool blocks_movement = 5;
+  bool blocks_line_of_sight = 6;
+  // facing is one of the eight true-compass names, verbatim; "" means the
+  // asset's own default.
+  string facing = 7;
+  // offset_x, offset_y and offset_z are the authored visual displacement: the
+  // planar within-cell nudge and the height above the floor. Visual only.
+  double offset_x = 8;
+  double offset_y = 9;
+  double offset_z = 10;
+}
+
+// AtlasPlacedProp is one authored footprint: a rectangle drawn at an angle, its
+// blocking answers, whether it can be held, and the cells the engine says it
+// stands on.
+message AtlasPlacedProp {
+  // id is the author's name for the placement, required and unique.
+  string id = 1;
+  FootprintPlacement placement = 2;
+  bool blocks_movement = 3;
+  bool blocks_line_of_sight = 4;
+  bool holdable = 5;
+  // cells are the cells the engine says it stands on. A client never derives
+  // them from the placement.
+  repeated Position cells = 6;
+}
+
+// AtlasBoundary is one wall or barrier crossing between adjacent cells.
+message AtlasBoundary {
+  Position from = 1;
+  Position to = 2;
+  bool blocks_movement = 3;
+  bool blocks_line_of_sight = 4;
+  // height is the authored wall-height multiplier; 0 means not authored, drawn
+  // at the standard height. Visual only.
+  double height = 5;
+}
+
+// AtlasSegment is one authored wall as a line, in fractional axial.
+message AtlasSegment {
+  AxialPoint from = 1;
+  AxialPoint to = 2;
+  // height is the authored wall-height multiplier; 0 means standard height.
+  double height = 3;
+}
+
+// AtlasDoorway is one crossable pair of adjacent cells, naming its door. A door
+// with several edges appears once per edge under the same door id.
+message AtlasDoorway {
+  string door = 1;
+  Position from = 2;
+  Position to = 3;
+}
+
+// AtlasExit is one authored way out: its id and the cell somebody stands on to
+// leave through it.
+message AtlasExit {
+  string id = 1;
+  Position at = 2;
+}
+
+// AtlasStructuralOpening is one permitted gap in a structural wall, in
+// canonical feet. It carries no door id and no state.
+message AtlasStructuralOpening {
+  string id = 1;
+  // position is the gap's centre, measured along the wall from its start.
+  double position = 2;
+  double width = 3;
+}
+
+// AtlasStructuralWall is one authored structural wall: its identity, its
+// appearance ref, its line in canonical feet, its assembled dimensions and its
+// permitted cut list.
+message AtlasStructuralWall {
+  string id = 1;
+  string ref = 2;
+  FootprintPoint from = 3;
+  FootprintPoint to = 4;
+  double height = 5;
+  double thickness = 6;
+  double elevation = 7;
+  // footprint_cells are every floor cell the wall overlaps, in order along the
+  // wall. A client grades the wall by them and never re-derives them.
+  repeated Position footprint_cells = 8;
+  repeated AtlasStructuralOpening openings = 9;
+}
+
+// StructuralWallOpeningsReplacement replaces a known wall's complete permitted
+// cut list. A present record with no openings clears them.
+message StructuralWallOpeningsReplacement {
+  string wall_id = 1;
+  repeated AtlasStructuralOpening openings = 2;
+}
+
+// AtlasStructuralDoor is one independently permitted structural door, with no
+// parent wall id and no state.
+message AtlasStructuralDoor {
+  // id is the canonical gameplay door id the verbs use.
+  string id = 1;
+  string ref = 2;
+  FootprintPoint from = 3;
+  FootprintPoint to = 4;
+  double height = 5;
+  double thickness = 6;
+  double elevation = 7;
+}
+
+// PropPointLight is optional visual emission, not mechanical illumination.
+message PropPointLight {
+  bool enabled = 1;
+  FootprintPoint offset = 2;
+  double offset_elevation = 3;
+  // color is "#rrggbb".
+  string color = 4;
+  double intensity = 5;
+  double range = 6;
+}
+
+// PropPresentation is the permitted renderer input for a prop. None of its
+// fields decides a rule.
+message PropPresentation {
+  string id = 1;
+  string ref = 2;
+  FootprintPoint origin = 3;
+  double elevation = 4;
+  double facing_degrees = 5;
+  double height_scale = 6;
+  // point_light is absent when the prop emits no light.
+  PropPointLight point_light = 7;
+  string door_id = 8;
+  string label = 9;
+}
+
+// DoorApproach is one accepted route through a lock's authored check.
+message DoorApproach {
+  // ability is the opaque ability or skill ref the route rolls.
+  string ability = 1;
+  // tool is the opaque item ref the route may name; empty when none.
+  string tool = 2;
+  int32 dc = 3;
+}
+
+// RevealedDoor is one door a concealment hid, as the observer's door list and
+// atlas now carry it.
+message RevealedDoor {
+  string door = 1;
+  // state is the door's live state at reveal time: "open", "closed" or
+  // "locked".
+  string state = 2;
+  // doorways are every edge of the door; empty for a footprint door, which
+  // stands in no crossing.
+  repeated AtlasDoorway doorways = 3;
+  // approaches are the lock's routes, present only while the door is locked.
+  repeated DoorApproach approaches = 4;
+}

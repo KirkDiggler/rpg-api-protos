@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package dnd5e.api.session.v1alpha2;
+
+import "dnd5e/api/session/v1alpha2/record.proto";
+
+// StreamRecordRequest subscribes to a session's whole record.
+//
+// `member` is the SEAT GATE, not a filter: the server verifies the caller is
+// seated as that member, then delivers every beat of the record (R13, R26).
+//
+// The stream CATCHES UP, THEN GOES LIVE. It first delivers every retained
+// beat with an id after `after_id`, then every beat written from then on,
+// each exactly once and in id order. An empty `after_id` replays from the
+// oldest retained beat. An `after_id` older than retention is answered with
+// `restarted` as the FIRST message, then a replay from the oldest retained
+// beat: the subscriber replaces what it holds. There is no seq range (R12).
+message StreamRecordRequest {
+  string session = 1;
+  string member = 2;
+  string after_id = 3;
+}
+
+// StreamRecordResponse is one message of the record stream.
+//
+// `lagged` is ALWAYS THE LAST MESSAGE when it appears: the server ends the
+// stream after sending it, and the subscriber catches up from
+// RecordLagged.last_id (R28). `restarted` is ALWAYS THE FIRST MESSAGE when it
+// appears (see StreamRecordRequest).
+message StreamRecordResponse {
+  oneof item {
+    RecordEvent event = 1;
+    RecordLagged lagged = 2;
+    RecordRestarted restarted = 3;
+  }
+}
+
+// GetRecordRequest reads the retained record after an id: the catch-up read
+// beside the stream, so the debug panel keeps its history on reconnect and
+// after a lag (R15). `member` is the seat gate, as on StreamRecordRequest.
+//
+// PAGING IS KEYSET, on the id. `limit` caps the events one read returns; a
+// `limit` of zero or less, or one above the server's maximum page size,
+// means the server's maximum page size. A read is never unbounded: a run's
+// record is retained whole, so one page of it could exceed a message limit.
+// To read everything after an id, repeat with `after_id` set to the last
+// returned event's id while GetRecordResponse.more is true.
+message GetRecordRequest {
+  string session = 1;
+  string member = 2;
+  string after_id = 3;
+  int32 limit = 4;
+}
+
+// GetRecordResponse is the retained record after the requested id, in id
+// order.
+message GetRecordResponse {
+  repeated RecordEvent events = 1;
+
+  // restarted is true when `after_id` names a beat older than the retention
+  // window (R25). The events then start at the oldest retained beat, and the
+  // caller replaces what it holds rather than appending to it — a short
+  // answer would otherwise look complete.
+  bool restarted = 2;
+
+  // more is true when retained events after the last one returned did not
+  // fit this page. It is the end signal: read again after the last returned
+  // id while it is true. A page's length says nothing about the end.
+  bool more = 3;
+}
+
+// RecordService serves the record stream: every beat the encounter writes,
+// as written, narrowed by its reader by act id and beat name (R5, R8, Law 5).
+//
+// TWO RPCS AND NOTHING ELSE. The act stream (StreamEvents and GetStory on
+// v1alpha2) is its own service, and the verbs stay in v1alpha1 (R2, R12).
+service RecordService {
+  // StreamRecord delivers the record after an id, then live. A subscriber
+  // that falls behind is told so with a final `lagged` message; no beat is
+  // skipped silently (R28). PERMISSION_DENIED when the caller is not seated as
+  // `member`; NOT_FOUND when the session is absent.
+  rpc StreamRecord(StreamRecordRequest) returns (stream StreamRecordResponse);
+
+  // GetRecord reads the retained record after an id (R15).
+  // PERMISSION_DENIED when the caller is not seated as `member`; NOT_FOUND
+  // when the session is absent.
+  rpc GetRecord(GetRecordRequest) returns (GetRecordResponse);
+}

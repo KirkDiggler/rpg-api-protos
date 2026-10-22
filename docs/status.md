@@ -1,7 +1,7 @@
 ---
 name: rpg-api-protos status
 description: Where we are with the proto contracts — active work, recently landed, paused, known rough edges, per-service confidence
-updated: 2026-10-21
+updated: 2026-10-22
 confidence: medium — seeded from `git log` since 2025-12, open PRs, and grep across rpg-api / rpg-dnd5e-web; needs Kirk's correction pass
 ---
 
@@ -15,6 +15,22 @@ Connect-ES). When a proto change lands here, it ripples to both consumers; when
 shape and consumer drift, it shows up here as a "rough edge."
 
 ## Active work
+
+- **The v1 event stream is deleted (rpg-project#631, E5c c2)** —
+  `SessionService.StreamEvents` and `GetStory` leave
+  `dnd5e/api/session/v1alpha1`, with `StreamEventsRequest`,
+  `GetStoryRequest`, `GetStoryResponse`, `Event`, `EventKind`, the 60 body
+  messages only `Event` reached, and `PlacementKind` (only `Arrived` used it).
+  This is a deliberate break under the alpha-package rule, carried by the
+  `breaking-change-approved` label. The roll trace (`RollCalculation`,
+  `RollComponent`, `RollSource`, `DiceTrace`, `DiceReroll`, `DiceKeep`,
+  `KeepRule`) stays in `events.proto` because v1 verb responses still carry
+  it, and `StructuralWallOpeningsReplacement` stays in `types.proto` because
+  the web reads it as its reveal-patch type. The act stream on v1alpha2
+  `StoryService` is the only story a client reads. Rough edge: the `seq`
+  fields on v1 verb responses and `GetKnowledgeResponse` still describe the
+  deleted per-recipient numbering; their producer leaves with the session's
+  v1 cursor (rpg-project#631 c4).
 
 - **The act stream, session v1alpha2 (rpg-project#630 / design
   ideas/event-stream)** — `StoryService` (`StreamEvents`, `GetStory`) beside

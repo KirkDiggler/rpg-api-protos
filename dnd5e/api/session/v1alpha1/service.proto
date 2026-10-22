@@ -1160,53 +1160,6 @@ message GetStatusResponse {
   Outcome outcome = 2;
 }
 
-// GetStoryRequest reads the beats a member has witnessed.
-//
-// THE RESYNC SOURCE OF TRUTH (design rule 6). Delivery on StreamEvents is
-// best-effort and carries no replay obligation; a client that notices a gap in
-// its OWN `seq` re-queries here from its last known value.
-//
-// EVERYTHING HERE IS IN THE REQUESTED MEMBER'S NUMBERING, which is theirs
-// alone (see Event.seq — seq is per recipient, dense in that member's stream).
-// The entries returned carry exactly the numbers that member's live stream
-// carried. A seq learned from another member, or a server-side sequence from
-// the engine's own whole-truth numbering, is not a resume point on this stream
-// and asking with one names a beat nobody delivered.
-//
-// NOT_FOUND with the SDK's ErrStoryTrimmed semantics means the requested resume
-// point has aged out of the retention window and the caller must resync from
-// zero rather than resume — a short answer would be indistinguishable from a
-// complete one and would leave a permanent hole in the client's view.
-message GetStoryRequest {
-  string session = 1;
-  // The viewer whose story is requested.
-  string member = 2;
-  // The INCLUSIVE lower bound, read in `member`'s OWN numbering — never the
-  // engine's whole-truth sequence and never a number another member reported.
-  // Entries begin AT this sequence. To resume after entry N, pass N+1. Zero
-  // means "I hold nothing, send what you have" and is always answerable,
-  // however much has aged out.
-  uint64 from_seq = 3;
-}
-
-// GetStoryResponse carries session.Story's return slice, projected through
-// the SAME converter StreamEvents uses.
-//
-// Each entry is the Event this member's live stream would have carried,
-// numbered exactly as it was numbered there — kind, seq, typed body, recipient
-// and all — so a client catching up after a gap reads exactly what it missed.
-// Catch-up and live agree number for number, because both count the same
-// per-recipient stream (see Event.seq), and they are ONE shape: there is no
-// second, lossier projection of a beat that a client has to decode
-// differently (rpg-api-protos#239 — the old StoryEntry carried only the raw
-// payload, which left caught-up beats untyped in the client's feed).
-//
-// Entries are addressed to `member`: every Event's `recipient` equals the
-// requested member, the same assertion StreamEvents makes.
-message GetStoryResponse {
-  repeated Event entries = 1;
-}
-
 // GetKnowledgeRequest hydrates or restores one character's dungeon knowledge.
 // The host authenticates the caller, verifies control of this exact member and
 // its seat in this session. The selectors are not authorization.
@@ -2239,29 +2192,6 @@ message RestResponse {
 // Stream
 // =============================================================================
 
-// StreamEventsRequest subscribes to the events addressed to one member.
-//
-// `member` is the RECIPIENT IDENTITY, and the server delivers only events whose
-// Event.recipient is that member — verbatim, as the toolkit projected them.
-// rpg-api neither filters nor re-derives visibility (design rule 4): events
-// arrive from the SDK already projected per audience, so the wire only ever
-// carries what the recipient may see. A host that filtered would be
-// reimplementing perception, and its first mistake would leak fog of war.
-//
-// Unlike StreamLobby, the subscriber is a request field rather than purely the
-// authenticated identity: one authenticated player controls one member today,
-// but the recipient of a projection is an encounter member, and the two are not
-// the same vocabulary. Servers MUST still verify the caller is entitled to that
-// member's stream.
-//
-// No snapshot-then-deltas here, deliberately — this stream has no replay
-// obligation. A subscriber that needs to catch up reads GetStory, and one that
-// needs the static map reads GetAtlas.
-message StreamEventsRequest {
-  string session = 1;
-  string member = 2;
-}
-
 // =============================================================================
 // Service
 // =============================================================================
@@ -2487,10 +2417,6 @@ service SessionService {
   // GetStatus reports whether the encounter is open, and how it ended if not.
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
 
-  // GetStory reads the beats a member has witnessed — the resync source of
-  // truth when the stream drops a beat or a client reconnects.
-  rpc GetStory(GetStoryRequest) returns (GetStoryResponse);
-
   // GetKnowledge hydrates known fixed rooms, mutable observations, own position,
   // holdings and known public identities from one saved observer state.
   rpc GetKnowledge(GetKnowledgeRequest) returns (GetKnowledgeResponse);
@@ -2517,12 +2443,4 @@ service SessionService {
   rpc GetDoors(GetDoorsRequest) returns (GetDoorsResponse) {
     option deprecated = true;
   }
-
-  // StreamEvents delivers the events addressed to one member. Everything a
-  // client must render that is not the caller's own action arrives here —
-  // monsters acting, the clock advancing, another member crossing a doorway —
-  // single-player included (design rule 2). Best-effort: a recipient that
-  // notices a gap in its OWN Event.seq — the numbering is per recipient and
-  // dense in each member's stream alone — re-queries GetStory (rule 6).
-  rpc StreamEvents(StreamEventsRequest) returns (stream Event);
 }

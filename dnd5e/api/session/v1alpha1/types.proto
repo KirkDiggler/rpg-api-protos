@@ -169,25 +169,6 @@ enum MemberKind {
   MEMBER_KIND_WORLD = 3;
 }
 
-// PlacementKind names which family of authored placement an Arrived beat
-// carries — the two families of `place[]` entry that can be held in reserve
-// (design rpg-project#375, ideas/living-world/hold-out §2: `arrives` is legal
-// on monsters and props).
-//
-// NOT MemberKind, AND NOT A STRING. MemberKind cannot say PROP — a prop is
-// not a member and has no row in any member list — and a client BRANCHES on
-// this value (a monster arrival patches the roster, a prop arrival patches
-// the atlas), which is the same reason EventKind is an enum. The set grows
-// only when a new family of placement can wait in reserve, and that is a
-// design change rather than content, so it is closed here.
-enum PlacementKind {
-  PLACEMENT_KIND_UNSPECIFIED = 0;
-  // A monster placement: on arrival, a new MEMBER_KIND_MONSTER member.
-  PLACEMENT_KIND_MONSTER = 1;
-  // A prop placement: on arrival, a new AtlasProp.
-  PLACEMENT_KIND_PROP = 2;
-}
-
 // Standing says whether a member is still on their feet. Mirrors
 // session.Standing ("up" / "downed").
 //

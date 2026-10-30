@@ -882,6 +882,21 @@ message RollWindowOpened {
   Roll roll = 4;
 }
 
+// EndingResult is what an ending meant for the party: the result the author
+// declared on the ending that fired (rpg-project#714, S9). It is read from the
+// ending, never stored beside it, so a reloaded closed run cannot disagree
+// with its ending.
+enum EndingResult {
+  // ENDING_RESULT_UNSPECIFIED is an ending that states no result, and every
+  // ending recorded before results existed. A client shows no result rather
+  // than guessing one from the ending's name.
+  ENDING_RESULT_UNSPECIFIED = 0;
+  // ENDING_RESULT_SUCCESS is an ending the party won.
+  ENDING_RESULT_SUCCESS = 1;
+  // ENDING_RESULT_FAILURE is an ending the party lost.
+  ENDING_RESULT_FAILURE = 2;
+}
+
 // ClockEntry is the table's bookkeeping. A clock entry inside an act carries
 // that act's id and closes the act's open segment. Exactly the part matching
 // `mark` is set; a scene opening carries none.
@@ -900,4 +915,8 @@ message ClockEntry {
   string ending = 9;
   WindowOpened window = 10;
   RollWindowOpened roll_window = 11;
+  // outcome is the result the ending reached declares, beside `ending` on
+  // CLOCK_MARK_ENDED (the ended beat's `outcome`); unspecified on every other
+  // mark and on an ending that declares none.
+  EndingResult outcome = 12;
 }

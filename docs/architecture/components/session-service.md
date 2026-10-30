@@ -589,6 +589,25 @@ model. API only copies the field. No new stats/faction messages, asset paths or
 binary content accompany it. The contract does not by itself claim provider or
 consumer implementation.
 
+## Observed default activity
+
+`PublicMemberInfo.default_activity_ref = 10` carries an optional authored
+presentation default independently of body appearance and rules identity.
+For example, `dnd5e:activities:thoughtful` names an activity defined by the asset
+provider. Toolkit validates reference structure and captures the value with
+sight testimony; session projects that captured value and API copies it.
+Remembered observations do not acquire a newer live/source value. A never-seen
+creature remains absent from the public roster.
+
+Empty means no explicit captured override, including legacy observations, so
+the consumer uses the appearance provider's declared default. An unsupported
+explicit reference is a named diagnostic, not a different activity selected by
+guesswork. The field does not carry the current animation phase, clip filenames,
+playback speed, turn timing, or a new command. No gameplay rule reads its value.
+
+This additive field declares the wire contract; it does not by itself claim
+provider persistence, studio controls, or renderer transitions are integrated.
+
 ## Public roster customization
 
 `PublicMemberInfo.customization = 7` remains the public identity shelf and now

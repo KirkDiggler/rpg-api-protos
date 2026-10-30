@@ -759,6 +759,17 @@ message PublicMemberInfo {
   // source-document value. Never-seen creatures remain absent from this roster.
   // This is presentation only: no stat block, faction, file path or asset bytes.
   string appearance_ref = 9;
+
+  // Optional authored default activity captured by this observer's sight,
+  // independent of the body appearance and rules identity. For example,
+  // dnd5e:activities:thoughtful names provider-owned presentation content.
+  // Empty means no explicit captured override, including legacy observations;
+  // the consumer uses the appearance provider's declared default. An unsupported
+  // explicit ref is a diagnostic, not permission to substitute another activity.
+  // Remembered identity retains its captured value, never a newer live-member
+  // or source-document value. Never-seen creatures have no roster row.
+  // This is not the current animation phase, a clip filename, or a game command.
+  string default_activity_ref = 10;
 }
 
 // Customization is public visual identity, not owner-private sheet or rules

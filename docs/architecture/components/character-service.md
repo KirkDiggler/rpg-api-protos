@@ -17,7 +17,7 @@ spells) that the character-creation UI needs.
 ## File and shape
 
 - `dnd5e/api/v1alpha1/character.proto`.
-- 1 service, 36 RPCs, 111 messages (counted, not estimated; the previous
+- 1 service, 37 RPCs, 113 messages (counted, not estimated; the previous
   "~32 / ~80" was already stale before the level-up additions).
 - Imports the neutral `customization/v1alpha1/types.proto` contract plus
   `choices.proto`, `common.proto`, `enums.proto`, and `equipment_types.proto`.

@@ -608,6 +608,26 @@ playback speed, turn timing, or a new command. No gameplay rule reads its value.
 This additive field declares the wire contract; it does not by itself claim
 provider persistence, studio controls, or renderer transitions are integrated.
 
+## Counted response activity (v1alpha2)
+
+`dnd5e.api.session.v1alpha2.TableAnswer.activity = 12` optionally carries an
+`ActivityCue { ref, cycles }`, including on the answer nested in `Speech`.
+It is the selected response's captured cue, not a client inference from the
+question, its wording or a later authoring-document read. Absence means no cue.
+A present cue requires a nonempty provider-owned reference and a positive
+uint32 sustain-cycle count; zero does not mean forever. Enter/Exit do not count.
+
+The existing presentation cursor starts the cue with the live response. The
+existing body sequencer owns completion and return to the configured default.
+Movement or a newer request discards unfinished cycles, and arrival does not
+resume them. Catch-up retains the recorded data without replaying the animation;
+remembered/hidden bodies and lost render lifecycles must not acquire a live cue.
+Unsupported activity/body combinations are diagnosed, never silently replaced.
+
+This message carries no playback clock, clip names, movement or rules authority.
+API maps it literally. The additive wire contract does not itself establish
+provider persistence, Studio controls or renderer integration.
+
 ## Public roster customization
 
 `PublicMemberInfo.customization = 7` remains the public identity shelf and now

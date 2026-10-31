@@ -636,6 +636,17 @@ message Temper {
   Roll roll = 3;
 }
 
+// ActivityCue is an authored presentation cue on a spoken answer. It carries
+// intent, not clip names, timing, movement or gameplay authority. Consumers
+// resolve the reference against the body's appearance provider.
+message ActivityCue {
+  // ref is the nonempty, provider-owned activity reference.
+  string ref = 1;
+  // cycles is the positive number of complete sustain cycles. Enter/Exit do
+  // not count. Zero is invalid, not an infinite-playback spelling.
+  uint32 cycles = 2;
+}
+
 // TableAnswer is a table roll's answer: a creature's or a prop's pick, or a
 // temperament deal. It never carries the answer's fact (R10).
 message TableAnswer {
@@ -659,6 +670,12 @@ message TableAnswer {
   Roll roll = 10;
   // dealt is present on a temperament deal, absent on a pick.
   Temper dealt = 11;
+  // activity is present only when this spoken answer authored a cue. Omitted
+  // means no cue. It starts with the live response's presentation and returns
+  // to the body's configured default after its sustain cycles. Movement or a
+  // newer request discards unfinished cycles; arrival never resumes them.
+  // Catch-up data retains this value but must not replay the animation.
+  ActivityCue activity = 12;
 }
 
 // StateKind is what a state entry changed.

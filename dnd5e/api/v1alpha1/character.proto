@@ -44,6 +44,12 @@ service CharacterService {
   rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
   rpc DeleteCharacter(DeleteCharacterRequest) returns (DeleteCharacterResponse);
 
+  // Character configuration (rpg-project#753 R2): what a player chooses for
+  // this character across every session, stored by character under the
+  // character's own guard. A session reads it at its next write verb; no
+  // session verb writes it, so no session lock is wider than its own session.
+  rpc SetPreference(SetPreferenceRequest) returns (SetPreferenceResponse);
+
   // Level progression
   //
   // Experience is read-only over the wire. It reaches the client as
@@ -538,6 +544,28 @@ message LevelUpResponse {
 
   // What the level brought
   LevelGained gained = 2;
+}
+
+// SetPreferenceRequest changes one or more of a character's preferences.
+// Each preference is optional: a field left absent is left as it is, so a
+// client sets only what it changes.
+message SetPreferenceRequest {
+  // The character whose configuration changes.
+  string character_id = 1;
+
+  // Whether this character's automatic discovery results are shared with
+  // the party. Explicit false is private. Takes effect at the character's
+  // next write verb in any session; it never replays old discoveries or
+  // erases learned intel. Replaces session SetDiscoverySharing.
+  optional bool discovery_sharing = 2;
+}
+
+// SetPreferenceResponse is the character's configuration as the server now
+// holds it, after the change.
+message SetPreferenceResponse {
+  // The effective discovery-sharing choice. Absent means the player has
+  // never chosen, and each session applies its own default.
+  optional bool discovery_sharing = 1;
 }
 
 // What a level brought, as the engine reported it

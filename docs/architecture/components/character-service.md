@@ -17,7 +17,7 @@ spells) that the character-creation UI needs.
 ## File and shape
 
 - `dnd5e/api/v1alpha1/character.proto`.
-- 1 service, 36 RPCs, 111 messages (counted, not estimated; the previous
+- 1 service, 37 RPCs, 113 messages (counted, not estimated; the previous
   "~32 / ~80" was already stale before the level-up additions).
 - Imports the neutral `customization/v1alpha1/types.proto` contract plus
   `choices.proto`, `common.proto`, `enums.proto`, and `equipment_types.proto`.
@@ -110,6 +110,17 @@ draft so the client can re-render without a separate `Get`.
 | `GetCharacter` | Fetches by ID |
 | `ListCharacters` | AIP-158 pagination; filter by session_id, player_id |
 | `DeleteCharacter` | Removes character |
+
+### Character configuration (1 RPC)
+
+What a player chooses for a character across every session lives in a
+character configuration store keyed by character, under the character's own
+guard (rpg-project#753 R2). Sessions read it at their next write verb and never
+write it, so no session verb needs a lock wider than its own session.
+
+| RPC | Notes |
+|---|---|
+| `SetPreference` | `character_id` plus optional preferences; an absent field is left unchanged. Today only `discovery_sharing`. Returns the effective preferences, where an absent `discovery_sharing` means never chosen. Replaces the deprecated session `SetDiscoverySharing` |
 
 ### Level progression (2 RPCs)
 

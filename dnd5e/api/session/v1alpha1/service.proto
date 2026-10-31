@@ -2274,7 +2274,15 @@ service SessionService {
   }
 
   // Caller must control this exact seated character.
-  rpc SetDiscoverySharing(SetDiscoverySharingRequest) returns (SetDiscoverySharingResponse);
+  //
+  // Deprecated: discovery sharing is character configuration
+  // (rpg-project#753 R2). Use dnd5e.api.v1alpha1.CharacterService.SetPreference
+  // with discovery_sharing. Servers keep answering this RPC during consumer
+  // migration by writing the same character configuration for the seated
+  // character; the change takes effect at that character's next write verb.
+  rpc SetDiscoverySharing(SetDiscoverySharingRequest) returns (SetDiscoverySharingResponse) {
+    option deprecated = true;
+  }
 
   // SetSneaking declares or clears sneaking on one seated character
   // (rpg-project#606, sneaking R6). World clock only; spends no time. Caller

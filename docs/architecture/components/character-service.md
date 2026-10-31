@@ -111,6 +111,17 @@ draft so the client can re-render without a separate `Get`.
 | `ListCharacters` | AIP-158 pagination; filter by session_id, player_id |
 | `DeleteCharacter` | Removes character |
 
+### Character configuration (1 RPC)
+
+What a player chooses for a character across every session lives in a
+character configuration store keyed by character, under the character's own
+guard (rpg-project#753 R2). Sessions read it at their next write verb and never
+write it, so no session verb needs a lock wider than its own session.
+
+| RPC | Notes |
+|---|---|
+| `SetPreference` | `character_id` plus optional preferences; an absent field is left unchanged. Today only `discovery_sharing`. Returns the effective preferences, where an absent `discovery_sharing` means never chosen. Replaces the deprecated session `SetDiscoverySharing` |
+
 ### Level progression (2 RPCs)
 
 Experience is **read-only over the wire**. `Character.experience_points` is the

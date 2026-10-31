@@ -1200,8 +1200,12 @@ message SetDiscoverySharingRequest {
 }
 
 message SetDiscoverySharingResponse {
+  // The character's stored choice after the write.
   bool sharing = 1;
+  // Empty since the choice became character configuration: the write
+  // touches no session record, so nothing is saved or delivered here.
   SaveReport saved = 2;
+  // Empty, as saved.
   DeliveryReport delivery = 3;
 }
 
@@ -1224,7 +1228,7 @@ message SetSneakingRequest {
 
 // SetSneakingResponse is the mode as the server now holds it, with the save
 // and delivery reports of the write: the verb persists encounter state and
-// refreshes sight, as SetDiscoverySharing persists and delivers.
+// refreshes sight.
 message SetSneakingResponse {
   bool sneaking = 1;
   SaveReport saved = 2;

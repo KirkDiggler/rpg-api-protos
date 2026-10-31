@@ -48,6 +48,7 @@ service CharacterService {
   // this character across every session, stored by character under the
   // character's own guard. A session reads it at its next write verb; no
   // session verb writes it, so no session lock is wider than its own session.
+  // Only the player who owns the character may call it.
   rpc SetPreference(SetPreferenceRequest) returns (SetPreferenceResponse);
 
   // Level progression

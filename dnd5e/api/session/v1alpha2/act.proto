@@ -686,6 +686,19 @@ enum StateKind {
   STATE_KIND_CONCENTRATION_ENDED = 3;
   STATE_KIND_CONDITION_REMOVED = 4;
   STATE_KIND_EXPERIENCE = 5;
+  // STATE_KIND_MACHINE is a creature's machine moving from one state to
+  // another (rpg-project#766).
+  STATE_KIND_MACHINE = 6;
+}
+
+// MachineChange is a creature's machine moving from one state to another.
+message MachineChange {
+  // from is the state left.
+  string from = 1;
+  // to is the state entered.
+  string to = 2;
+  // reason is the author's reason word for the transition.
+  string reason = 3;
 }
 
 // Downed is a fall's detail.
@@ -734,6 +747,8 @@ message StateChange {
   ConcentrationEnded concentration = 5;
   ConditionLifted condition = 6;
   repeated ExperienceGrant experience = 7;
+  // machine is set for STATE_KIND_MACHINE.
+  MachineChange machine = 8;
 }
 
 // Sense is how a perception entry was perceived.

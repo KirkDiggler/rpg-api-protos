@@ -848,6 +848,17 @@ enum ClockMark {
   CLOCK_MARK_WINDOW_OPENED = 10;
   // CLOCK_MARK_ROLL_WINDOW_OPENED is a roll stopping to ask its roller.
   CLOCK_MARK_ROLL_WINDOW_OPENED = 11;
+  // CLOCK_MARK_WAKE_CUT is the raise matching more beats than its bound and
+  // cutting the rest (rpg-project#766).
+  CLOCK_MARK_WAKE_CUT = 12;
+}
+
+// WakeCut is a raise that matched more beats than its bound and cut the rest.
+message WakeCut {
+  // matched is how many beats the raise matched.
+  int32 matched = 1;
+  // dropped is how many of those it cut.
+  int32 dropped = 2;
 }
 
 // TurnPassed is a turn ending.
@@ -951,4 +962,6 @@ message ClockEntry {
   // CLOCK_MARK_ENDED (the ended beat's `outcome`); unspecified on every other
   // mark and on an ending that declares none.
   EndingResult outcome = 12;
+  // wake_cut is set for CLOCK_MARK_WAKE_CUT.
+  WakeCut wake_cut = 13;
 }

@@ -371,6 +371,9 @@ message WalkAct {
   repeated WalkStep path = 2;
   // cause is what moved them, when something did.
   string cause = 3;
+  // forced is true when the mover was MOVED — pushed or pulled, not a walk by
+  // choice or in flight. Absent or legacy means the mover walked.
+  bool forced = 4;
 }
 
 // AttackOutcome is how a swing ended (Law 6).

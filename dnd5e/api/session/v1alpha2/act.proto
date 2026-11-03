@@ -363,6 +363,22 @@ message WalkStep {
   repeated string doors = 2;
 }
 
+// MoveKind is how a body moved: its own walk, its legs under somebody else's
+// order, or moved without its legs.
+enum MoveKind {
+  // MOVE_KIND_UNSPECIFIED is a walk from a writer that does not know the
+  // kind; a reader falls back to `forced` (true is displaced, else own).
+  MOVE_KIND_UNSPECIFIED = 0;
+  // MOVE_KIND_OWN is a walk the creature chose.
+  MOVE_KIND_OWN = 1;
+  // MOVE_KIND_COMPELLED is the creature's own legs under somebody else's
+  // order (Command, Dissonant Whispers): it walks.
+  MOVE_KIND_COMPELLED = 2;
+  // MOVE_KIND_DISPLACED is a body moved without its legs (Thunderwave): it
+  // slides.
+  MOVE_KIND_DISPLACED = 3;
+}
+
 // WalkAct is a walk: one mover's steps under one act. A walk's later segment
 // starts at the cell its earlier segment left the mover on.
 message WalkAct {
@@ -371,9 +387,11 @@ message WalkAct {
   repeated WalkStep path = 2;
   // cause is what moved them, when something did.
   string cause = 3;
-  // forced is true when the mover was MOVED — pushed or pulled, not a walk by
-  // choice or in flight. Absent or legacy means the mover walked.
-  bool forced = 4;
+  // forced is DEPRECATED: a mirror of kind == MOVE_KIND_DISPLACED, still
+  // written for readers that do not know `kind`. Read `kind`.
+  bool forced = 4 [deprecated = true];
+  // kind is how the body moved. A walk segment never mixes kinds.
+  MoveKind kind = 5;
 }
 
 // AttackOutcome is how a swing ended (Law 6).

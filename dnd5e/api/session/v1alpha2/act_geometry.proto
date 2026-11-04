@@ -137,6 +137,11 @@ message AtlasDoorway {
   string door = 1;
   Position from = 2;
   Position to = 3;
+  // crossing is true when this doorway is a footprint door's crossing, which
+  // the server derives from the door's placed footprint; false (the zero
+  // value) for an edge door's edge. Renderers draw a doorway only for an edge
+  // door; route planners and fog read both kinds.
+  bool crossing = 4;
 }
 
 // AtlasExit is one authored way out: its id and the cell somebody stands on to
@@ -234,8 +239,8 @@ message RevealedDoor {
   // state is the door's live state at reveal time: "open", "closed" or
   // "locked".
   string state = 2;
-  // doorways are every edge of the door; empty for a footprint door, which
-  // stands in no crossing.
+  // doorways are every edge of an edge door, or every crossing of a
+  // footprint door, marked `crossing` so a renderer skips them.
   repeated AtlasDoorway doorways = 3;
   // approaches are the lock's routes, present only while the door is locked.
   repeated DoorApproach approaches = 4;

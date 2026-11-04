@@ -1065,6 +1065,15 @@ message Sighting {
   // Held memories contribute no live obstacle. Clients use this answer for
   // traversal and stopping, never reconstruct it from kind, stance, or HP.
   Passage passage = 11;
+  // The qualified door id (DoorInfo.door, AtlasDoorway.connection) whose
+  // opening this body's post bars against the viewer, while the post holds
+  // it; empty when it holds nothing. A hold is a body's fact, not a door
+  // state: the door's own state stays on DoorInfo. Per-observer testimony
+  // like the rest of the sighting, and it rides here because a sighting
+  // refreshes when what the viewer holds about a body changes, while
+  // DoorInfo refreshes only on door beats. A memory (current_via empty)
+  // holds nothing live; clients plan only a live sighting's hold as shut.
+  string holds_door = 12;
 }
 
 // PropSighting is this observer's latest testimony about a movable or holdable
@@ -2444,6 +2453,13 @@ message AtlasDoorway {
   Position from = 6;
   // The other, adjacent to `from`.
   Position to = 7;
+  // True when this doorway is a footprint door's crossing, which the server
+  // derives from the door's placed footprint; false (the zero value) for an
+  // edge door's edge. Renderers draw a doorway (the wall gap, the door leaf,
+  // a door target through the gap) only for an edge door: a footprint door is
+  // already drawn and targeted as its placed asset. Route planners and fog
+  // read both kinds.
+  bool crossing = 8;
 }
 
 // Lighting is a region's light as the assets should render it: an intensity

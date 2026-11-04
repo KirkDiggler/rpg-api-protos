@@ -1074,6 +1074,25 @@ message Sighting {
   // DoorInfo refreshes only on door beats. A memory (current_via empty)
   // holds nothing live; clients plan only a live sighting's hold as shut.
   string holds_door = 12;
+  // Which way the hold on holds_door bars, read against holds_side: `both`,
+  // `entering` or `leaving`, the post setting's own closed vocabulary
+  // (`against:`), carried as the author's word the way stance is. `entering`
+  // bars a crossing from the far cell onto a holds_side cell; `leaving` bars
+  // the reverse, from a holds_side cell to the far cell; `both` bars each
+  // way. EMPTY READS AS `both`, so a sighting produced before this field, or
+  // any post that names no direction, is read exactly as it was. Empty when
+  // holds_door is empty. Per-observer testimony like the rest of the
+  // sighting; a memory (current_via empty) holds nothing live. For planners
+  // only: renderers ignore it.
+  string holds_against = 13;
+  // The held door's crossing cells on the post's side, one per crossing of
+  // the door's opening, so a viewer in any region can orient the hold
+  // without the post's region: a crossing runs from its holds_side cell to
+  // the crossing's other cell, which is "leaving"; the other way is
+  // "entering". Empty when holds_door is empty. Per-observer testimony like
+  // the rest of the sighting; a memory holds nothing live. For planners only:
+  // renderers ignore it.
+  repeated Position holds_side = 14;
 }
 
 // PropSighting is this observer's latest testimony about a movable or holdable

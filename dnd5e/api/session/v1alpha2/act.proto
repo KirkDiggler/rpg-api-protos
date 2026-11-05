@@ -105,6 +105,7 @@ message Act {
     StateChange state = 35;
     Perception perception = 36;
     ClockEntry clock = 37;
+    BarredAct barred = 38;
   }
 }
 
@@ -622,6 +623,35 @@ message SneakAct {
   // watcher is present when the sneaker sees it.
   Party watcher = 2;
   Roll roll = 3;
+}
+
+// BarredAct is a bump: a step refused by a body, as a beat the barrier answers
+// (rpg-project#842, the-guard-holds-the-gate R2). It is FAMILY_ACT, under the
+// act tag of the Move that bumped.
+//
+// WHAT WRITES IT. A player's step refused by a body: a step onto the cell a
+// body stands on, or a step across an edge a post holds. A door verb refused
+// by a hold is a bump too. Nothing else writes it: not a wall, not a door by
+// its state, not a field, not a masked refusal, and never a driven walk (a
+// driven walk routes round). A bump spends nothing; the refused step is not
+// paid.
+//
+// WHO HEARS IT. The barrier alone, at once, in the Move that bumped. His
+// answer is not here: it rides the existing answered beat, a FAMILY_TABLE_ANSWER
+// act (or a `speak` line's answer) under the same act tag, heard by others on
+// the next raise. The web folds the barrier's answer beside this act.
+message BarredAct {
+  // mover is who was stopped.
+  Party mover = 1;
+  // barrier is who stopped them: the body in the way, or on a held crossing
+  // the nearest holder the mover is stopped by.
+  Party barrier = 2;
+  // cell is the cell the step was refused at: where the mover stands, the
+  // walk's last landed cell.
+  Position cell = 3;
+  // door is the door id when the bump was a door verb refused by a hold;
+  // empty for a step.
+  string door = 4;
 }
 
 // RestAct is a rest. The concentrations and conditions it ended are state

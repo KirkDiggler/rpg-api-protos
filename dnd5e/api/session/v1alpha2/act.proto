@@ -634,7 +634,8 @@ message SneakAct {
 // by a hold is a bump too. Nothing else writes it: not a wall, not a door by
 // its state, not a field, not a masked refusal, and never a driven walk (a
 // driven walk routes round). A bump spends nothing; the refused step is not
-// paid.
+// paid. A step bump carries the cell it was refused into, never the mover's
+// own; a door bump carries the door and no cell.
 //
 // WHO HEARS IT. The barrier alone, at once, in the Move that bumped. His
 // answer is not here: it rides the existing answered beat, a FAMILY_TABLE_ANSWER
@@ -646,11 +647,14 @@ message BarredAct {
   // barrier is who stopped them: the body in the way, or on a held crossing
   // the nearest holder the mover is stopped by.
   Party barrier = 2;
-  // cell is the cell the step was refused at: where the mover stands, the
-  // walk's last landed cell.
+  // cell is the cell the step was REFUSED INTO: the destination the mover
+  // tried to enter, never the mover's own cell (the last moved beat already
+  // says where he stands). For a body stop it is the barrier's own cell; for
+  // a held crossing it is the far cell of the held edge. Unset when the bump
+  // was a refused door verb; `door` is set instead.
   Position cell = 3;
   // door is the door id when the bump was a door verb refused by a hold;
-  // empty for a step.
+  // empty for a step. Exactly one of `cell` and `door` is set.
   string door = 4;
 }
 

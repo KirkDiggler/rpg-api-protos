@@ -62,6 +62,25 @@ message Lighting {
   double intensity = 1;
 }
 
+// GroundPaint is one explicit appearance on existing region cells. Ref is
+// opaque, never a gameplay rule; equality with the base does not erase paint.
+message GroundPaint {
+  string ref = 1;
+  // Only cells delivered in the containing AtlasRegion, in the same frame.
+  repeated Position cells = 2;
+}
+
+// RegionGround is captured immutable appearance, not an editor document.
+message RegionGround {
+  // Empty means no authored base: retain the existing default appearance.
+  // A nonempty unavailable ref is an error, not permission to substitute it.
+  string base_ref = 1;
+  // Partial discoveries include paint only for the delivered region cells.
+  // Consumers union paint by cell with previously held permitted paint; a
+  // patch must not discard older paint or reveal assignments outside cells.
+  repeated GroundPaint paint = 2;
+}
+
 // AtlasRegion is one named set of cells with the world facts it carries.
 message AtlasRegion {
   string id = 1;
@@ -72,6 +91,9 @@ message AtlasRegion {
   // archetype is the presentation profile ("crypt"). Never a mechanic.
   string archetype = 4;
   Lighting lighting = 5;
+  // Absent means no ground was authored. Appearance neither creates floor nor
+  // changes elevation, movement costs or the encounter's disclosure policy.
+  RegionGround ground = 6;
 }
 
 // AtlasProp is one thing standing on a cell. The two blocking answers are

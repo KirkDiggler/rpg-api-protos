@@ -278,6 +278,9 @@ message MoveResponse {
 //     two with reach) remains in those rows with candidate-level
 //     TARGET_OUT_OF_REACH (rpg-toolkit#1010, ErrOutOfReach). A ranged weapon
 //     stays refused as today. An unavailable or absent target is refused here.
+//     When a walk this turn closes that gap, the candidate's `approach` names
+//     the cell to walk to first (rpg-project#872); the client walks there and
+//     then swings, and never computes reach itself.
 //   - ACTION BUDGET. ErrCannotAfford, "action: 1 needed, 0 left", as above.
 //
 // AN EMPTY HAND IS NOT A REFUSAL. A character with nothing equipped swings an
@@ -539,7 +542,9 @@ message AffordRequest {
 // End Turn -> NONE; UNSPECIFIED is a producer defect. remaining is present only
 // for Move and absent for Attack and End Turn. DOWNED blocks Attack and Move
 // only; End Turn is governed solely by clock/turn. The client never computes
-// reach, cost, eligibility, or refusal precedence.
+// reach, cost, eligibility, or refusal precedence. Where an out-of-reach
+// candidate can be reached by a walk this turn, the candidate's `approach`
+// carries the server's cell for that walk (rpg-project#872).
 message AffordResponse {
   // Which kind of time they are in. CLOCK_KIND_WORLD means the action economy
   // does not apply to them at all.
@@ -549,7 +554,8 @@ message AffordResponse {
   // End Turn rows. Move carries provider-authored `remaining` feet for
   // display/context only (rpg-toolkit#1169). Clients do not convert it to cells
   // or derive path cost; the server authoritatively prices and accepts or
-  // refuses the whole path.
+  // refuses the whole path. Walking into weapon reach reads the Attack
+  // candidate's `approach` instead (rpg-project#872).
   //
   // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
   // an empty list as "unknown" or as a shorter way of asking again: free roam

@@ -94,6 +94,24 @@ persistence and event delivery. Closing does not lock. State/perception changes
 continue through the existing session stream; no new event kind or local toggle
 is introduced. Consumer adoption follows CI-published bindings.
 
+## Region ground appearance
+
+`AtlasRegion.ground` carries `RegionGround` in both the v1alpha1 snapshot and
+v1alpha2 act-geometry packages. Its `base_ref` is an opaque appearance identity;
+empty means no authored base, so the existing default remains. `paint` groups
+explicit refs by absolute cell. Paint remains explicit when equal to the base.
+An absent ground block preserves the pre-ground contract.
+
+Every paint cell belongs to the containing delivered region's `cells`. Partial
+discovery carries only its permitted slice: clients union paint by cell with
+already-held permitted paint rather than replacing the whole paint map. These
+facts are captured by the encounter, not fetched from subsequently edited site
+source. Ground changes no elevation, movement cost or visibility rule. A
+nonempty unavailable style is an error, not a request to substitute the default.
+
+Design: `rpg-project/ideas/courtyard-ground/design.md`; delivery tracking:
+KirkDiggler/rpg-project#874. Wire publication does not establish consumer adoption.
+
 ## Structural wall layout (in-flight promotion)
 
 `AtlasStructuralWall`, `AtlasStructuralOpening` and `AtlasStructuralDoor`

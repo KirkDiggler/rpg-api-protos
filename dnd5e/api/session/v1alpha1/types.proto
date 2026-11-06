@@ -2525,6 +2525,25 @@ message Lighting {
   double intensity = 1;
 }
 
+// GroundPaint assigns one opaque appearance ref to existing region cells.
+// Paint remains explicit even when ref equals the region's base_ref.
+message GroundPaint {
+  string ref = 1;
+  // Only cells delivered in the containing AtlasRegion. No hidden paint map.
+  repeated Position cells = 2;
+}
+
+// RegionGround is immutable appearance captured when the encounter starts.
+// It changes neither floor membership, elevation nor movement costs.
+message RegionGround {
+  // Empty means no authored base: retain the existing default appearance.
+  // A nonempty unavailable ref is an error, not permission to substitute it.
+  string base_ref = 1;
+  // At most one assignment per cell. Each group is restricted to this
+  // AtlasRegion's delivered cells; an unpainted cell uses base_ref.
+  repeated GroundPaint paint = 2;
+}
+
 // AtlasRegion is a named set of absolute cells carrying the per-area facts no
 // rule can derive: which cells, what archetype dresses it, how bright it is.
 // Dungeon-absolute. Like Lighting, AHEAD of its SDK: session.AtlasRegion
@@ -2564,6 +2583,9 @@ message AtlasRegion {
   // is, is `lighting`.
   string archetype = 4;
   Lighting lighting = 5;
+  // Absent means no ground appearance was authored. Snapshot/reveal cells,
+  // not this field or the asset, determine where a client may draw floor.
+  RegionGround ground = 6;
 }
 
 // AtlasExit is one authored way out of the dungeon: an id and a floor cell.

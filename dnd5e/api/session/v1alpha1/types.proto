@@ -398,7 +398,9 @@ enum Verb {
   VERB_ATTACK = 1;
   // Move — walking along a path while on the turn clock. The SAME Move RPC,
   // now priced: free-roam walking spends nothing and so never appears in a
-  // declaration (the world clock has no declarations at all).
+  // declaration. The world clock compiles the other verbs' rows
+  // (rpg-project#785) but never a Move row; a free-roam walk takes no
+  // declaration id.
   VERB_MOVE = 2;
   // End Turn — committing the active member's turn. It has no action-economy
   // price and is governed only by its clock/turn gate.
@@ -1268,6 +1270,30 @@ message TargetCandidate {
   // refuse targeting. Empty when the target holds nothing that bears, or when
   // what it holds is not known.
   repeated EffectRow held_effects = 5;
+  // The cell the attacker's own walk THIS TURN ends on within weapon reach of
+  // this candidate (rpg-project#872 D4). The server answers "can I reach him
+  // this turn, and where do I stop"; the client reads it and walks there, as
+  // the bump reads the server.
+  //
+  // Set only when this candidate is out of reach (available false with
+  // TARGET_OUT_OF_REACH) and a walk this turn puts the attacker in reach.
+  // Unset when the candidate is already in reach, when no walk this turn
+  // reaches it, and for every other refusal. In a fight "this turn" is the
+  // movement the turn has left (the VERB_MOVE declaration's `remaining`); in
+  // free roam there is no budget and only the walkable floor bounds it.
+  //
+  // THE SERVER'S ANSWER, NOT THE CLIENT'S. Weapon reach (one cell for melee,
+  // two with reach), terrain and bodies in the way are the server's rules. The
+  // server guarantees that a Move whose path is a shortest walkable route from
+  // the attacker's cell to this cell is accepted against this turn's movement,
+  // and that the Attack on this candidate is available from this cell once
+  // the walk arrives. When several cells qualify the server chooses one; the
+  // client walks to this cell and must not substitute a nearer or "better"
+  // one. A walk the world cuts short is still a short walk, not
+  // an error (see MoveResponse); the client refreshes Afford and does not
+  // swing from where it stopped. Clients walk here and must not derive reach,
+  // a path budget, or path acceptance themselves.
+  Position approach = 6;
 }
 
 // CostComponent is one provider-authored display component of a declaration's
@@ -1374,7 +1400,9 @@ message Declaration {
   // cells, derive a path budget or cost from it, or use it to decide whether a
   // path will be accepted. The server prices the WHOLE requested path before
   // the first step and refuses it whole; `available` is likewise the server's
-  // answer about whether any step is currently possible.
+  // answer about whether any step is currently possible. A client that wants
+  // to walk into weapon reach reads TargetCandidate.approach, the server's
+  // answer for that walk, rather than deriving one from this number.
   //
   // `optional`, and this is the OTHER presence law at this seam — the
   // Outcome/Formed one (a message that is present or not), not the bool one

@@ -398,7 +398,9 @@ enum Verb {
   VERB_ATTACK = 1;
   // Move — walking along a path while on the turn clock. The SAME Move RPC,
   // now priced: free-roam walking spends nothing and so never appears in a
-  // declaration (the world clock has no declarations at all).
+  // declaration. The world clock compiles the other verbs' rows
+  // (rpg-project#785) but never a Move row; a free-roam walk takes no
+  // declaration id.
   VERB_MOVE = 2;
   // End Turn — committing the active member's turn. It has no action-economy
   // price and is governed only by its clock/turn gate.
@@ -1285,7 +1287,9 @@ message TargetCandidate {
   // server guarantees that a Move whose path is a shortest walkable route from
   // the attacker's cell to this cell is accepted against this turn's movement,
   // and that the Attack on this candidate is available from this cell once
-  // the walk arrives. A walk the world cuts short is still a short walk, not
+  // the walk arrives. When several cells qualify the server chooses one; the
+  // client walks to this cell and must not substitute a nearer or "better"
+  // one. A walk the world cuts short is still a short walk, not
   // an error (see MoveResponse); the client refreshes Afford and does not
   // swing from where it stopped. Clients walk here and must not derive reach,
   // a path budget, or path acceptance themselves.

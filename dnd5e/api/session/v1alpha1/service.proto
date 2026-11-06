@@ -557,12 +557,16 @@ message AffordResponse {
   // refuses the whole path. Walking into weapon reach reads the Attack
   // candidate's `approach` instead (rpg-project#872).
   //
-  // EMPTY ON THE WORLD CLOCK, AND EMPTY IS THE ANSWER. A client must not read
-  // an empty list as "unknown" or as a shorter way of asking again: free roam
-  // has no budget to report, and the SDK goes out of its way to marshal this
-  // as "[]" rather than omit it, for the same false-vs-absent reason every
-  // bool at this seam keeps. Proto carries no empty-vs-absent distinction on a
-  // repeated field, which is fine — `clock` says which case this is.
+  // THE WORLD CLOCK OFFERS THE BAR (rpg-project#785). On the world clock the
+  // session compiles every verb the turn clock compiles, by the same code and
+  // with the same candidates, so free roam carries Attack rows with their
+  // TargetCandidate rows, `approach` included. What differs is the price: one
+  // round of the world per action, with no turn-currency shortfall. Move is
+  // not a row there (free-roam walking takes no declaration id), and End Turn
+  // and Death Save have no world-clock meaning; Speak keeps its own unpriced
+  // row. A client must not read a missing verb as "unknown" or as a shorter
+  // way of asking again: the list is the whole answer, and `clock` says which
+  // clock it was compiled for.
   repeated Declaration declarations = 2;
   // Optional, correlated placement preview; does not reserve this cast.
   CastAimPreview cast_aim = 3;

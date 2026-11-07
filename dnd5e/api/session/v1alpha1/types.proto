@@ -1629,6 +1629,10 @@ message EffectRow {
   // Optional rule-authored line stating the benefit, for example "+1d4 to the
   // attack roll". Empty when there is no line. Never a computed total.
   string benefit = 8;
+  // Identity of the entity contributing this effect (for example a character
+  // or item instance). Empty means unspecified. This is provenance, not a
+  // stacking qualifier, and clients must not recover it by parsing `id`.
+  string source_id = 9;
 }
 
 // TargetEffect is one effect's answer for a specific target candidate. Lands

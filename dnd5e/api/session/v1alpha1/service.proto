@@ -248,9 +248,12 @@ message MoveResponse {
   // on the act stream, after `through`. `saved` and `delivery` are empty when
   // it does, because the save happens after the answer.
   bool continues = 10;
-  // The record id of the last step in `steps`. A client that continues the
-  // walk from the stream plays this member's moved beats after it. Empty when
-  // `steps` is empty.
+  // The record id this answer covers up to: the last step's moved beat when
+  // `steps` has any, otherwise the record's last entry at the moment of the
+  // answer, so a continuing answer whose first step pays the round still
+  // names a resume point. A client that continues the walk from the stream
+  // plays this member's moved beats after it. Empty only when the record is
+  // empty.
   string through = 11;
 }
 

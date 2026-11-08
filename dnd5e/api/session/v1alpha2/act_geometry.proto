@@ -197,6 +197,9 @@ message AtlasStructuralWall {
   // wall. A client grades the wall by them and never re-derives them.
   repeated Position footprint_cells = 8;
   repeated AtlasStructuralOpening openings = 9;
+  // Captured selections follow this wall's audience; empty means Original.
+  // Surface IDs are unique within this complete appearance record.
+  repeated MaterialOverride material_overrides = 10;
 }
 
 // StructuralWallOpeningsReplacement replaces a known wall's complete permitted
@@ -217,6 +220,15 @@ message AtlasStructuralDoor {
   double height = 5;
   double thickness = 6;
   double elevation = 7;
+}
+
+// MaterialOverride is one captured visual material choice for a declared asset
+// scope. Both IDs are nonempty; invalid/unavailable explicit choices are errors,
+// not silent defaults or permission to fetch the source scene. This value carries
+// no mechanical material meaning and follows its owner's existing disclosure.
+message MaterialOverride {
+  string surface_id = 1;
+  string material_ref = 2;
 }
 
 // PropPointLight is optional visual emission, not mechanical illumination.
@@ -243,6 +255,8 @@ message PropPresentation {
   PropPointLight point_light = 7;
   string door_id = 8;
   string label = 9;
+  // Empty means Original for this captured prop; surface IDs are unique here.
+  repeated MaterialOverride material_overrides = 10;
 }
 
 // DoorApproach is one accepted route through a lock's authored check.

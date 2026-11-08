@@ -2119,6 +2119,20 @@ message PropPresentation {
   // rendering channel. No client tie-break or guessed placed-item id is needed.
   string door_id = 8;
   string label = 9;
+  // Captured appearance selections for this permitted prop, not source lookups.
+  // Empty means its original authored materials; target IDs are unique here.
+  repeated MaterialOverride material_overrides = 10;
+}
+
+// MaterialOverride selects a shared material for one provider-declared visual
+// scope on the owning asset. Both identities are nonempty opaque refs/IDs; no
+// file path, image bytes, geometry or mechanical substance is carried. Unknown
+// or incompatible explicit selections are unresolved errors, never permission to
+// substitute Original or fetch the source scene. Selection lists are captured
+// with their owner and follow that owner's existing audience/observation rules.
+message MaterialOverride {
+  string surface_id = 1;
+  string material_ref = 2;
 }
 
 // PropPointLight is an explicitly authored visual light relative to its prop.
@@ -2171,6 +2185,9 @@ message AtlasStructuralWall {
   // never re-derives them from the line. Empty from a producer that predates
   // this field.
   repeated Position footprint_cells = 9;
+  // Complete captured selections for this permitted wall. Empty means original
+  // authored materials. Surface IDs are unique; appearance changes no blocker.
+  repeated MaterialOverride material_overrides = 10;
 }
 
 // AtlasStructuralOpening is a permitted cut, without door state or private

@@ -94,6 +94,28 @@ persistence and event delivery. Closing does not lock. State/perception changes
 continue through the existing session stream; no new event kind or local toggle
 is introduced. Consumer adoption follows CI-published bindings.
 
+## Captured wall and prop material choices
+
+`PropPresentation.material_overrides` and
+`AtlasStructuralWall.material_overrides` carry `MaterialOverride` values in
+both snapshot and act-geometry packages. A value names a provider-declared
+`surface_id` and a shared `material_ref`; both are nonempty, and an owner's
+list has no duplicate surface IDs. Empty means the original authored material
+for that complete render record. An unavailable or incompatible explicit choice
+is reported, not silently replaced by Original.
+
+These are opaque captured appearance facts. They follow the prop or wall's
+existing audience and observation lifetime; mutable props retain the choices
+captured with their sighting. Later source edits do not change existing
+encounters. The engine does not load images or infer mechanical substance, and
+play does not fetch the editor document to reconstruct a missing choice.
+
+Design: `rpg-project/ideas/courtyard-walls/texture-design.md`; tracking
+KirkDiggler/rpg-project#895. The first consumer applies the authored-UV atlas
+choice to its declared whole-material target. Independent A/B and mixed
+feature/door wall sections remain separate work. This additive contract alone
+does not establish generated consumer adoption or Save & Play completion.
+
 ## Region ground appearance
 
 `AtlasRegion.ground` carries `RegionGround` in both the v1alpha1 snapshot and

@@ -231,7 +231,9 @@ message MoveResponse {
   // started, which is also why the walk stopped. The remaining cells were not
   // attempted: a fight member does not free-roam.
   Formed formed = 4;
+  // Empty when `continues` is true: the save happens after the answer.
   SaveReport saved = 5;
+  // Empty when `continues` is true: delivery happens after the answer.
   DeliveryReport delivery = 6;
   // The walker joined a visible teammate's combat from their current cell.
   // No step into the teammate's occupied cell occurred or was charged.
@@ -240,6 +242,16 @@ message MoveResponse {
   MovementStatus status = 8;
   // Observation-safe explanation when an ordinary obstruction stops the route.
   string stop_reason = 9;
+  // The walk goes on after this answer. `steps` carries the walker's own steps
+  // up to the point the world's pace came due; the step that pays the round,
+  // the raise and the remaining steps arrive as this member's own moved beats
+  // on the act stream, after `through`. `saved` and `delivery` are empty when
+  // it does, because the save happens after the answer.
+  bool continues = 10;
+  // The record id of the last step in `steps`. A client that continues the
+  // walk from the stream plays this member's moved beats after it. Empty when
+  // `steps` is empty.
+  string through = 11;
 }
 
 // =============================================================================

@@ -971,6 +971,9 @@ enum MovementStatus {
   MOVEMENT_STATUS_COMPLETED = 1;
   MOVEMENT_STATUS_PAUSED = 2;
   MOVEMENT_STATUS_STOPPED = 3;
+  // The answer carries the steps before the world's pace came due; the walk
+  // continues after it.
+  MOVEMENT_STATUS_CONTINUING = 4;
 }
 
 // Passage is the provider-owned occupancy contribution relative to the mover.

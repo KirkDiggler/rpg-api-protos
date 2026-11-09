@@ -43,11 +43,18 @@ message RecordEvent {
   // tomorrow appears here with no contract change (Law 5).
   string beat = 4;
 
-  // fields are the encounter's payload for the beat, whole and untyped. There
-  // is no typed body on the record stream (Law 5); a typed reading of a beat
-  // is the act stream's job. Every number in a Struct is a double, so an
-  // integer like `amount: 6` reads back as 6.0.
-  google.protobuf.Struct fields = 5;
+  // fields is the legacy approximate projection of the payload. Struct numbers
+  // are doubles and cannot preserve every valid integer. New diagnostic readers
+  // use fields_json; this projection is not authoritative for exact inspection.
+  google.protobuf.Struct fields = 5 [deprecated = true];
+
+  // fields_json is the record owner's UTF-8 JSON payload, as written. The host
+  // copies the bytes without parsing/re-encoding numbers or evaluating rules;
+  // live delivery and catch-up carry the same bytes for the same record id.
+  // Readers preserve integer precision while decoding. Empty means the raw
+  // payload is unavailable, not an empty object; malformed/unsupported payloads
+  // remain explicit and never fall back to fields as an exact representation.
+  bytes fields_json = 6;
 }
 
 // RecordLagged tells a subscriber it fell behind and the server ended its

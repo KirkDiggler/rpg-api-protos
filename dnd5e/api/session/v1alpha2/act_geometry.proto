@@ -197,9 +197,13 @@ message AtlasStructuralWall {
   // wall. A client grades the wall by them and never re-derives them.
   repeated Position footprint_cells = 8;
   repeated AtlasStructuralOpening openings = 9;
-  // Captured selections follow this wall's audience; empty means Original.
-  // Surface IDs are unique within this complete appearance record.
+  // Captured provider-scope selections follow this wall's audience; an empty
+  // list applies no override through this lane. Surface IDs are unique.
   repeated MaterialOverride material_overrides = 10;
+  // Complete explicit face selections for this permitted wall. Sides are
+  // unique; empty means no face finish, never a source/region lookup. Existing
+  // opening-only replacements leave these captured choices unchanged.
+  repeated WallFaceFinish face_finishes = 11;
 }
 
 // StructuralWallOpeningsReplacement replaces a known wall's complete permitted
@@ -228,6 +232,16 @@ message AtlasStructuralDoor {
 // no mechanical material meaning and follows its owner's existing disclosure.
 message MaterialOverride {
   string surface_id = 1;
+  string material_ref = 2;
+}
+
+// WallFaceFinish is a captured material choice for one geometric wall face.
+// side is exactly "positive-z" or "negative-z" in the wall's local frame;
+// empty/unknown sides and blank material refs are malformed. The opaque ref
+// resolves only against verified client resources and the asset's exact face
+// binding. Mapping uses the wall start/elevation, not hidden room geometry.
+message WallFaceFinish {
+  string side = 1;
   string material_ref = 2;
 }
 

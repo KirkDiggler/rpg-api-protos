@@ -116,6 +116,22 @@ choice to its declared whole-material target. Independent A/B and mixed
 feature/door wall sections remain separate work. This additive contract alone
 does not establish generated consumer adoption or Save & Play completion.
 
+## Captured wall-face finishes
+
+`AtlasStructuralWall.face_finishes = 11` carries `WallFaceFinish` in both
+v1alpha1 snapshots and v1alpha2 act geometry. Each entry names one `side`
+(`positive-z` or `negative-z` in the wall-local frame) and an opaque
+`material_ref`. Sides are unique within a wall; unknown/empty sides and blank
+refs are malformed. Missing/empty lists apply no explicit face finish.
+
+These immutable choices follow the existing wall projection. Opening-only
+replacements leave them unchanged. They are separate from provider-scope
+`material_overrides`, and do not define blocking, door state or material rules.
+The client uses the already-delivered wall start/elevation plus verified
+provider bindings and map/repeat/basis facts. It does not fetch an authoring
+scene or infer undisclosed regional geometry. An unavailable explicit material
+is an unresolved choice, not permission to substitute Original.
+
 ## Region ground appearance
 
 `AtlasRegion.ground` carries `RegionGround` in both the v1alpha1 snapshot and

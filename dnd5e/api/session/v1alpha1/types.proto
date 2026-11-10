@@ -1544,6 +1544,13 @@ message Declaration {
   // Speak row means no target offered anything, and `why` then says
   // SHORTFALL_REASON_NO_OPTION.
   repeated SpeakOption speak_options = 23;
+  // The guard addressing this member, when one is (rpg-project#923). Present
+  // only on a VERB_SPEAK declaration in the addressed member's own menu while
+  // a guard's address on a shared interaction stands; absent in every other
+  // member's menu, on every other verb, and once the address lapses. The
+  // client opens the reply panel on `guard_member_id` without a Speak click.
+  // Information only: it grants nothing, and Speak is validated as before.
+  SpeakAddress address = 24;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -1816,6 +1823,19 @@ message SpeakOption {
   // Why the option is unavailable. SHORTFALL_REASON_UNSPECIFIED when
   // `available` is true; never UNSPECIFIED when it is false.
   ShortfallReason shortfall = 6;
+}
+
+// SpeakAddress names the guard who is addressing a member and the shared
+// interaction the address belongs to (rpg-project#923). It rides
+// Declaration.address on the addressed member's Speak row, beside the
+// speak_options that row already carries, so the reply panel has one source.
+message SpeakAddress {
+  // The member id of the guard doing the addressing, the same id a
+  // SpeakOption.member_id names. Always set on a present address.
+  string guard_member_id = 1;
+  // Opaque id of the shared interaction the address belongs to. Always set on
+  // a present address; a client never branches on it.
+  string interaction_id = 2;
 }
 
 // ReactionRef identifies WHAT a strike was taken as, when the strike was a

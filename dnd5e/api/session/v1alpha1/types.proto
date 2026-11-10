@@ -2135,6 +2135,17 @@ message MaterialOverride {
   string material_ref = 2;
 }
 
+// WallFaceFinish is a captured material choice for one geometric face of an
+// authored wall. side is exactly "positive-z" or "negative-z" in the wall's
+// local frame; empty/unknown sides and blank material refs are malformed.
+// The material ref is opaque to the server. The client joins it to the exact
+// asset's declared surface and verified material resources. Mapping follows
+// the existing wall start/elevation, not an inferred regional boundary.
+message WallFaceFinish {
+  string side = 1;
+  string material_ref = 2;
+}
+
 // PropPointLight is an explicitly authored visual light relative to its prop.
 // Its planar offset rotates with that prop's facing. It supplies no rule facts.
 // An absent record means no authored visual light. A present record must be
@@ -2185,9 +2196,15 @@ message AtlasStructuralWall {
   // never re-derives them from the line. Empty from a producer that predates
   // this field.
   repeated Position footprint_cells = 9;
-  // Complete captured selections for this permitted wall. Empty means original
-  // authored materials. Surface IDs are unique; appearance changes no blocker.
+  // Captured provider-scope selections; empty applies no override through this
+  // lane. Surface IDs are unique; appearance changes no blocker.
   repeated MaterialOverride material_overrides = 10;
+  // Complete explicit face selections for this permitted wall, independent of
+  // provider-scope overrides. Each side occurs at most once. Empty means no
+  // explicit face finish; it does not request a current source/region lookup.
+  // These immutable facts follow this wall's existing recipient projection.
+  // Opening-only replacements leave the list unchanged.
+  repeated WallFaceFinish face_finishes = 11;
 }
 
 // AtlasStructuralOpening is a permitted cut, without door state or private

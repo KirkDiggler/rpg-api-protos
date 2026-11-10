@@ -731,6 +731,12 @@ message TableAnswer {
   // newer request discards unfinished cycles; arrival never resumes them.
   // Catch-up data retains this value but must not replay the animation.
   ActivityCue activity = 12;
+  // to is the member this line is spoken to (rpg-project#923). Set when a
+  // creature answers, with a `say`, someone who walked up to or into him (a
+  // hail or a bump). Unset for a table pick, a line spoken to nobody in
+  // particular, and a prop. A client shows a line spoken to its viewer as
+  // speech to them; it grants nothing.
+  Party to = 13;
 }
 
 // StateKind is what a state entry changed.

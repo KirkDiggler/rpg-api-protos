@@ -1823,6 +1823,22 @@ message SpeakOption {
   // Why the option is unavailable. SHORTFALL_REASON_UNSPECIFIED when
   // `available` is true; never UNSPECIFIED when it is false.
   ShortfallReason shortfall = 6;
+  // Opaque id of the shared interaction this line reads or advances
+  // (rpg-project#924), the same id SpeakAddress.interaction_id names. Empty
+  // when the line reads no interaction; a client never branches on it.
+  string interaction_id = 7;
+  // The revision of that interaction this line was offered at
+  // (rpg-project#924). Opaque to the client and echoed verbatim on
+  // SpeakRequest.revision, so a reply from a menu the conversation has moved
+  // past is refused with nothing spent. Starts at 1 on every interaction; 0
+  // means the line reads no interaction.
+  uint64 revision = 8;
+  // The member id of the speaker whose waiting roll holds this line
+  // (rpg-project#924). Empty when the line is free to send. When set, the line
+  // is shown as waiting on that member's roll and must not be sent: Speak
+  // refuses it rather than speak over the waiting roll. Independent of
+  // `available`, which keeps answering its own question.
+  string pending_on_member_id = 9;
 }
 
 // SpeakAddress names the guard who is addressing a member and the shared

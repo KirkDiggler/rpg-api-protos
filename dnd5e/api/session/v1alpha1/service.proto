@@ -1063,6 +1063,13 @@ message SpeakRequest {
   // The option picked, verbatim from SpeakOption.option_id. Required; empty
   // is refused INVALID_ARGUMENT.
   string option_id = 5;
+  // The revision the picked line was offered at, verbatim from
+  // SpeakOption.revision (rpg-project#924). For a line that reads an
+  // interaction, a revision that is not the interaction's revision now is
+  // refused and nothing is spent, rolled or reserved; the caller refreshes the
+  // offer. Zero on such a line is refused the same way. A line that reads no
+  // interaction ignores it.
+  uint64 revision = 6;
 }
 
 // SpeakResponse carries only what is the CALLER'S ALONE, and is

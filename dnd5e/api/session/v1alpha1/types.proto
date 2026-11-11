@@ -354,6 +354,11 @@ enum ShortfallReason {
   // offer a row that resolves to nothing. Never set on a declaration that
   // carries at least one available SpeakOption.
   SHORTFALL_REASON_NO_OPTION = 9;
+  // The Speak line waits on a speaker's roll (rpg-project#924): another checked
+  // line on the same interaction holds it until that roll is decided. See
+  // SpeakOption.pending. Waiting IS what helps here; the line frees itself
+  // once the waiting roll is decided.
+  SHORTFALL_REASON_LINE_RESERVED = 10;
 }
 
 // Currency names which of a turn's budgets a NO_BUDGET shortfall ran out of.

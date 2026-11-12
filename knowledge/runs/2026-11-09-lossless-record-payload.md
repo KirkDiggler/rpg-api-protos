@@ -1,5 +1,7 @@
 # Run — 2026-11-09 — lossless diagnostic record payload
 
+processed: 2026-11-12T165555Z
+
 ## Shipped
 
 - Prepared an additive fields_json byte payload on the existing RecordEvent and deprecated the approximate Struct field; publication and consumer adoption are not yet complete — [Machine inspection S2](https://github.com/KirkDiggler/rpg-project/issues/900).

@@ -1,5 +1,7 @@
 # Run — 2026-11-08 — Courtyard texture-pack wire
 
+processed: 2026-11-12T165555Z
+
 ## Shipped
 
 - Contract checkpoint adds captured material overrides to wall/prop render records in snapshot and act geometry; consumer adoption and Save & Play remain outstanding — [Courtyard S3](https://github.com/KirkDiggler/rpg-project/issues/895).

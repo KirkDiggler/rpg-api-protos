@@ -1,5 +1,7 @@
 # Run — 2026-11-11 — gate conversation S3 answer to
 
+processed: 2026-11-12T165555Z
+
 Slice [rpg-project#923](https://github.com/KirkDiggler/rpg-project/issues/923) of story [rpg-project#769](https://github.com/KirkDiggler/rpg-project/issues/769). Base: `rpg-api-protos` `main` at [`2c5324d`](https://github.com/KirkDiggler/rpg-api-protos/commit/2c5324d1).
 
 One line per entry. Every line ends with a link: a PR, an issue comment, a commit, or a design section anchor. This file rides on the work PR, under the `knowledge/runs/` of the lowest directory that contains everything the PR changed. The ingest reads it once and adds a `processed:` line at the top; nobody else edits it after merge.

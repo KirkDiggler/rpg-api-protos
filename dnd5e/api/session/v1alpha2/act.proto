@@ -80,6 +80,13 @@ message Act {
   // timer or on the next id.
   bool run_end = 10;
 
+  // perceived is how this entry reached its recipient (rpg-project#934, R6):
+  // the senses that delivered it and the friends whose senses contributed.
+  // Set on a `speech` body; absent on every other body today, which reaches
+  // its recipient as it always has. Its own message so other families can
+  // carry it later, one family at a time, when a use calls for it.
+  Perceived perceived = 11;
+
   // body is the family's typed body: one of the act bodies for FAMILY_ACT and
   // FAMILY_REACTION, and table_answer, state, perception or clock for the
   // others. Unset exactly when `refused`.
@@ -91,7 +98,9 @@ message Act {
     AttackAct attack = 21;
     CastAct cast = 22;
     ActivateAct activate = 23;
-    SpeakAct speak = 24;
+    // DEPRECATED — SUPERSEDED BY speech (rpg-project#934, R6). Kept working
+    // until the client has moved; then no longer sent.
+    SpeakAct speak = 24 [deprecated = true];
     DeathSaveAct death_save = 25;
     LootAct loot = 26;
     HoldAct hold = 27;
@@ -106,13 +115,19 @@ message Act {
     Perception perception = 36;
     ClockEntry clock = 37;
     BarredAct barred = 38;
+    // speech is one spoken thing as this recipient perceived it: a
+    // character's line, a creature's answer, a hail, a shout, an overheard
+    // voice (rpg-project#934, R6). Every spoken thing rides this one body.
+    Speech speech = 39;
   }
 }
 
 // Family is which kind of thing an act entry is (R16).
 enum Family {
   FAMILY_UNSPECIFIED = 0;
-  // FAMILY_ACT is a verb's own deed: a walk, a swing, a cast, a line.
+  // FAMILY_ACT is a verb's own deed: a walk, a swing, a cast, a line. Every
+  // Speech rides this family, whoever spoke (rpg-project#934); how its reader
+  // perceived it is Act.perceived's job, never the family's.
   FAMILY_ACT = 1;
   // FAMILY_REACTION is a deed done in answer to another act, under that act's
   // id: an opportunity attack inside the walk that provoked it.
@@ -529,7 +544,12 @@ message ActivateAct {
 }
 
 // SpeakAct is a line spoken, and its answer.
+//
+// DEPRECATED — SUPERSEDED BY Speech (rpg-project#934, R6). Kept working until
+// the client has moved; then no longer sent, and kept in the contract.
 message SpeakAct {
+  option deprecated = true;
+
   Party by = 1;
   // to is who or what was spoken to.
   Party to = 2;
@@ -715,7 +735,11 @@ message TableAnswer {
   // selector is the outcome's selector word.
   string selector = 5;
   // say is what was said.
-  string say = 6;
+  //
+  // DEPRECATED — SUPERSEDED BY Speech.words (rpg-project#934, R6, R9). The
+  // words a pick says travel only in each reader's own Speech; TableAnswer
+  // stays for the pick's arithmetic.
+  string say = 6 [deprecated = true];
   // temperament is the temperament column the pick read.
   string temperament = 7;
   // entry is the row picked.
@@ -736,7 +760,10 @@ message TableAnswer {
   // hail or a bump). Unset for a table pick, a line spoken to nobody in
   // particular, and a prop. A client shows a line spoken to its viewer as
   // speech to them; it grants nothing.
-  Party to = 13;
+  //
+  // DEPRECATED — SUPERSEDED BY Speech.spoken_to (rpg-project#934, R4, R6),
+  // which names the addressee only to a reader who sees them.
+  Party to = 13 [deprecated = true];
 }
 
 // StateKind is what a state entry changed.
@@ -830,8 +857,15 @@ message SightChange {
   bool knowledge_changed = 4;
 }
 
-// Sound is a sound heard.
+// Sound is a sound heard: a clang, a crash, a boom (rpg-project#934, R6 keeps
+// every sound that is not speech here).
 message Sound {
+  // kind is the sound's kind word.
+  //
+  // `voice` IS RETIRED FOR PLAYERS (rpg-project#934, R6): a voice a player
+  // perceived arrives as a Speech, with only the parts that player perceived.
+  // A `voice` Sound keeps working until the client has moved; then it is no
+  // longer sent to a player.
   string kind = 1;
   // cell is where it came from.
   Position cell = 2;
@@ -890,6 +924,108 @@ message Perception {
   DiscoveryCheck discovery = 5;
   SecretRevealed revealed = 6;
   CellsLearned cells = 7;
+}
+
+// Loudness is how loudly a line was said (rpg-project#930, R2, R10): the
+// author's word, and how far the words reach in rooms.
+enum Loudness {
+  // LOUDNESS_UNSPECIFIED is never set on a well-formed Speech: an unmarked
+  // line is LOUDNESS_SPEAK.
+  LOUDNESS_UNSPECIFIED = 0;
+  // LOUDNESS_WHISPER reaches only the member addressed, from beside them.
+  LOUDNESS_WHISPER = 1;
+  // LOUDNESS_SPEAK reaches every member in the speaker's room.
+  LOUDNESS_SPEAK = 2;
+  // LOUDNESS_SHOUT reaches the speaker's room and the next room over.
+  LOUDNESS_SHOUT = 3;
+  // LOUDNESS_SCREAM reaches two rooms over.
+  LOUDNESS_SCREAM = 4;
+}
+
+// Speech is one spoken thing, as one recipient perceived it (rpg-project#934,
+// R1, R3, R4, R6, R8). Every version of one utterance, whoever reads it,
+// carries the same `utterance` id.
+//
+// PARTS ARE PRESENT OR ABSENT, NEVER BLANKED. A version carries only the parts
+// its reader perceived. An absent part means the reader did not perceive it,
+// never that it was empty, and a client never fills one in: it never infers a
+// speaker from the place, the words, the option or anything else.
+//
+// A SPEECH IS ALWAYS FAMILY_ACT, whoever spoke: a player or a creature. The
+// family says what the entry is, a line; how this reader perceived it is
+// Act.perceived.
+message Speech {
+  // utterance is the id every version of this one spoken thing carries, so a
+  // client can tell two versions of one line from two lines. Always set;
+  // opaque, a client never branches on its contents.
+  string utterance = 1;
+
+  // speaker is who spoke (R1). Present only when the reader SAW who spoke.
+  // ABSENT means the reader did not see the speaker: the line is shown as
+  // said by someone at `place`, never attributed to anybody.
+  Party speaker = 2;
+
+  // spoken_to is whom the line was said to: a member, or a prop the line was
+  // said to (R4). Present only when the reader sees that member or is them;
+  // a prop only with the words. ABSENT means the reader did not see the one
+  // spoken to, or the line was said to nobody in particular; a client shows
+  // no addressee and never guesses one.
+  Party spoken_to = 3;
+
+  // words is the line, verbatim as authored. Present only when the words
+  // reached the reader (R2). ABSENT means the reader did not catch the words:
+  // they saw someone speak, or only noticed a voice. Present and empty is an
+  // authored empty line, not missed words.
+  optional string words = 4;
+
+  // option is the line's option id, when the line is a character's authored
+  // option. Present only with `words`. Empty when the reader did not catch
+  // the words, or the line is not an option (a creature's answer, a hail).
+  string option = 5;
+
+  // place is where the line was said. Always set.
+  Position place = 6;
+
+  // hops is how many rooms the voice carried to the reader. Present only when
+  // the reader did not see the speaker; 0 then means the same room. ABSENT
+  // when the reader sees the speaker, whose place is already theirs.
+  optional int32 hops = 7;
+
+  // loudness is how loudly the line was said. Always set, on every version.
+  Loudness loudness = 8;
+
+  // roll is the line's check (R3: the roll travels with the words): the
+  // total, the DC as `against`, `beaten`, and the dice. It is the speaker's
+  // roll when `speaker` is present and someone's roll when it is absent.
+  // ABSENT means the line rolled nothing, or the reader did not catch the
+  // words.
+  Roll roll = 9;
+
+  // skill is the check's skill. Set exactly when `roll` is; empty means no
+  // roll reached this reader.
+  string skill = 10;
+
+  // fact is the id of the fact this line taught THIS reader (R9). Only ever
+  // present with `words`. ABSENT means the line taught this reader nothing:
+  // it teaches nothing, or the reader did not catch the words.
+  string fact = 11;
+}
+
+// Perceived is how one entry reached its recipient (rpg-project#934, R6,
+// R11): the senses that delivered it and the friends who contributed. A
+// reusable part on the Act envelope.
+message Perceived {
+  // senses are the senses that delivered this entry: SENSE_SIGHT when the
+  // speaker was seen, SENSE_HEARING when the words were caught or a voice was
+  // noticed. Never empty on a present Perceived.
+  repeated Sense senses = 1;
+
+  // via are the party members whose senses contributed this entry under the
+  // shared view (R5, R11). Always empty until the party-shared view is built
+  // (rpg-project#935). EMPTY means the recipient perceived it with their own
+  // senses alone, and a client treats it so. A client shows a shared entry as shared; it grants the
+  // recipient's character nothing.
+  repeated Party via = 2;
 }
 
 // ClockMark is which piece of the table's bookkeeping a clock entry is.

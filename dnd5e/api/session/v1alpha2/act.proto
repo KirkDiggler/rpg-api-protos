@@ -125,7 +125,9 @@ message Act {
 // Family is which kind of thing an act entry is (R16).
 enum Family {
   FAMILY_UNSPECIFIED = 0;
-  // FAMILY_ACT is a verb's own deed: a walk, a swing, a cast, a line.
+  // FAMILY_ACT is a verb's own deed: a walk, a swing, a cast, a line. Every
+  // Speech rides this family, whoever spoke (rpg-project#934); how its reader
+  // perceived it is Act.perceived's job, never the family's.
   FAMILY_ACT = 1;
   // FAMILY_REACTION is a deed done in answer to another act, under that act's
   // id: an opportunity attack inside the walk that provoked it.
@@ -948,6 +950,10 @@ enum Loudness {
 // its reader perceived. An absent part means the reader did not perceive it,
 // never that it was empty, and a client never fills one in: it never infers a
 // speaker from the place, the words, the option or anything else.
+//
+// A SPEECH IS ALWAYS FAMILY_ACT, whoever spoke: a player or a creature. The
+// family says what the entry is, a line; how this reader perceived it is
+// Act.perceived.
 message Speech {
   // utterance is the id every version of this one spoken thing carries, so a
   // client can tell two versions of one line from two lines. Always set;
@@ -998,6 +1004,11 @@ message Speech {
   // skill is the check's skill. Set exactly when `roll` is; empty means no
   // roll reached this reader.
   string skill = 10;
+
+  // fact is the id of the fact this line taught THIS reader (R9). Only ever
+  // present with `words`. ABSENT means the line taught this reader nothing:
+  // it teaches nothing, or the reader did not catch the words.
+  string fact = 11;
 }
 
 // Perceived is how one entry reached its recipient (rpg-project#934, R6,
@@ -1010,8 +1021,9 @@ message Perceived {
   repeated Sense senses = 1;
 
   // via are the party members whose senses contributed this entry under the
-  // shared view (R5, R11). EMPTY means the recipient perceived it with their
-  // own senses alone. A client shows a shared entry as shared; it grants the
+  // shared view (R5, R11). Always empty until the party-shared view is built
+  // (rpg-project#935). EMPTY means the recipient perceived it with their own
+  // senses alone, and a client treats it so. A client shows a shared entry as shared; it grants the
   // recipient's character nothing.
   repeated Party via = 2;
 }

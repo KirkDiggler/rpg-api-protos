@@ -831,6 +831,11 @@ message ReactRequest {
 message ReactResponse {
   SaveReport saved = 1;
   DeliveryReport delivery = 2;
+  // True when the answered roll had been walked away from (rpg-project#938):
+  // the roll was settled as rolled, with the held benefit declined and
+  // unspent, whatever answer was sent. The client tells the player their roll
+  // stood and their die was kept. False on every ordinary answer.
+  bool roll_kept = 3;
 }
 
 // IntimidateRequest threatens one creature that can see the member do it: the

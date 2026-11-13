@@ -123,6 +123,9 @@ message Act {
     // character's line, a creature's answer, a hail, a shout, an overheard
     // voice (rpg-project#934, R6). Every spoken thing rides this one body.
     Speech speech = 39;
+    // relocate is a member set down at a place without walking, as this
+    // recipient perceived it (rpg-project#925).
+    RelocateAct relocate = 40;
   }
 }
 
@@ -412,6 +415,49 @@ message WalkAct {
   bool forced = 4 [deprecated = true];
   // kind is how the body moved. A walk segment never mixes kinds.
   MoveKind kind = 5;
+}
+
+// RelocateEnd is which end of a relocation this recipient perceived
+// (rpg-project#925).
+enum RelocateEnd {
+  // RELOCATE_END_UNSPECIFIED is never set on a well-formed RelocateAct.
+  RELOCATE_END_UNSPECIFIED = 0;
+  // RELOCATE_END_BOTH: the recipient perceived the leaving and the arriving.
+  // The mover's own version is always BOTH.
+  RELOCATE_END_BOTH = 1;
+  // RELOCATE_END_LEFT: the recipient saw the member leave and not where they
+  // were set down.
+  RELOCATE_END_LEFT = 2;
+  // RELOCATE_END_ARRIVED: the recipient saw the member arrive and not where
+  // they came from.
+  RELOCATE_END_ARRIVED = 3;
+}
+
+// RelocateAct is a member set down at a place without walking: taken away
+// under arrest, say (rpg-project#925). There is no path; the member leaves one
+// place and is at another. Each recipient receives only the end it saw, and a
+// recipient who saw neither end receives nothing.
+message RelocateAct {
+  // mover is the member set down. Always set.
+  Party mover = 1;
+  // from is where the member was taken from. Present when the recipient saw
+  // the leaving (`end` BOTH or LEFT). ABSENT means the recipient did not see
+  // where the member came from; it is never the origin cell.
+  Position from = 2;
+  // to is where the member was set down. Present when the recipient saw the
+  // arriving (`end` BOTH or ARRIVED). ABSENT means the recipient was not told
+  // the destination; it is never the origin cell.
+  Position to = 3;
+  // cause is the full ref of what relocated the member, verbatim, for example
+  // an arrest's consequence ref. Always set. The client words it for an
+  // observer; a client never branches a rule on it.
+  string cause = 4;
+  // words are the authored words the mover is told, verbatim. Only ever in the
+  // mover's own version. EMPTY for every other recipient, and for the mover
+  // when the cause authored none.
+  string words = 5;
+  // end is which end of the relocation this recipient perceived. Always set.
+  RelocateEnd end = 6;
 }
 
 // AttackOutcome is how a swing ended (Law 6).

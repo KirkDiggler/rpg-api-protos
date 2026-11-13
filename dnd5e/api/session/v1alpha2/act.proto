@@ -9,8 +9,10 @@ import "dnd5e/api/session/v1alpha2/act_geometry.proto";
 //
 // The act stream is the record folded into acts: who did what, to whom, how it
 // was decided and what changed. Each member's acts are folded from that
-// member's own story, so an act holds only what its recipient perceived. The
-// recipient is the subscription's and the read's `member`, never a field here.
+// member's own story, so an act holds only what its recipient perceived, or,
+// at the party's shared view (rpg-project#935), what a party member perceived
+// and `perceived.via` names. The recipient is the subscription's and the
+// read's `member`, never a field here.
 //
 // Every message mirrors the session SDK's act type of the same name, field for
 // field. Content-authored words stay strings (an ability, a skill, a slot, an
@@ -80,11 +82,13 @@ message Act {
   // timer or on the next id.
   bool run_end = 10;
 
-  // perceived is how this entry reached its recipient (rpg-project#934, R6):
-  // the senses that delivered it and the friends whose senses contributed.
-  // Set on a `speech` body; absent on every other body today, which reaches
-  // its recipient as it always has. Its own message so other families can
-  // carry it later, one family at a time, when a use calls for it.
+  // perceived is how this entry reached its recipient (rpg-project#934, R6).
+  // `senses` says which senses delivered it, where the session states them (a
+  // `speech` body and a `perception` body today). `via` is non-empty when some
+  // or all of it came through party members at the shared view
+  // (rpg-project#935), on any body; empty means the recipient's own senses.
+  // Absent on a body the session says nothing about, which reaches its
+  // recipient as it always has.
   Perceived perceived = 11;
 
   // body is the family's typed body: one of the act bodies for FAMILY_ACT and
@@ -914,9 +918,17 @@ message CellsLearned {
 }
 
 // Perception is what one observer newly perceived. It is folded from the
-// observer's own entries, so it never reaches anybody else. Exactly the part
-// matching `sense` is set.
+// observer's own entries. Exactly the part matching `sense` is set.
+//
+// AT THE SHARED VIEW IT MAY REACH ANOTHER PARTY MEMBER (rpg-project#935): sent
+// with `observer` naming the friend whose perception it is and the act's
+// `perceived.via` naming that friend. The recipient is SHOWN it; their
+// character knows nothing from it. A client never treats a perception whose
+// `observer` is not the viewer, or whose `perceived.via` is non-empty, as the
+// viewer's own knowledge: no map change, no known-secret change.
 message Perception {
+  // observer is whose perception this is: the viewer for their own, a party
+  // member for one shared at the shared view.
   Party observer = 1;
   Sense sense = 2;
   SightChange sighted = 3;
@@ -1021,10 +1033,10 @@ message Perceived {
   repeated Sense senses = 1;
 
   // via are the party members whose senses contributed this entry under the
-  // shared view (R5, R11). Always empty until the party-shared view is built
-  // (rpg-project#935). EMPTY means the recipient perceived it with their own
-  // senses alone, and a client treats it so. A client shows a shared entry as shared; it grants the
-  // recipient's character nothing.
+  // shared view (R5, R11, rpg-project#935). On a perception, a via entry names
+  // the same friend its `observer` names. EMPTY means the recipient perceived
+  // it with their own senses alone, and a client treats it so. A client shows
+  // a shared entry as shared; it grants the recipient's character nothing.
   repeated Party via = 2;
 }
 

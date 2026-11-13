@@ -82,13 +82,13 @@ message Act {
   // timer or on the next id.
   bool run_end = 10;
 
-  // perceived is how this entry reached its recipient (rpg-project#934, R6):
-  // the senses that delivered it and the friends whose senses contributed.
-  // Set on a `speech` body, and on a `perception` body a party member's
-  // senses delivered at the shared view (rpg-project#935); absent on every
-  // other body, which reaches its recipient as it always has. Its own message
-  // so other families can carry it later, one family at a time, when a use
-  // calls for it.
+  // perceived is how this entry reached its recipient (rpg-project#934, R6).
+  // `senses` says which senses delivered it, where the session states them (a
+  // `speech` body and a `perception` body today). `via` is non-empty when some
+  // or all of it came through party members at the shared view
+  // (rpg-project#935), on any body; empty means the recipient's own senses.
+  // Absent on a body the session says nothing about, which reaches its
+  // recipient as it always has.
   Perceived perceived = 11;
 
   // body is the family's typed body: one of the act bodies for FAMILY_ACT and

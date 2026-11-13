@@ -423,7 +423,9 @@ enum RelocateEnd {
   // RELOCATE_END_UNSPECIFIED is never set on a well-formed RelocateAct.
   RELOCATE_END_UNSPECIFIED = 0;
   // RELOCATE_END_BOTH: the recipient perceived the leaving and the arriving.
-  // The mover's own version is always BOTH.
+  // The mover's own version is always BOTH, and a witness to both ends gets
+  // BOTH too: the client tells the mover's own version by mover == viewer,
+  // never by `words`.
   RELOCATE_END_BOTH = 1;
   // RELOCATE_END_LEFT: the recipient saw the member leave and not where they
   // were set down.
@@ -442,19 +444,20 @@ message RelocateAct {
   Party mover = 1;
   // from is where the member was taken from. Present when the recipient saw
   // the leaving (`end` BOTH or LEFT). ABSENT means the recipient did not see
-  // where the member came from; it is never the origin cell.
+  // where the member came from; absent is never to be read as the cell [0,0]
+  // (the zero position).
   Position from = 2;
   // to is where the member was set down. Present when the recipient saw the
   // arriving (`end` BOTH or ARRIVED). ABSENT means the recipient was not told
-  // the destination; it is never the origin cell.
+  // the destination; absent is never to be read as the cell [0,0] (the zero
+  // position).
   Position to = 3;
   // cause is the full ref of what relocated the member, verbatim, for example
   // an arrest's consequence ref. Always set. The client words it for an
   // observer; a client never branches a rule on it.
   string cause = 4;
-  // words are the authored words the mover is told, verbatim. Only ever in the
-  // mover's own version. EMPTY for every other recipient, and for the mover
-  // when the cause authored none.
+  // words are the authored words the mover is told, verbatim. Always set in
+  // the mover's own version; EMPTY for every other recipient.
   string words = 5;
   // end is which end of the relocation this recipient perceived. Always set.
   RelocateEnd end = 6;

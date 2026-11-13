@@ -474,8 +474,8 @@ message RelocateAct {
 // to arrest on sight is theirs alone, and this act has no field that could
 // carry it.
 message ArrestAct {
-  // interaction is the id of the conversation that arrested: the front gate.
-  // Opaque; a client never branches on it.
+  // interaction is the id of the conversation whose outcome arrested (the
+  // castle's front gate, for example). Opaque; a client never branches on it.
   string interaction = 1;
   // taken are the members taken that this recipient perceives, in the
   // engine's order. NEVER EMPTY: a recipient who perceived nobody taken

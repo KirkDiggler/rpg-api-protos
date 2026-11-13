@@ -1225,6 +1225,34 @@ message GetKnowledgeResponse {
   // Present when this producer supports per-character discovery sharing.
   // Explicit false is private; absent does not mean private.
   optional bool discovery_sharing = 7;
+  // The run's party sharing, the encounter's sharing dial (rpg-project#935).
+  // A property of the RUN, not of this character: every seat in the run reads
+  // the same value. It DESCRIBES the run so a client can show which mode it is
+  // playing at; it grants nothing and changes nothing a client may do.
+  // PARTY_SHARING_UNSPECIFIED means this producer does not report it.
+  PartySharing party_sharing = 8;
+}
+
+// PartySharing is a run's party sharing, the encounter's sharing dial
+// (rpg-project#930 R5, rpg-project#935): what a player is shown of what their
+// party perceives. The values match the words a site author writes in
+// `party: { sharing: own | view | knowledge }`. DESCRIPTIVE ONLY: it grants
+// nothing.
+enum PartySharing {
+  // The producer does not report the run's sharing (an older server). A
+  // client shows nothing rather than guessing a mode.
+  PARTY_SHARING_UNSPECIFIED = 0;
+  // Each their own: a player is shown only what their own character
+  // perceives.
+  PARTY_SHARING_OWN = 1;
+  // Shared view: a player is shown what any party member perceives, and
+  // their character acts only on what it perceives itself. What a site that
+  // does not author the dial runs at.
+  PARTY_SHARING_VIEW = 2;
+  // Shared knowledge: never appears on a launched run today, because launch
+  // refuses it (rpg-project#937). Listed so the enum matches the authored
+  // words.
+  PARTY_SHARING_KNOWLEDGE = 3;
 }
 
 // SetDiscoverySharing changes this character's policy for future automatic

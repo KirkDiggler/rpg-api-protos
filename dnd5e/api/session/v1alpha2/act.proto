@@ -126,6 +126,9 @@ message Act {
     // relocate is a member set down at a place without walking, as this
     // recipient perceived it (rpg-project#925).
     RelocateAct relocate = 40;
+    // arrest is a party arrested, as this recipient perceived it
+    // (rpg-project#925). Family FAMILY_STATE.
+    ArrestAct arrest = 41;
   }
 }
 
@@ -461,6 +464,25 @@ message RelocateAct {
   string words = 5;
   // end is which end of the relocation this recipient perceived. Always set.
   RelocateEnd end = 6;
+}
+
+// ArrestAct is a party arrested (rpg-project#925): the members taken, as THIS
+// recipient perceived them taken, and the cell region they are to be held in.
+// Per recipient, under FAMILY_STATE. It names no arresting guard.
+//
+// WHO IS WANTED IS NEVER ON THE WIRE. The guards' memory of a member they mean
+// to arrest on sight is theirs alone, and this act has no field that could
+// carry it.
+message ArrestAct {
+  // interaction is the id of the conversation that arrested: the front gate.
+  // Opaque; a client never branches on it.
+  string interaction = 1;
+  // taken are the members taken that this recipient perceives, in the
+  // engine's order. NEVER EMPTY: a recipient who perceived nobody taken
+  // receives no act at all.
+  repeated Party taken = 2;
+  // cell is the id of the region the taken are to be held in.
+  string cell = 3;
 }
 
 // AttackOutcome is how a swing ended (Law 6).

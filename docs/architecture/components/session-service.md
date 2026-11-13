@@ -195,6 +195,37 @@ The messages contain no builder document, private attachment binding or starting
 door state. They use existing read/event paths, not another appearance RPC.
 Generation and published binding adoption remain CI-owned.
 
+### Captured aperture-fitted frames
+
+Both session versions add `AtlasStructuralOpening.frame_span = 4` and
+`AtlasStructuralDoor.frame_presentation = 8`. These are optional immutable
+appearance facts on the existing snapshot/reveal messages, not a new RPC or
+mutable door state.
+
+`WallFrameSpan` carries positive finite `before` and `after` extents about the
+opening centre along its from-to axis, in canonical feet. The span encloses the
+clear opening. A wall uses it to replace the surround's visual span rather than
+only the aperture; it does not widen the passage or change blockers. The
+existing permitted-opening gate owns this field, including complete opening-list
+replacements. No door id or private attachment association is added.
+
+`DoorFramePresentation` requires a span and carries zero-to-two
+`DoorFrameFaceFinish` values with unique `positive-z`/`negative-z` sides, nonblank
+opaque material refs and present finite `phase_u` values in `[0, 1)`. The phase
+is measured at the aperture centre. Positive-z U increases along the supplied
+door axis; negative-z U decreases. Existing elevation supplies vertical mapping;
+provider metadata still owns resources and repeat size. Zero phase is valid,
+so scalar presence distinguishes it from a missing fact. Empty finishes retain
+authored/default materials; absence retains legacy complete-assembly behavior.
+Malformed present facts are refused, not silently replaced.
+
+The independently permitted door carries its own presentation even when its
+parent wall is withheld. A wrapped phase does not disclose the full distance to
+a hidden wall start. The consumer neither fetches a source scene nor joins an
+unseen wall to recover appearance. Parent-later reveals do not change or repeat
+an unchanged door presentation. Producers and consumers coordinate adoption:
+wire-additive does not make an old renderer support aperture-fitted geometry.
+
 ## Stabilization results
 
 `ActivationResult.result` adds `Stabilized stabilized = 8` in `events.proto`.

@@ -180,6 +180,10 @@ message AtlasStructuralOpening {
   // position is the gap's centre, measured along the wall from its start.
   double position = 2;
   double width = 3;
+  // Optional visual replacement span for an aperture-fitted surround. The
+  // opening's existing disclosure gate owns this fact; it carries no door id.
+  // It never widens the clear opening or changes movement/sight authority.
+  WallFrameSpan frame_span = 4;
 }
 
 // AtlasStructuralWall is one authored structural wall: its identity, its
@@ -219,11 +223,48 @@ message AtlasStructuralDoor {
   // id is the canonical gameplay door id the verbs use.
   string id = 1;
   string ref = 2;
+  // Resolved visual opening endpoints. Aperture-fitted surrounds use their
+  // frame_presentation without changing these endpoints or passage width.
   FootprintPoint from = 3;
   FootprintPoint to = 4;
   double height = 5;
   double thickness = 6;
   double elevation = 7;
+  // Optional immutable appearance for an aperture-fitted surround. It follows
+  // this door's independent disclosure, even when its wall is withheld.
+  DoorFramePresentation frame_presentation = 8;
+}
+
+// WallFrameSpan is visual replacement geometry about an opening centre, in
+// canonical feet along its from-to axis. Both values are finite and positive;
+// the span encloses the clear opening. It is not a blocker or passage width.
+// A permitted wall's spans fit its line and do not overlap other opening spans.
+message WallFrameSpan {
+  double before = 1;
+  double after = 2;
+}
+
+// DoorFrameFaceFinish is one captured fixed-masonry look, never a moving-leaf
+// material. side is exactly "positive-z" or "negative-z" in the door's local
+// frame; material_ref is a nonblank opaque provider ref, not a rules material.
+message DoorFrameFaceFinish {
+  string side = 1;
+  string material_ref = 2;
+  // Required present, finite, wrapped U phase at the aperture centre: [0, 1).
+  // Zero is a real phase, not absence. Positive-z U increases along from-to;
+  // negative-z U decreases. The existing door elevation supplies vertical
+  // mapping. Never send a full distance to a potentially hidden wall start.
+  optional double phase_u = 3;
+}
+
+// DoorFramePresentation is immutable captured appearance, not a second pose,
+// state, lock or parent association. A present presentation requires span.
+// face_finishes has at most one entry per side; empty preserves authored
+// materials. Absence retains legacy complete-assembly behavior. Malformed
+// present facts are refused, never guessed from a source scene or hidden wall.
+message DoorFramePresentation {
+  WallFrameSpan span = 1;
+  repeated DoorFrameFaceFinish face_finishes = 2;
 }
 
 // MaterialOverride is one captured visual material choice for a declared asset

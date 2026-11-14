@@ -532,6 +532,13 @@ enum Verb {
   // clock as well as the turn clock. The outcome stays off this seam — the
   // check lands as a Spoke beat and the world's answer as Answered.
   VERB_SPEAK = 10;
+  // Interact done to a prop: one of a prop's things to do (rpg-project#959).
+  // NEVER A DECLARATION OF ITS OWN: the session never emits a declaration
+  // with this verb. A prop's things to do ride the VERB_SPEAK declaration's
+  // Declaration.interact_options, priced as lines are. This
+  // value names the verb a waiting check's window resumes, so a window's story
+  // can say a thing was being done.
+  VERB_INTERACT = 11;
 }
 
 // TargetKind tells a client which selector shape a declaration accepts. Its
@@ -1556,6 +1563,13 @@ message Declaration {
   // client opens the reply panel on `guard_member_id` without a Speak click.
   // Information only: it grants nothing, and Speak is validated as before.
   SpeakAddress address = 24;
+  // The things this actor could do to props, one row per (prop, option)
+  // (rpg-project#959). Present only on a VERB_SPEAK declaration, beside
+  // speak_options; empty for every other verb. A thing to do is seen and not
+  // heard. It is offered only for a prop this member is shown, and a prop that
+  // offers only things to do still makes the Speak row available. Unavailable
+  // rows stay in the list with their reason, as speak_options' do.
+  repeated InteractOption interact_options = 25;
   // Presence summary: an early per-verb blocker still emits its declaration
   // with available=false, why present, empty id, absent attack, empty
   // candidates, and the fixed target_kind. In particular, Afford emits the
@@ -1850,6 +1864,48 @@ message SpeakOption {
   // rather than speak over the waiting roll. Independent of `available`, which
   // keeps answering its own question.
   bool pending = 10;
+}
+
+// InteractOption is one thing to do on a prop (rpg-project#959): seen, not
+// heard. It rides Declaration.interact_options as the menu and comes back as
+// prop plus option_id and revision on InteractRequest. Every field after
+// `line`'s counterpart means what SpeakOption's field of the same name means:
+// a thing to do holds a conversation, waits on a roll and goes stale exactly
+// as a line does.
+message InteractOption {
+  // The placed prop id that offers it. Always set, and always a prop this
+  // member is shown: a hidden thing is never offered.
+  string prop_id = 1;
+  // Opaque author-owned id for this thing, unique on its prop, echoed
+  // verbatim on InteractRequest.option_id. Always set; a client never
+  // branches on it.
+  string option_id = 2;
+  // What the doer is told they do (the authored `do`), verbatim ("You lift
+  // the grate and take the way up."). Empty means the author wrote none.
+  // Named do_words, not `do`: `do` is a JavaScript keyword, and the
+  // generated TypeScript would have to escape it.
+  string do_words = 3;
+  // As SpeakOption.available.
+  bool available = 4;
+  // As SpeakOption.shortfall: SHORTFALL_REASON_UNSPECIFIED when `available`
+  // is true; never UNSPECIFIED when it is false. The row carries the reason
+  // only and the client words it: the session's shortfall text does not
+  // travel, as for speak options.
+  ShortfallReason shortfall = 5;
+  // As SpeakOption.interaction_id: empty when the thing touches no
+  // interaction.
+  string interaction_id = 6;
+  // As SpeakOption.revision: opaque, echoed verbatim on
+  // InteractRequest.revision; 0 means the thing touches no interaction.
+  uint64 revision = 7;
+  // As SpeakOption.pending_on_member_id: set only when `pending` is true and
+  // this viewer may be told who holds it; may be empty while `pending` is
+  // true.
+  string pending_on_member_id = 8;
+  // As SpeakOption.pending: true when a waiting roll holds this thing; it is
+  // shown as waiting and must not be sent. A client keys the waiting state on
+  // this field.
+  bool pending = 9;
 }
 
 // SpeakAddress names the guard who is addressing a member and the shared

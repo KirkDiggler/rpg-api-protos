@@ -1831,7 +1831,13 @@ message SearchResponse {
 
 // InteractRequest reaches for a placed, non-combatant world NPC (rpg-toolkit
 // #1404) — a vendor, or any other MEMBER_KIND_WORLD content — to learn what
-// it is.
+// it is; or, with `prop`, does one of a prop's things to do (rpg-project#959).
+//
+// EXACTLY ONE OF `target` (a person in the world, as before) AND `prop` IS
+// SET. With `prop`, `option_id` is required and `range` is not read: a thing
+// done is measured as a line is. Its refusals are Speak's for a prop: an
+// option not offered, a prop this actor is not shown, a stale revision, a
+// thing pending on another's waiting roll.
 message InteractRequest {
   string session = 1;
   // The reaching player. Bound to the authenticated caller by the host, the
@@ -1842,16 +1848,61 @@ message InteractRequest {
   // The maximum distance, in cells, target may stand from actor. Zero (the
   // default) means adjacent — one cell.
   int32 range = 4;
+  // The placed prop id a thing is done to (rpg-project#959), verbatim from
+  // InteractOption.prop_id. Exactly one of `target` and `prop` is set.
+  string prop = 5;
+  // The thing done, verbatim from InteractOption.option_id. Required with
+  // `prop`; ignored without it.
+  string option_id = 6;
+  // The revision the thing was offered at, verbatim from
+  // InteractOption.revision. For a thing that touches an interaction, any
+  // other revision is refused and nothing is spent; a thing that touches no
+  // interaction ignores it.
+  uint64 revision = 7;
 }
 
 // InteractResponse is what the target IS, assembled from the session's own
 // placed-NPC record. Encounter itself answers only reach — identity,
 // adjacency, visibility — and holds no NPC content of its own.
+//
+// A thing done to a prop answers in `done`, beside `descriptor`, which is then
+// absent: a sibling field, never a oneof over `descriptor`.
 message InteractResponse {
   WorldNPCDescriptor descriptor = 1;
   uint64 seq = 2;
   SaveReport saved = 3;
   DeliveryReport delivery = 4;
+  // The thing done to a prop (rpg-project#959). Present only for a request
+  // with `prop`; absent for a world NPC.
+  InteractDone done = 5;
+}
+
+// InteractDone is a thing done to a prop, in the open (rpg-project#959): the
+// verdict, the check's arithmetic and the pause, as UnlockResponse reports a
+// check. A thing done and a line said share one machine.
+message InteractDone {
+  // Echoes the prop the thing was done to.
+  string prop = 1;
+  // Echoes the thing done.
+  string option_id = 2;
+  // Whether the check beat the DC. True for a plain thing, which rolls
+  // nothing. Zero while paused.
+  bool beaten = 3;
+  // What the check totalled. Zero for a plain thing. While paused, the total
+  // before any held offer is spent.
+  int32 total = 4;
+  // What it had to reach: the applied route's own DC. Zero for a plain thing
+  // and while paused.
+  int32 dc = 5;
+  // The route the attempt took, the member's best listed approach. Absent for
+  // a plain thing.
+  CheckApproach applied = 6;
+  // True when the attempt stopped to ask the member whether to spend a held
+  // offer before the verdict is settled; answered via React. As
+  // SpeakResponse.paused.
+  bool paused = 7;
+  // The d20 as rolled, present only when paused. As SpeakResponse.roll.
+  optional int32 roll = 8;
 }
 
 // WorldNPCDescriptor is what a player sees after reaching a placed world

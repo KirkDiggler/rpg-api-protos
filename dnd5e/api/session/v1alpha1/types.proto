@@ -533,8 +533,9 @@ enum Verb {
   // check lands as a Spoke beat and the world's answer as Answered.
   VERB_SPEAK = 10;
   // Interact done to a prop: one of a prop's things to do (rpg-project#959).
-  // NEVER A DECLARATION OF ITS OWN: a prop's things to do are offered on the
-  // VERB_SPEAK row as Declaration.interact_options, priced as lines are. This
+  // NEVER A DECLARATION OF ITS OWN: the session never emits a declaration
+  // with this verb. A prop's things to do ride the VERB_SPEAK declaration's
+  // Declaration.interact_options, priced as lines are. This
   // value names the verb a waiting check's window resumes, so a window's story
   // can say a thing was being done.
   VERB_INTERACT = 11;
@@ -1887,7 +1888,9 @@ message InteractOption {
   // As SpeakOption.available.
   bool available = 4;
   // As SpeakOption.shortfall: SHORTFALL_REASON_UNSPECIFIED when `available`
-  // is true; never UNSPECIFIED when it is false.
+  // is true; never UNSPECIFIED when it is false. The row carries the reason
+  // only and the client words it: the session's shortfall text does not
+  // travel, as for speak options.
   ShortfallReason shortfall = 5;
   // As SpeakOption.interaction_id: empty when the thing touches no
   // interaction.

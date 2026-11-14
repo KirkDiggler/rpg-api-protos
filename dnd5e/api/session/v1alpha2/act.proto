@@ -483,20 +483,27 @@ message RelocateAct {
 message InteractAct {
   // actor is who did it. Always set.
   Party actor = 1;
-  // prop is the thing it was done to. ABSENT for a recipient not shown the
-  // prop; a client then names no thing.
+  // prop is the thing it was done to. A recipient who SAW the thing used comes
+  // to know it, and is sent the version with `prop` set ("if you saw it, you
+  // know it", encounter v0.215.0). ABSENT for a recipient not shown the prop;
+  // a client then names no thing.
   Party prop = 2;
   // option is the thing's option id: the doer's version only. EMPTY for every
   // witness.
   string option = 3;
-  // words are what this recipient is told: the doer's `do` words, or a shown
-  // witness's `seen` words. EMPTY means no words were authored for this
-  // recipient, and a client words a generic ("<name> uses <thing>", or
-  // "<name> does something" with no prop).
+  // words are what this recipient is told. In the doer's version they are the
+  // doer's own second-person `do` words ("You lift the grate"); in a shown
+  // witness's version they are the third-person `seen` words ("She lifts the
+  // grate"). The doer's version is the one whose `actor` is the viewer's own
+  // character, and only it sets `option` and the check; a client tells the
+  // two apart that way and never keys on `words`. EMPTY means no words were
+  // authored for this recipient, and the client words a generic ("<name> uses
+  // <thing>").
   string words = 4;
-  // place is where the doer stood. Present only for a witness not shown the
-  // prop. ABSENT for everyone else; absent is never read as the cell [0,0]
-  // (the zero position).
+  // place is where the doer stood. Present only for a witness who saw the
+  // doer and not where the thing stands, and so is not shown the prop. ABSENT
+  // for everyone else; absent is never read as the cell [0,0] (the zero
+  // position).
   Position place = 5;
   // beaten is the verdict: the doer's version only, true for a plain thing.
   // ABSENT for every witness.

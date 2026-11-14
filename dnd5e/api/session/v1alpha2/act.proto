@@ -129,6 +129,9 @@ message Act {
     // arrest is a party arrested, as this recipient perceived it
     // (rpg-project#925). Family FAMILY_STATE.
     ArrestAct arrest = 41;
+    // interact is a thing done to a prop, as this recipient perceived it
+    // (rpg-project#959): seen, not heard.
+    InteractAct interact = 42;
   }
 }
 
@@ -464,6 +467,46 @@ message RelocateAct {
   string words = 5;
   // end is which end of the relocation this recipient perceived. Always set.
   RelocateEnd end = 6;
+}
+
+// InteractAct is a thing done to a prop, as one recipient perceived it
+// (rpg-project#959): seen, not heard. Each part is present only when this
+// recipient perceived it.
+//
+//   - The doer: prop, option, words (the authored `do`), beaten, and skill
+//     with roll when the thing was checked.
+//   - A witness shown the prop: prop, and words (the authored `seen`).
+//   - A witness who sees the doer and is not shown the prop: place, the cell
+//     the doer stood on, and no prop.
+//
+// A HIDDEN THING IS NEVER NAMED to a recipient who has not been shown it.
+message InteractAct {
+  // actor is who did it. Always set.
+  Party actor = 1;
+  // prop is the thing it was done to. ABSENT for a recipient not shown the
+  // prop; a client then names no thing.
+  Party prop = 2;
+  // option is the thing's option id: the doer's version only. EMPTY for every
+  // witness.
+  string option = 3;
+  // words are what this recipient is told: the doer's `do` words, or a shown
+  // witness's `seen` words. EMPTY means no words were authored for this
+  // recipient, and a client words a generic ("<name> uses <thing>", or
+  // "<name> does something" with no prop).
+  string words = 4;
+  // place is where the doer stood. Present only for a witness not shown the
+  // prop. ABSENT for everyone else; absent is never read as the cell [0,0]
+  // (the zero position).
+  Position place = 5;
+  // beaten is the verdict: the doer's version only, true for a plain thing.
+  // ABSENT for every witness.
+  optional bool beaten = 6;
+  // skill is the check's skill: the doer's version, when the thing was
+  // checked. EMPTY otherwise.
+  string skill = 7;
+  // roll is the doer's check: total, the DC as `against`, `beaten` and the
+  // dice. ABSENT for a plain thing and for every witness.
+  Roll roll = 8;
 }
 
 // ArrestAct is a party arrested (rpg-project#925): the members taken, as THIS
@@ -839,6 +882,12 @@ message TableAnswer {
   // DEPRECATED — SUPERSEDED BY Speech.spoken_to (rpg-project#934, R4, R6),
   // which names the addressee only to a reader who sees them.
   Party to = 13 [deprecated = true];
+  // narration is the words a PROP answers with, verbatim as authored
+  // (rpg-project#959): a prop has no voice, so its words are narrated, not
+  // spoken. Present only on a prop's answer, and only for recipients who saw
+  // it. A creature's answer rides Speech and never sets this field. Never
+  // `say`'s replacement for a creature.
+  string narration = 14;
 }
 
 // StateKind is what a state entry changed.

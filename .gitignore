@@ -1,5 +1,4 @@
 # Generated code
-gen/
 
 # refgen tool binary (built via `go build`, never committed)
 /tools/refgen/refgen

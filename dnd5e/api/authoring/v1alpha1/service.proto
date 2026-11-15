@@ -317,10 +317,18 @@ message ReadBackConnection {
   string kind = 1;
   // The thing's id in the file.
   string id = 2;
-  // A verb from the reader's side: "grants", "asks", "teaches", "wakes-on",
-  // "advances", "reads", "holds", "said-to", "uses", "door", "carries". An
-  // open string owned by the engine, for ReadBackStatement.kind's reason.
+  // A verb from the reader's side, for example "grants", "asks", "teaches",
+  // "wakes-on", "advances", "reads", "holds", "said-to", "uses", "door",
+  // "carries". The list is not the set: an open string owned by the engine,
+  // for ReadBackStatement.kind's reason.
   string role = 3;
+  // A number the connection carries where its kind has one: the difficulty
+  // of a check on a `method` connection, which the engine sets on the way
+  // statements (`place.way.*`, the ways through a join), so a client can
+  // count an encounter's ways by method and difficulty. Zero means the
+  // connection carries no number. Mirrors the engine's `value` by the same
+  // name (rpg-toolkit encounter v0.218.0).
+  int32 value = 4;
 }
 
 // ReadBackUnsaid is one authored thing the read-back cannot yet say.

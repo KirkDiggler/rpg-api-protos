@@ -155,9 +155,10 @@ message PutDungeonRequest {
 // PutDungeonResponse is delivered only on gRPC OK (see PutDungeonRequest for
 // the status side). Two shapes, told apart by `errors`:
 //
-//   - `errors` empty: the file compiled. `atlas` is set, `read_back` is set
-//     when the file is a site document (root `version: 3` and above), and
-//     if the request was not validate_only the file is stored under its key.
+//   - `errors` empty: the file compiled. `atlas` is set; `read_back` is set
+//     when the file is a site document (root `version: 3` and above) and
+//     the request was validate_only; and if the request was not
+//     validate_only the file is stored under its key.
 //   - `errors` non-empty: the file did not compile. `atlas` and `read_back`
 //     are unset and nothing was written.
 //
@@ -188,8 +189,12 @@ message PutDungeonResponse {
   // here field for field and adds nothing.
   //
   // Present only when `errors` is empty AND the file is a site document
-  // (root `version: 3` and above), the dialect the read-back reads. A file
-  // that does not compile has no read-back: its refusals are the answer.
+  // (root `version: 3` and above), the dialect the read-back reads, AND the
+  // request was validate_only. A file that does not compile has no
+  // read-back: its refusals are the answer. A save's response carries none:
+  // the client already holds the read-back of the check it made before
+  // saving, and saying the file back again would double the cost of every
+  // save for nothing. The read-back rides the check (rpg-project#967).
   //
   // This is not the second builder-shaped projection the note on `atlas`
   // retires. The atlas is the world's geometry and stays the one place the

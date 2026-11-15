@@ -155,10 +155,11 @@ message PutDungeonRequest {
 // PutDungeonResponse is delivered only on gRPC OK (see PutDungeonRequest for
 // the status side). Two shapes, told apart by `errors`:
 //
-//   - `errors` empty: the file compiled. `atlas` is set, and if the request
-//     was not validate_only the file is stored under its key.
-//   - `errors` non-empty: the file did not compile. `atlas` is unset and
-//     nothing was written.
+//   - `errors` empty: the file compiled. `atlas` is set, `read_back` is set
+//     when the file is a site document (root `version: 3` and above), and
+//     if the request was not validate_only the file is stored under its key.
+//   - `errors` non-empty: the file did not compile. `atlas` and `read_back`
+//     are unset and nothing was written.
 //
 // There is no `bool success`: an empty error list IS success, and a flag that
 // could disagree with it would be a second source of truth.
@@ -179,6 +180,110 @@ message PutDungeonResponse {
   // was lying. Returning the atlas itself leaves the builder nothing to keep
   // in step.
   dnd5e.api.session.v1alpha1.GetAtlasResponse atlas = 2;
+  // THE ENGINE'S SENTENCES ABOUT THE FILE (rpg-project#967): what the
+  // compiled encounter does, said back in plain words, one statement per
+  // thing, each naming the YAML path it is set at and what it reads or
+  // changes. The producer is the engine's read-back (rpg-toolkit
+  // `rulebooks/dnd5e/encounter/dungeonspec/readback`); the server maps it
+  // here field for field and adds nothing.
+  //
+  // Present only when `errors` is empty AND the file is a site document
+  // (root `version: 3` and above), the dialect the read-back reads. A file
+  // that does not compile has no read-back: its refusals are the answer.
+  //
+  // This is not the second builder-shaped projection the note on `atlas`
+  // retires. The atlas is the world's geometry and stays the one place the
+  // builder draws from; nothing here repeats a cell, a wall or a door's
+  // shape. The read-back is the engine saying what the file MEANS — who
+  // holds the gate, what a line grants, what wakes a routine — which no
+  // message carried before, so there is nothing for it to drift from. If a
+  // client and the sentences disagree, the sentences are the engine's word.
+  ReadBack read_back = 3;
+}
+
+// ReadBack is a whole encounter said back by the engine: sections of groups
+// of statements, in reading order, plus what the read-back cannot yet say.
+// It mirrors the read-back's exported JSON shape exactly, so a field added
+// there is added here by the same name.
+message ReadBack {
+  // The file's root `key`.
+  string key = 1;
+  // The file's root `name`.
+  string name = 2;
+  // The headings in reading order: the place, the creatures, the
+  // conversations, the topics, the facts, the routines.
+  repeated ReadBackSection sections = 3;
+  // Every authored thing the read-back cannot yet say. Empty means every
+  // part of the file has a sentence; a client shows a non-empty list rather
+  // than let the author believe the sentences are the whole file.
+  repeated ReadBackUnsaid not_yet_said = 4;
+}
+
+// ReadBackSection is one heading of the read-back.
+message ReadBackSection {
+  string title = 1;
+  repeated ReadBackGroup groups = 2;
+}
+
+// ReadBackGroup is the statements about one thing, in reading order.
+message ReadBackGroup {
+  string title = 1;
+  // The thing the group is about.
+  ReadBackSubject about = 2;
+  repeated ReadBackStatement statements = 3;
+}
+
+// ReadBackStatement is one plain sentence about one thing, with where it is
+// set.
+message ReadBackStatement {
+  // The stable name of what the statement says ("creature.post",
+  // "line.grant", "routine.wake"). A client keys on `kind`, never on the
+  // sentence, which the engine may reword. An open string, not an enum: the
+  // kinds are the engine's and it adds one without a wire change, so a
+  // client treats an unknown kind as a statement it shows plainly.
+  string kind = 1;
+  // The thing the statement is about.
+  ReadBackSubject about = 2;
+  // The sentence, ready to show.
+  string sentence = 3;
+  // The YAML path the statement is set at, in FieldError's coordinate
+  // system. The literal "(engine rule)" marks a statement that says how the
+  // engine runs what the file authors rather than something the file sets:
+  // it has no place in the file to point at.
+  string path = 4;
+  // What the statement reads or changes, and how: the edges between things.
+  // Empty when the statement touches nothing else.
+  repeated ReadBackConnection connects = 5;
+}
+
+// ReadBackSubject names a thing in the file: a kind of thing and its id
+// ("creature" "gate-1", "topic" "admitted"). `kind` is an open string owned
+// by the engine, for ReadBackStatement.kind's reason.
+message ReadBackSubject {
+  string kind = 1;
+  string id = 2;
+}
+
+// ReadBackConnection is one thing a statement reads or changes, and how.
+message ReadBackConnection {
+  // The kind of the thing connected to, as in ReadBackSubject.
+  string kind = 1;
+  // The thing's id in the file.
+  string id = 2;
+  // A verb from the reader's side: "grants", "asks", "teaches", "wakes-on",
+  // "advances", "reads", "holds", "said-to", "uses", "door", "carries". An
+  // open string owned by the engine, for ReadBackStatement.kind's reason.
+  string role = 3;
+}
+
+// ReadBackUnsaid is one authored thing the read-back cannot yet say.
+message ReadBackUnsaid {
+  // The YAML path of the thing, as in FieldError.
+  string path = 1;
+  // What kind of thing it is.
+  string kind = 2;
+  // Why it is not said yet.
+  string why = 3;
 }
 
 // FieldError is one compile problem and the YAML path it is about.

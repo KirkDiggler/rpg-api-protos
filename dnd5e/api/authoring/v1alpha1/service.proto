@@ -208,8 +208,9 @@ message PutDungeonResponse {
 
 // ReadBack is a whole encounter said back by the engine: sections of groups
 // of statements, in reading order, plus what the read-back cannot yet say.
-// It mirrors the read-back's exported JSON shape exactly, so a field added
-// there is added here by the same name.
+// Fields 1-4 mirror the read-back's exported JSON shape exactly, so a field
+// added there is added here by the same name; `folded` carries what the
+// engine's `Folded()` returns.
 message ReadBack {
   // The file's root `key`.
   string key = 1;
@@ -222,6 +223,47 @@ message ReadBack {
   // part of the file has a sentence; a client shows a non-empty list rather
   // than let the author believe the sentences are the whole file.
   repeated ReadBackUnsaid not_yet_said = 4;
+  // THE SAME STATEMENTS, FOLDED FOR A PERSON TO READ (rpg-project#978): a
+  // line said once with its requirements as short entries under it, things
+  // that differ only by state said once with the states listed, creatures
+  // that share lines said once. The producer is the engine
+  // (`ReadBack.Folded()` in rpg-toolkit dungeonspec/readback), not a field
+  // of its JSON; the server maps its result here and adds nothing.
+  //
+  // Folding adds no fact and drops none. Every item carries the path of
+  // every statement it stands for, so a client opens an item to the
+  // statements in `sections` with those paths, and every statement is
+  // reachable from some item. A client never folds statements itself: the
+  // wording of a fold is the engine's, and a client that folded would be
+  // writing sentences of its own.
+  //
+  // Set whenever `sections` is: the read-back of a validate_only check.
+  repeated ReadBackFoldedSection folded = 5;
+}
+
+// ReadBackFoldedSection is one heading of the folded read-back, titled as
+// the ReadBackSection it folds. A section with nothing to say is left out.
+message ReadBackFoldedSection {
+  string title = 1;
+  repeated ReadBackFoldedItem items = 2;
+}
+
+// ReadBackFoldedItem is one entry of the folded read-back: its text, the
+// paths of every statement it stands for, and the entries under it.
+message ReadBackFoldedItem {
+  // The entry, ready to show.
+  string text = 1;
+  // The path of every statement this entry stands for, entries beneath it
+  // included, in ReadBackStatement.path's coordinate system. Opening the
+  // entry is finding the statements with these paths.
+  repeated string paths = 2;
+  // The path prefix the paths of the entries beneath this one are shown
+  // relative to, so a client can show a short tail under a line rather than
+  // repeat its whole path. It holds for every entry below until one sets its
+  // own; empty sets none. A display hint only: `paths` are always whole.
+  string base = 3;
+  // The entries under this one, in reading order.
+  repeated ReadBackFoldedItem items = 4;
 }
 
 // ReadBackSection is one heading of the read-back.

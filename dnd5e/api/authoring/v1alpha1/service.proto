@@ -124,6 +124,14 @@ service AuthoringService {
   // monster with, for the builder's action palette. Ungated, for GetDungeon's
   // reason: it reads a registry and mutates nothing.
   rpc ListWeapons(ListWeaponsRequest) returns (ListWeaponsResponse);
+  // GetMachineWords reports every word a behaviour machine's step may use —
+  // the beats it can be on, what its condition can read, what it can do —
+  // with where each is allowed and how each is said, as the engine the
+  // server runs publishes them (rpg-project#997, #1001). It takes no file:
+  // the words belong to the engine version, not to a dungeon, so a studio
+  // has its dropdowns and labels before any file compiles. Ungated, for
+  // GetDungeon's reason: it reads a table and mutates nothing.
+  rpc GetMachineWords(GetMachineWordsRequest) returns (GetMachineWordsResponse);
 }
 
 // PutDungeonRequest carries one dungeon file, in its authored form.
@@ -329,6 +337,32 @@ message ReadBackConnection {
   // connection carries no number. Mirrors the engine's `value` by the same
   // name (rpg-toolkit encounter v0.218.0).
   int32 value = 4;
+
+  // Fields 5-8 belong to a connection of kind "condition" only, and are
+  // empty on every other (rpg-project#997; rpg-toolkit encounter v0.224.0,
+  // `readback.Connection` by the same names). A condition connection is one
+  // condition a machine step's `when` reads, role "asks"; its `id` is the
+  // word as authored with its open part filled ("heard.claim",
+  // "noted:admitted", "noted.anyone:admitted", "fact:gate-cowed", "within",
+  // "rounds", "flag"), a word of GetMachineWordsResponse.conditions. With
+  // these four a client rebuilds the condition from connections alone.
+
+  // The value the condition compares, as text: "failed", "true", "3", a
+  // flag's name for `flag`. Empty where the condition carries none.
+  string is = 5;
+  // The comparison where it is not equality, as the engine spells it
+  // ("gte"); empty means equality. Its plain words are
+  // GetMachineWordsResponse.ops'.
+  string op = 6;
+  // True when the condition sits under an odd number of `not`s: the step
+  // needs it FALSE. Counted by the engine, so a client never walks the
+  // `not`s itself.
+  bool not = 7;
+  // Where the condition sits inside the step's `when`, as the author wrote
+  // it: "when", "when.all[1]", "when.any[0].not". Several conditions at one
+  // place are one node, all of them needed. It keeps the `all` / `any` /
+  // `not` shape, so an editor can rebuild the condition.
+  string at = 8;
 }
 
 // ReadBackUnsaid is one authored thing the read-back cannot yet say.
@@ -575,4 +609,154 @@ message WeaponDescriptor {
   // and the melee/ranged split today; a client that took that as license to
   // split it apart would be holding the rulebook's vocabulary again.
   string category = 4;
+}
+
+// GetMachineWordsRequest asks for the machine words of the engine the
+// server runs. Empty: the words belong to the engine version, not to any
+// dungeon or caller.
+message GetMachineWordsRequest {}
+
+// GetMachineWordsResponse is every word a behaviour machine's step may use,
+// mirroring the engine's published table field for field
+// (`encounter.MachineWords()`, rpg-toolkit rulebooks/dnd5e/encounter
+// machinewords.go). The server maps it and adds nothing.
+//
+// THE TABLE IS THE ENGINE'S, AND THIS SERVICE TRANSLATES IT VERBATIM, for
+// ListWeapons' reason: a studio holding its own list of beats or conditions
+// would offer a word the compiler refuses the day the two disagreed. A word
+// is AS AUTHORED: a whole word ("heard"), or a prefix whose open part the
+// author fills ("noted:", "deed:", "clock:"). The engine's own spellings
+// (where content is lowered before the engine sees it) never appear.
+//
+// LABEL TEMPLATES. `label`, `label_with`, `label_not` and `value_labels` are
+// a few plain words for an arrow or a dropdown, and may hold slots in braces
+// that a client fills: {id} the open part of the word, or the thing an act
+// names (a state, a table key, a flag); {value} a condition's or an act's
+// value; {n} a count (cells, rooms, rounds); {op} a comparison's plain words
+// from `ops`. A client meeting any other slot shows the template as written.
+//
+// SENTENCE TEMPLATES. `long` and `short` are the read-back's own sentence
+// and folded form, filled by the engine when it says a file back; they are
+// published so a client can show what a word will say before it is used.
+// Besides the label slots they may hold slots only the read-back fills:
+// {who} the runner, {whose} its possessive, {verb} a noting's polarity,
+// {about} the one a beat names, {raised} a loudness, {name} a fact's own
+// word, {beat} the whole beat, {parts} a node's parts joined by `join`, and
+// {inner} the guard a `not` wraps.
+message GetMachineWordsResponse {
+  // The engine module version the words are for, as the server's build
+  // records it (for example "v0.224.0"), so a client caching the table knows
+  // when to fetch it again. Empty when the server cannot know it.
+  string encounter_version = 1;
+  // The beats a step can be on, in the order every refusal lists them: the
+  // fixed words, then the open families.
+  repeated MachineBeatWord beats = 2;
+  // What a step's condition can read: engine facts first, then the
+  // machine's guard leaves.
+  repeated MachineConditionWord conditions = 3;
+  // What a step can do: the move (`to`) first, then the acts.
+  repeated MachineActWord acts = 4;
+  // Every comparison a condition can make, with its plain words, so no
+  // client maps the engine's "eq" or "gte" itself.
+  repeated MachineOpWord ops = 5;
+}
+
+// MachineBeatWord is one beat a step can be on. Mirrors `encounter.BeatWord`.
+message MachineBeatWord {
+  // The beat as authored: "heard", or a prefix "deed:", "clock:".
+  string word = 1;
+  // What fills a prefix word's open part, and from where: "deed" (a deed
+  // word the rulebook names), "clock" (a clock the file declares), "fact" (a
+  // fact the file can set), "topic" (a topic something in the file gives),
+  // "loudness" (a loudness the rulebook names); empty for a whole word. An
+  // open string owned by the engine, for ReadBackStatement.kind's reason.
+  string open = 2;
+  // A beat the clock raises ("time", "turn").
+  bool timed = 3;
+  // A beat that happened somewhere: `within` and `regions` may be asked of it.
+  bool scoped = 4;
+  // A beat whose event names the one it is about: `noted:` may be read on it.
+  bool names = 5;
+  // The read-back's words for the one a naming beat is about; empty exactly
+  // when `names` is false. A sentence template (see GetMachineWordsResponse).
+  string about = 6;
+  // A beat a step may act on with `pick`.
+  bool picks = 7;
+  // A few plain words for an arrow or a dropdown ("hears something").
+  string label = 8;
+  // `label` with the thing the beat is about filled in, for a beat that
+  // takes one ("learns {id}"); empty where it takes none.
+  string label_with = 9;
+  // The read-back's folded form, about "it".
+  string short = 10;
+  // The read-back's sentence template.
+  string long = 11;
+}
+
+// MachineConditionWord is one thing a step's condition can read: an engine
+// fact (`fact` true) or a machine guard leaf. Mirrors `encounter.ConditionWord`.
+message MachineConditionWord {
+  // The word as authored: "heard.claim", "noted:", "fact:", "within", "all".
+  string word = 1;
+  // What fills a prefix word's open part, as MachineBeatWord.open.
+  string open = 2;
+  // True for an engine fact a `fact:` guard leaf names; false for a machine
+  // guard leaf (`flag`, `within`, `regions`, `rounds`, `all`, `any`, `not`).
+  bool fact = 3;
+  // The value's kind: "bool", "string" or "int"; empty for a node that
+  // carries none (`all`, `any`, `not`).
+  string kind = 4;
+  // The closed set of values it may ask, in the order a refusal lists them;
+  // empty for an open value.
+  repeated string values = 5;
+  // The real beats it may be read on, as MachineBeatWord.word spells them:
+  // a whole beat, or an open family's word ("deed:") for every beat of that
+  // family. Empty means any beat.
+  repeated string on = 6;
+  // How the states dialect writes it in a `when` ("{ enemy }"); empty where
+  // the dialect does not read it.
+  string states_form = 7;
+  // How the read-back joins a node's parts: " and " for `all`, ", or " for
+  // `any`; empty for a leaf.
+  string join = 8;
+  // A few plain words for an arrow ("it was a claim that {value}"); for a
+  // word with closed values, the fallback for a value `value_labels` does
+  // not name.
+  string label = 9;
+  // The label when the condition is asked to be false ("has not learned
+  // {id}"); empty where `label`'s own negation reads right.
+  string label_not = 10;
+  // For a word with closed values, each value's own label ("failed": "it was
+  // a claim that failed").
+  map<string, string> value_labels = 11;
+  // The read-back's sentence template.
+  string long = 12;
+}
+
+// MachineActWord is one thing a step can do: move (`to`) or an act.
+// Mirrors `encounter.ActWord`.
+message MachineActWord {
+  // The word as authored: "to", "pick", "wake_in", "set", "clear", "anchor".
+  string word = 1;
+  // The real beats a step may do it on, as MachineConditionWord.on; empty
+  // means any beat.
+  repeated string on = 2;
+  // How the states dialect writes it in `do` ("{ pick: <key> }"); empty
+  // where the dialect does not take it.
+  string states_form = 3;
+  // A few plain words for an arrow ("changes to {id}").
+  string label = 4;
+  // The read-back's folded form.
+  string short = 5;
+  // The read-back's sentence form.
+  string long = 6;
+}
+
+// MachineOpWord is one comparison a condition can make. Mirrors
+// `encounter.OpWord`.
+message MachineOpWord {
+  // The engine's spelling: "eq", "gte".
+  string op = 1;
+  // How a label or a sentence says it: "exactly", "at least".
+  string words = 2;
 }

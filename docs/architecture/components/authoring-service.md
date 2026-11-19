@@ -41,6 +41,7 @@ a body.
 | `GetDungeon` | Returns the stored file for a key, verbatim. `NotFound` for an unknown key. Ungated — reading content mutates nothing |
 | `ListScenarios` | Every scenario a dungeon may be bound to, and the form each one needs filled in. Ungated, for `GetDungeon`'s reason |
 | `ListWeapons` | Every weapon the rulebook can arm a placed monster with, for the builder's action palette. Ungated, for `GetDungeon`'s reason |
+| `GetMachineWords` | Every word a behaviour machine's step may use (beats, conditions, acts, comparisons), with where each is allowed and its labels and sentence templates, mirroring the engine's published table (`encounter.MachineWords()`) for the engine version the server runs. No file argument. Ungated, for `GetDungeon`'s reason (rpg-project#997) |
 
 ```proto
 message PutDungeonRequest  { string key = 1; string yaml = 2; bool validate_only = 3; }
@@ -61,7 +62,21 @@ enum FieldType { FIELD_TYPE_UNSPECIFIED = 0; FIELD_TYPE_ENTITY_REF = 1; FIELD_TY
 message ListWeaponsRequest  {}
 message ListWeaponsResponse { repeated WeaponDescriptor weapons = 1; }
 message WeaponDescriptor    { string ref = 1; string name = 2; bool ranged = 3; string category = 4; }
+
+message GetMachineWordsRequest  {}
+message GetMachineWordsResponse {
+  string encounter_version = 1;                // the engine module version the words are for
+  repeated MachineBeatWord beats = 2;
+  repeated MachineConditionWord conditions = 3;
+  repeated MachineActWord acts = 4;
+  repeated MachineOpWord ops = 5;
+}
 ```
+
+`ReadBackConnection` carries `is` (5), `op` (6), `not` (7) and `at` (8) on a
+connection of kind `condition`: the value a machine step's condition compares,
+its comparison where not equality, whether the step needs it false, and where
+it sits in the step's `when` (rpg-project#997).
 
 There is no `DeleteDungeon`. Not now: nothing in the builder's first loop
 (draw, validate, save, play, reopen) deletes.
@@ -137,6 +152,17 @@ beside it is a closed enum: the set of **widget shapes** is the builder's own
 vocabulary and grows only when the builder learns to render something new,
 while the set of **things a widget can point at** is content and grows with the
 rulebook.
+
+### `GetMachineWords` is the engine's table, translated verbatim
+
+The machine words belong to the engine version, not to a file, so the read
+takes no argument and a studio has its beat and condition dropdowns before any
+file compiles; a field on the validate-only read-back would ride every check
+and arrive only after a file compiled. Each message mirrors the Go published
+view field for field (`BeatWord`, `ConditionWord`, `ActWord`, `OpWord`);
+open words (`open`, `kind`) are strings for `ReadBackStatement.kind`'s reason.
+Label templates carry the client-filled slots {id}, {value}, {n}, {op};
+sentence templates also carry slots only the read-back fills.
 
 ### `WeaponDescriptor` carries the ref the author writes
 

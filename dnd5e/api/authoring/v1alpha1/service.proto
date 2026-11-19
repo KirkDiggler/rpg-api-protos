@@ -644,9 +644,9 @@ message GetMachineWordsRequest {}
 // word, {beat} the whole beat, {parts} a node's parts joined by `join`, and
 // {inner} the guard a `not` wraps.
 message GetMachineWordsResponse {
-  // The engine module version the words are for, as the server's build
-  // records it (for example "v0.224.0"), so a client caching the table knows
-  // when to fetch it again. Empty when the server cannot know it.
+  // The engine release the api was built with, from its build info (for
+  // example "v0.224.0"), so a client caching the table knows when to fetch
+  // it again. Empty when unknown.
   string encounter_version = 1;
   // The beats a step can be on, in the order every refusal lists them: the
   // fixed words, then the open families.

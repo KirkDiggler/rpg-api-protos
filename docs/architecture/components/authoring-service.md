@@ -163,6 +163,11 @@ view field for field (`BeatWord`, `ConditionWord`, `ActWord`, `OpWord`);
 open words (`open`, `kind`) are strings for `ReadBackStatement.kind`'s reason.
 Label templates carry the client-filled slots {id}, {value}, {n}, {op};
 sentence templates also carry slots only the read-back fills.
+Every word also says where it is written (`MachineWritten`: the step part,
+the key, the field) and what it takes (`MachineArg`, in order: where each
+goes, what it names, its kind), so a client builds any word with no code of
+its own per word. Closed sets are documented open strings, not enums: the
+engine grows them.
 
 ### `WeaponDescriptor` carries the ref the author writes
 

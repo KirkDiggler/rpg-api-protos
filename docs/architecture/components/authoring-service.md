@@ -48,10 +48,12 @@ message PutDungeonRequest  { string key = 1; string yaml = 2; bool validate_only
 message PutDungeonResponse {
   repeated FieldError errors = 1;                         // empty ⇒ compiled, atlas set
   dnd5e.api.session.v1alpha1.GetAtlasResponse atlas = 2;  // the same message the game plays from
+  ReadBack read_back = 3;
+  string content_hash = 4;                                // empty unless compiled
 }
 message FieldError { string path = 1; string message = 2; }   // "regions[1].cells[0][3]", "walls[3]", "start"
 message GetDungeonRequest  { string key = 1; }
-message GetDungeonResponse { string yaml = 1; }               // verbatim text, never a re-marshal
+message GetDungeonResponse { string yaml = 1; string content_hash = 2; }  // verbatim text; hash empty when it no longer compiles
 
 message ListScenariosRequest  {}
 message ListScenariosResponse { repeated ScenarioDescriptor scenarios = 1; }
@@ -152,6 +154,19 @@ beside it is a closed enum: the set of **widget shapes** is the builder's own
 vocabulary and grows only when the builder learns to render something new,
 while the set of **things a widget can point at** is content and grows with the
 rulebook.
+
+### `content_hash`: is this run of what is open now?
+
+`PutDungeonResponse.content_hash` (4) and `GetDungeonResponse.content_hash`
+(2) carry the engine's hash of the compiled form (rpg-project#1001): the
+value a run launched from that content records on its `scene_content` beat,
+so a client can say whether a saved run was a run of the dungeon open in the
+studio. It is engine-release-specific; compare only under one
+`encounter_version`. It sits on the responses, not inside `ReadBack`, because
+a save and a refused file carry no read-back. `ListDungeons` carries none: a
+world record is listed without compiling it, so a hash there would be a
+compile per entry on every list, or a stored hash gone stale at the next
+engine release.
 
 ### `GetMachineWords` is the engine's table, translated verbatim
 

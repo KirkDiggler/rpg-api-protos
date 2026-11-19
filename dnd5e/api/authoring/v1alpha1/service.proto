@@ -212,6 +212,29 @@ message PutDungeonResponse {
   // message carried before, so there is nothing for it to drift from. If a
   // client and the sentences disagree, the sentences are the engine's word.
   ReadBack read_back = 3;
+  // The content hash of what was just compiled, on a validate_only check
+  // and on a save alike: lower-case hex SHA-256 of the compiled form
+  // (rpg-toolkit dungeonspec `Compiled.ContentHash()`, rpg-project#1001).
+  // Empty exactly when the file did not compile (`errors` is set).
+  //
+  // ON THE RESPONSE, NOT INSIDE ReadBack: the read-back is absent on a save,
+  // on a refused file and on a file below the site dialect, while a save of
+  // a compiled file still has a hash.
+  //
+  // WHAT IT COVERS: everything the compiler keeps — a line's words, a
+  // check's DC, a machine's step, a post, a creature, a region, a door's
+  // state, the map's void and orientation, an ending's trigger, the key and
+  // the name. Comments, key order, quoting, layout, and declarations the
+  // compiler does not keep do not change it. So the same content under
+  // another key hashes differently.
+  //
+  // ENGINE-RELEASE-SPECIFIC: another encounter release may compile the same
+  // file differently and hash it differently. Compare two hashes only when
+  // their engine releases match (this server's is
+  // GetMachineWordsResponse.encounter_version); otherwise the honest answer
+  // is "saved under another engine". A run launched from this content
+  // records the same value as `content_hash` on its `scene_content` beat.
+  string content_hash = 4;
 }
 
 // ReadBack is a whole encounter said back by the engine: sections of groups
@@ -403,6 +426,12 @@ message GetDungeonResponse {
   // their spacing. A server that round-tripped the file through its own
   // model would hand back its opinion of the file instead of the file.
   string yaml = 1;
+  // The content hash of the stored file as this server's engine compiles it
+  // now, exactly as PutDungeonResponse.content_hash (what it covers, and that
+  // it is engine-release-specific). Empty when the stored file does not
+  // compile under this engine: GetDungeon still returns such a file, so an
+  // author can open it and see why, and it has no hash to give.
+  string content_hash = 2;
 }
 
 // ListDungeonsRequest has no fields: the caller and their world come from

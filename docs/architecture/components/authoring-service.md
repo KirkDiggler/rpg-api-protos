@@ -73,7 +73,7 @@ message GetMachineWordsResponse {
 }
 ```
 
-`ReadBackConnection` carries `is` (5), `op` (6), `not` (7) and `at` (8) on a
+`ReadBackConnection` carries `is` (5), `op` (6), `negated` (7) and `at` (8) on a
 connection of kind `condition`: the value a machine step's condition compares,
 its comparison where not equality, whether the step needs it false, and where
 it sits in the step's `when` (rpg-project#997).
@@ -168,6 +168,12 @@ the key, the field) and what it takes (`MachineArg`, in order: where each
 goes, what it names, its kind), so a client builds any word with no code of
 its own per word. Closed sets are documented open strings, not enums: the
 engine grows them.
+
+Four wire names differ from the engine's Go names, because a wire name is
+forever and must survive every target language: `ReadBackConnection.negated`
+(Go `Not`), `MachineWritten.part` (`In`), `MachineArg.default_value`
+(`Default`) and `MachineBeatWord.names_someone` (`Names`, a bool, kept apart
+from `MachineArg.names`, a string). The api's mapper bridges them.
 
 ### `WeaponDescriptor` carries the ref the author writes
 

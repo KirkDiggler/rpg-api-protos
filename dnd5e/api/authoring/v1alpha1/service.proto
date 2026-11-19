@@ -358,10 +358,11 @@ message ReadBackConnection {
   string op = 6;
   // True when the condition sits under an odd number of `not`s. A HINT,
   // NOT THE STRUCTURE: `at` is what makes the structure exact. Under
-  // `not: { all: [a, b] }` both a and b carry `not`, at "when.not.all[0]"
+  // `not: { all: [a, b] }` both a and b carry `negated`, at "when.not.all[0]"
   // and "when.not.all[1]", and the step needs NOT (a and b), not
-  // (NOT a) and (NOT b).
-  bool not = 7;
+  // (NOT a) and (NOT b). Mirrors the engine's `Not`; named `negated` on the
+  // wire because `not` is a keyword or operator in several target languages.
+  bool negated = 7;
   // Where the condition sits inside the step's `when`, as the author wrote
   // it: "when", "when.all[1]", "when.any[0].not". Several conditions at one
   // place are one node, all of them needed. It keeps the `all` / `any` /
@@ -682,9 +683,12 @@ message MachineBeatWord {
   // A beat that happened somewhere: `within` and `regions` may be asked of it.
   bool scoped = 4;
   // A beat whose event names the one it is about: `noted:` may be read on it.
-  bool names = 5;
+  // Mirrors the engine's `BeatWord.Names`; named `names_someone` on the wire
+  // so it is not read as MachineArg.names, a string with another meaning.
+  bool names_someone = 5;
   // The read-back's words for the one a naming beat is about; empty exactly
-  // when `names` is false. A sentence template (see GetMachineWordsResponse).
+  // when `names_someone` is false. A sentence template (see
+  // GetMachineWordsResponse).
   string about = 6;
   // A beat a step may act on with `pick`.
   bool picks = 7;
@@ -796,7 +800,9 @@ message MachineWritten {
   // The part of the step it is written in: "on" (the step's `on` itself),
   // "when" (a key of a condition's map), "do" (a key of an act's map) or
   // "step" (a key of the step itself).
-  string in = 1;
+  // Mirrors the engine's `Written.In`; named `part` on the wire because `in`
+  // is a keyword in several target languages.
+  string part = 1;
   // The key it is written under ("fact", "flag", "scope", "rounds", "all",
   // "any", "not", "pick", "wake_in", "set", "clear", "anchor", "to"); empty
   // for a beat, which is `on`'s value itself.
@@ -848,11 +854,13 @@ message MachineArg {
   repeated string values = 8;
   // True when it is written as a list of several (`clear`, `all`, `any`).
   bool many = 9;
-  // True when it may be left out; `default` is then what leaving it out
-  // means. None is optional today.
+  // True when it may be left out; `default_value` is then what leaving it
+  // out means. None is optional today.
   bool optional = 10;
   // What leaving an optional argument out means.
-  string default = 11;
+  // Mirrors the engine's `Arg.Default`; named `default_value` on the wire
+  // because `default` is a keyword in most target languages.
+  string default_value = 11;
   // A value it always has: written for the author, offered to no one (a
   // fact leaf's `op: eq`, `anchor: true`). Empty for an argument the author
   // chooses.

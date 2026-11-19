@@ -349,9 +349,26 @@ message ReadBackConnection {
   // The thing's id in the file.
   string id = 2;
   // A verb from the reader's side, for example "grants", "asks", "teaches",
-  // "wakes-on", "advances", "reads", "holds", "said-to", "uses", "door",
-  // "carries". The list is not the set: an open string owned by the engine,
-  // for ReadBackStatement.kind's reason.
+  // "wakes-on", "advances", "reads", "said-to", "uses", "door", "carries",
+  // "does", "declares", "sets", "clears". On a statement that gives or reads
+  // a topic (rpg-project#1001, rpg-toolkit encounter v0.229.0) a client also
+  // meets:
+  //   - "about": {who, <who-word>, about, at: <topic>}, whom the note is
+  //     about, or whom a read asks about;
+  //   - "takes": {who, <who-word>, takes, is: <way>, at: <topic>}, a rule
+  //     for who comes to note it, and the way the note comes;
+  //   - "may-note": {creature, <id>, may-note, is: <way>, at: <topic>}, each
+  //     creature that rule resolves to in the file: who MAY come to note it,
+  //     not who will;
+  //   - "whose": {creature, <id>, whose, at: <topic>}, a read of one
+  //     creature's notes;
+  //   - "on": {option, <id>, on, is: said|win|miss}, the line and its
+  //     outcome that gave it;
+  //   - "enters": {conversation, <id>, enters, is: <state>}, the
+  //     conversation state whose entry gave it.
+  // The who-words, their labels and their ways are
+  // GetMachineWordsResponse.who_words. The list is not the set: an open
+  // string owned by the engine, for ReadBackStatement.kind's reason.
   string role = 3;
   // A number the connection carries where its kind has one: the difficulty
   // of a check on a `method` connection, which the engine sets on the way
@@ -361,18 +378,28 @@ message ReadBackConnection {
   // name (rpg-toolkit encounter v0.218.0).
   int32 value = 4;
 
-  // Fields 5-8 belong to a connection of kind "condition" only, and are
-  // empty on every other (rpg-project#997; rpg-toolkit encounter v0.224.0,
-  // `readback.Connection` by the same names). A condition connection is one
+  // Fields 5-8 are set on the connection kinds that need them, and empty on
+  // every other (`readback.Connection` by the same names). First a
+  // "condition" connection (rpg-project#997, encounter v0.224.0): one
   // condition a machine step's `when` reads, role "asks"; its `id` is the
   // word as authored with its open part filled ("heard.claim",
   // "noted:admitted", "noted.anyone:admitted", "fact:gate-cowed", "within",
-  // "rounds", "flag:lit"), a word of GetMachineWordsResponse.conditions. With
-  // these four a client rebuilds the condition from connections alone.
+  // "rounds", "flag:lit"), a word of GetMachineWordsResponse.conditions, and
+  // with these four a client rebuilds the condition from connections alone.
+  // Then "act" and "flag" connections (encounter v0.228.0) and the who
+  // edges of a topic given or read (encounter v0.229.0; see `role`).
 
-  // The value the condition compares, as text: "failed", "true", "3".
-  // Empty where the condition carries none (`flag:<name>`, whose name is in
-  // `id`; `all`, `any`, `not`).
+  // A value, as text. WHAT IT SPELLS DEPENDS ON THE KIND, and the
+  // difference is standing:
+  //   - on a "condition", the plain word the words table's `values` use:
+  //     "failed", "true", "3"; empty where the condition carries none
+  //     (`flag:<name>`, whose name is in `id`; `all`, `any`, `not`);
+  //   - on an "act" or a "flag", a JSON literal: "true", "3",
+  //     "\"a string\"";
+  //   - on a "takes" or "may-note" edge, the WAY the note comes, in the
+  //     engine's word: "judgement" or "heard" (MachineWhoWord.way);
+  //   - on an "on" edge, the outcome that gave the note ("said", "win",
+  //     "miss"); on an "enters" edge, the conversation state entered.
   string is = 5;
   // The comparison where it is not equality, as the engine spells it. A
   // client meets "gte" (at least: `rounds`) and "lte" (at most: `within`
@@ -386,10 +413,14 @@ message ReadBackConnection {
   // (NOT a) and (NOT b). Mirrors the engine's `Not`; named `negated` on the
   // wire because `not` is a keyword or operator in several target languages.
   bool negated = 7;
-  // Where the condition sits inside the step's `when`, as the author wrote
-  // it: "when", "when.all[1]", "when.any[0].not". Several conditions at one
-  // place are one node, all of them needed. It keeps the `all` / `any` /
-  // `not` shape, so an editor can rebuild the condition.
+  // Where the connection sits. On a "condition", where it sits inside the
+  // step's `when`, as the author wrote it: "when", "when.all[1]",
+  // "when.any[0].not"; several conditions at one place are one node, all of
+  // them needed, and it keeps the `all` / `any` / `not` shape, so an editor
+  // can rebuild the condition. On an "act", its place in the step: "to",
+  // "do[1]". On a who edge ("about", "takes", "may-note", "whose"), the
+  // topic the edge belongs to, so a statement that gives or reads two
+  // topics keeps each one's edges apart.
   string at = 8;
 }
 
@@ -693,6 +724,11 @@ message GetMachineWordsResponse {
   // Every comparison a condition can make, with its plain words, so no
   // client maps the engine's "eq" or "gte" itself.
   repeated MachineOpWord ops = 5;
+  // Every word that names who in a note (rpg-project#1001): who takes it,
+  // whom it is about, whom a read asks about. A `give`, a line's
+  // requirement, a post's pass and a machine's guard name them, and the
+  // read-back's who edges carry them (ReadBackConnection.role).
+  repeated MachineWhoWord who_words = 6;
 }
 
 // MachineBeatWord is one beat a step can be on. Mirrors `encounter.BeatWord`.
@@ -894,4 +930,33 @@ message MachineArg {
   // fact leaf's `op: eq`, `anchor: true`). Empty for an argument the author
   // chooses.
   string fixed = 12;
+}
+
+// MachineWhoWord is one word that names who in a note. Mirrors
+// `encounter.WhoWord` (rpg-toolkit encounter v0.229.0); two fields cross
+// under other names, so neither is read as a neighbour's: the engine's
+// `Role` is `plays` (ReadBackConnection.role is a verb, a different thing)
+// and its `Allowed` is `allowed_in` (a place to write it, not the beats of
+// MachineConditionWord.on).
+message MachineWhoWord {
+  // The word as authored, or as the read-back names it: "spoken_to",
+  // "carriers_who_witnessed", "party_in_sight", "speaker", "the_speaker",
+  // "the_walker", "the_one_named", "anyone", and the engine's own
+  // "the_arresting", "the_taken", "the_gone".
+  string word = 1;
+  // The part it plays in a note: "taker" (who comes to note it), "about"
+  // (whom a given note is about) or "read" (whom a read asks about). An
+  // open string owned by the engine, documented with its closed set, as
+  // the other machine words.
+  string plays = 2;
+  // A few plain words for it ("the one the line is said to").
+  string label = 3;
+  // Where it is written: "give.to", "give.about", "give.heard_by",
+  // "requires", "pass", "noted:", "noted.anyone:", or "engine" for a word
+  // only the engine's own grants (an arrest, a jail, a seizure) use.
+  string allowed_in = 4;
+  // How a taker comes by the note, in the engine's own word: "judgement" or
+  // "heard"; empty for a word that takes nothing (plays "about" or "read").
+  // The value a "takes" or "may-note" connection carries in `is`.
+  string way = 5;
 }

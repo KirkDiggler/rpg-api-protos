@@ -72,6 +72,7 @@ message GetMachineWordsResponse {
   repeated MachineConditionWord conditions = 3;
   repeated MachineActWord acts = 4;
   repeated MachineOpWord ops = 5;
+  repeated MachineWhoWord who_words = 6;     // who takes a note, whom it is about, whom a read asks
 }
 ```
 

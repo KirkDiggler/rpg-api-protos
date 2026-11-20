@@ -1205,11 +1205,24 @@ message TurnPassed {
   Party next = 2;
 }
 
+// InitiativeRoll is one member's roll for its place in a fight's order.
+message InitiativeRoll {
+  // member is who rolled.
+  Party member = 1;
+  // roll is the roll as the fight recorded it: the d20, each thing added
+  // with its source, and the total. Nothing is re-added on the client.
+  Roll roll = 2;
+}
+
 // FightFormed is a fight forming.
 message FightFormed {
   // order is the initiative order.
   repeated Party order = 1;
   repeated Party surprised = 2;
+  // rolls are the initiative rolls behind order, in the same order, one per
+  // member who rolled. A member placed without a roll has none; empty when
+  // nobody rolled.
+  repeated InitiativeRoll rolls = 3;
 }
 
 // FightDissolved is a fight ending.

@@ -208,6 +208,24 @@ message AtlasStructuralWall {
   // unique; empty means no face finish, never a source/region lookup. Existing
   // opening-only replacements leave these captured choices unchanged.
   repeated WallFaceFinish face_finishes = 11;
+  // Immutable visual replacements owned by this permitted wall. Empty means
+  // none. Opening-only replacements preserve this component unchanged.
+  repeated WallSection sections = 12;
+}
+
+// WallSection is a once-placed visual feature, not a gameplay opening, prop
+// identity or door state. It inherits the wall's height, thickness, elevation
+// and face finishes, and follows that wall's existing disclosure.
+message WallSection {
+  // Required nonblank identity, unique within the owning wall.
+  string id = 1;
+  // Required opaque appearance reference, never interpreted as a rule.
+  string ref = 2;
+  // Centre distance from the owning wall's from endpoint, in canonical feet.
+  double position = 3;
+  // Positive visual span in canonical feet. It fits the wall and does not
+  // overlap other sections or opening surrounds; it grants no passage.
+  double width = 4;
 }
 
 // StructuralWallOpeningsReplacement replaces a known wall's complete permitted

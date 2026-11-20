@@ -226,6 +226,20 @@ unseen wall to recover appearance. Parent-later reveals do not change or repeat
 an unchanged door presentation. Producers and consumers coordinate adoption:
 wire-additive does not make an old renderer support aperture-fitted geometry.
 
+## Wall-owned visual sections
+
+Both session versions carry `AtlasStructuralWall.sections = 12`. Each
+`WallSection` has a nonblank wall-local `id`, opaque `ref`, centre `position`
+from the wall's start and positive `width`, with lengths in canonical feet.
+Spans fit the wall and do not overlap one another or opening surrounds.
+They inherit the wall's height, thickness, elevation and face finishes.
+
+Sections replace visual art only: they neither cut gameplay openings nor
+create independent prop identities, blockers or door state. The complete list
+follows its owning wall's existing disclosure and immutable snapshot/reveal
+path. A withheld wall carries none. Opening-only replacements preserve the
+list; absent/empty legacy lists mean no sections, not a source-scene lookup.
+
 ## Stabilization results
 
 `ActivationResult.result` adds `Stabilized stabilized = 8` in `events.proto`.

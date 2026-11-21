@@ -1187,6 +1187,8 @@ enum ClockMark {
   // CLOCK_MARK_WAKE_CUT is the raise matching more beats than its bound and
   // cutting the rest (rpg-project#766).
   CLOCK_MARK_WAKE_CUT = 12;
+  // CLOCK_MARK_FIGHT_JOINED is a creature joining a fight already under way.
+  CLOCK_MARK_FIGHT_JOINED = 13;
 }
 
 // WakeCut is a raise that matched more beats than its bound and cut the rest.
@@ -1223,6 +1225,20 @@ message FightFormed {
   // member who rolled. A member placed without a roll has none; empty when
   // nobody rolled.
   repeated InitiativeRoll rolls = 3;
+}
+
+// FightJoined is a creature joining a fight already under way.
+message FightJoined {
+  // member is who joined.
+  Party member = 1;
+  // roll is its initiative roll as the fight recorded it; unset when it was
+  // placed without a roll.
+  InitiativeRoll roll = 2;
+  // round is the fight's round when it joined.
+  int32 round = 3;
+  // first_round is the round of its first turn: the same round when it joined
+  // during the first round, the next round otherwise.
+  int32 first_round = 4;
 }
 
 // FightDissolved is a fight ending.
@@ -1313,4 +1329,6 @@ message ClockEntry {
   EndingResult outcome = 12;
   // wake_cut is set for CLOCK_MARK_WAKE_CUT.
   WakeCut wake_cut = 13;
+  // fight_joined is set for CLOCK_MARK_FIGHT_JOINED.
+  FightJoined fight_joined = 14;
 }

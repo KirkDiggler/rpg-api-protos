@@ -23,4 +23,4 @@ Slice [rpg-project#1096](https://github.com/KirkDiggler/rpg-project/issues/1096)
 
 ## Mistaken
 
-none observed — [rpg-project#1096](https://github.com/KirkDiggler/rpg-project/issues/1096).
+The field comments were guessed from the Go field names and six said what the rules do not; the issue gave names without meanings, and the lead's amendment fixed the comments — [amendment 1](https://github.com/KirkDiggler/rpg-project/issues/1096#issuecomment-7069613822).

@@ -765,10 +765,10 @@ message GetStatusWordsResponse {
 // strings owned by the engine, never enums, so a rules release that adds one
 // needs no proto release.
 message StatusWord {
-  // The word as authored ("changes", "cannot", "lasts").
+  // The word as authored ("changes", "cannot", "ends_on").
   string word = 1;
-  // Where the word goes: the part of a status that may carry it. An open
-  // string owned by the engine.
+  // The group the word belongs to ("status", "change", "when", "maintenance
+  // rule", "again", "when given"). An open string owned by the engine.
   string place = 2;
   // What the word takes: the shape of its value (a number, a choice, a list,
   // and so on). An open string owned by the engine.
@@ -778,19 +778,26 @@ message StatusWord {
   repeated StatusWordValue values = 4;
   // A few plain words for a form label or a dropdown, as the rules say them.
   string label = 5;
-  // Where the word is written inside the status, as the rules name the
-  // place. An open string owned by the engine.
+  // The place whose object the word is written in. The same as `place` for
+  // every word but `again`, which is its own group and is written on the
+  // status itself ("status"). An open string owned by the engine.
   string written_in = 6;
-  // What the word holds when it carries others inside it, as the rules name
-  // it; empty when it holds nothing. An open string owned by the engine.
+  // For a word that takes a list or entries, the place whose words write
+  // each entry ("changes" holds "change" words, "maintenance" holds
+  // "maintenance rule" words, "when_given" holds "when given" words, "when"
+  // holds "when" words); empty for every other word. An open string owned by
+  // the engine.
   string holds = 7;
-  // True when a status that has the word's place must write it.
+  // True when a status must write this word (name, changes, maintenance,
+  // again). False for a word that may be left out.
   bool required = 8;
-  // True when writing the word narrows what the status does, rather than
-  // widening it.
+  // True for a word that is written beside another word in the same entry
+  // and narrows it, rather than being an entry of its own. Today only `when`:
+  // it sits beside one change word and says when that change applies.
   bool narrows = 9;
-  // The conditions under which the word is allowed, as the rules name them;
-  // empty when it is allowed everywhere its place is.
+  // For a change word, the `when` words that may be written beside it (for
+  // example "ability", "attack"); empty when it takes none, or when that
+  // depends on the value it is given (then see `StatusWordValue.when`).
   repeated string when = 10;
   // The limits of a number word. Unset when the word is not a number.
   StatusNumberBounds bounds = 11;
@@ -803,8 +810,9 @@ message StatusWordValue {
   string word = 1;
   // A few plain words for a dropdown entry, as the rules say them.
   string label = 2;
-  // The conditions under which this value is allowed, as the rules name them;
-  // empty when it is always allowed.
+  // For a value of a change word whose `when` words depend on the value, the
+  // `when` words that may be written beside the change when it has this
+  // value; empty otherwise.
   repeated string when = 3;
 }
 
@@ -815,7 +823,7 @@ message StatusNumberBounds {
   int32 min = 1;
   // The most the number may be.
   int32 max = 2;
-  // True when zero is a value the number may take.
+  // False when zero is refused even though it lies between min and max.
   bool zero_allowed = 3;
 }
 

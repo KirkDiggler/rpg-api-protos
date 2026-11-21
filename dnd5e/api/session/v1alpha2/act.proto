@@ -753,7 +753,7 @@ message EquipAct {
   string change = 4;
 }
 
-// StayAct is a driven word that did nothing.
+// StayAct is a driven word that did nothing, or a player's wait (cause encounter:intent:wait).
 message StayAct {
   Party member = 1;
   // cause is what drove the word.

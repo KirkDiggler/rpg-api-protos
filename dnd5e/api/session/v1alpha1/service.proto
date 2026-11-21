@@ -2304,6 +2304,18 @@ message RestResponse {
   DeliveryReport delivery = 2;
 }
 
+message WaitRequest {
+  string session = 1;
+  // Who waits. Bound to the authenticated caller by the host, the same
+  // acting-as law every verb keeps.
+  string member = 2;
+}
+
+message WaitResponse {
+  SaveReport saved = 1;
+  DeliveryReport delivery = 2;
+}
+
 // =============================================================================
 // Stream
 // =============================================================================
@@ -2460,6 +2472,15 @@ service SessionService {
   // arrives as one RESTED beat per rester. Replaces EncounterService's legacy
   // ShortRest and LongRest, which were never implemented.
   rpc Rest(RestRequest) returns (RestResponse);
+
+  // Wait lets one round of world time pass for `member`, who does nothing else
+  // (rpg-project#1079): the button a player outside a fight presses where End
+  // Turn sits in one. Free roam only: refused FAILED_PRECONDITION in a fight,
+  // when the member is downed, or when the run has ended. A held member may
+  // wait. The response is an ack carrying the seam's two reports; the wait
+  // arrives as a STAY act naming the waiter with cause encounter:intent:wait,
+  // and whatever the round brought arrives as its own acts.
+  rpc Wait(WaitRequest) returns (WaitResponse);
 
   // Turn reports what one member is waiting on. Asked of a member, never of the
   // session.

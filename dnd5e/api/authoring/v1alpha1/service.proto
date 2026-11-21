@@ -132,6 +132,18 @@ service AuthoringService {
   // has its dropdowns and labels before any file compiles. Ungated, for
   // GetDungeon's reason: it reads a table and mutates nothing.
   rpc GetMachineWords(GetMachineWordsRequest) returns (GetMachineWordsResponse);
+  // GetStatusWords reports every word a status effect may be written with,
+  // with where each goes, what it takes and how each is said, as the rules the
+  // server runs publish them (rpg-toolkit rulebooks/dnd5e/status Words(),
+  // rpg-project#1036). Takes no file: the words belong to the rules release.
+  // Ungated, for GetDungeon's reason: it reads a table and mutates nothing.
+  rpc GetStatusWords(GetStatusWordsRequest) returns (GetStatusWordsResponse);
+  // SayStatus says one status, in the author's words, the way the rules read it
+  // (rulebooks/dnd5e/status Say()), or refuses it naming the place inside it.
+  // It judges the status alone: what a line's row gives it to is the
+  // dungeon check's (PutDungeon validate_only). Ungated, for GetDungeon's
+  // reason: it stores nothing.
+  rpc SayStatus(SayStatusRequest) returns (SayStatusResponse);
 }
 
 // PutDungeonRequest carries one dungeon file, in its authored form.
@@ -729,6 +741,120 @@ message GetMachineWordsResponse {
   // requirement, a post's pass and a machine's guard name them, and the
   // read-back's who edges carry them (ReadBackConnection.role).
   repeated MachineWhoWord who_words = 6;
+}
+
+// GetStatusWordsRequest takes nothing: the words belong to the rules release
+// the server runs, not to a file.
+message GetStatusWordsRequest {}
+
+// GetStatusWordsResponse is the status words table, field for field as the
+// rules publish it (rulebooks/dnd5e/status Words()). A client builds its form
+// and its labels from this and holds no word list or prose of its own.
+message GetStatusWordsResponse {
+  // The rulebooks/dnd5e release the api was built with, from its build info
+  // (for example "v0.226.0"), so a client caching the table knows when to
+  // fetch it again. Empty when unknown. It names a different module from
+  // GetMachineWordsResponse.encounter_version, hence a different field.
+  string rulebook_version = 1;
+  // Every word a status can be written with, in the order the rules list them.
+  repeated StatusWord words = 2;
+}
+
+// StatusWord is one word a status effect may be written with. Mirrors the
+// rules' `status.Word`. `shape`, `place`, `written_in` and `holds` are open
+// strings owned by the engine, never enums, so a rules release that adds one
+// needs no proto release.
+message StatusWord {
+  // The word as authored ("changes", "cannot", "lasts").
+  string word = 1;
+  // Where the word goes: the part of a status that may carry it. An open
+  // string owned by the engine.
+  string place = 2;
+  // What the word takes: the shape of its value (a number, a choice, a list,
+  // and so on). An open string owned by the engine.
+  string shape = 3;
+  // For a word that takes a choice, each value it may take, in the engine's
+  // order; empty for any other shape.
+  repeated StatusWordValue values = 4;
+  // A few plain words for a form label or a dropdown, as the rules say them.
+  string label = 5;
+  // Where the word is written inside the status, as the rules name the
+  // place. An open string owned by the engine.
+  string written_in = 6;
+  // What the word holds when it carries others inside it, as the rules name
+  // it; empty when it holds nothing. An open string owned by the engine.
+  string holds = 7;
+  // True when a status that has the word's place must write it.
+  bool required = 8;
+  // True when writing the word narrows what the status does, rather than
+  // widening it.
+  bool narrows = 9;
+  // The conditions under which the word is allowed, as the rules name them;
+  // empty when it is allowed everywhere its place is.
+  repeated string when = 10;
+  // The limits of a number word. Unset when the word is not a number.
+  StatusNumberBounds bounds = 11;
+}
+
+// StatusWordValue is one value a choice word may take. Mirrors the rules'
+// `status.Value`.
+message StatusWordValue {
+  // The value as authored.
+  string word = 1;
+  // A few plain words for a dropdown entry, as the rules say them.
+  string label = 2;
+  // The conditions under which this value is allowed, as the rules name them;
+  // empty when it is always allowed.
+  repeated string when = 3;
+}
+
+// StatusNumberBounds are the limits of a number word. Mirrors the rules'
+// `status.Bounds`.
+message StatusNumberBounds {
+  // The least the number may be.
+  int32 min = 1;
+  // The most the number may be.
+  int32 max = 2;
+  // True when zero is a value the number may take.
+  bool zero_allowed = 3;
+}
+
+// SayStatusRequest carries one status to be said.
+message SayStatusRequest {
+  // The status's id, the key it sits under in the file's `statuses:`.
+  string id = 1;
+  // The one status as JSON, in the author's words, exactly as it sits under
+  // the file's `statuses.<id>`. The engine reads JSON; a client turns its
+  // parsed YAML into JSON.
+  string status_json = 2;
+}
+
+// SayStatusResponse is one status said by the engine, or refused. A refused
+// status answers with `errors` and nothing else, with an OK status, like a
+// validate-only PutDungeon.
+message SayStatusResponse {
+  // The status's name as the rules say it. Empty when refused.
+  string name = 1;
+  // The whole status in a sentence built from the table's labels. Empty when
+  // refused.
+  string sentence = 2;
+  // The sentence in its parts, each tied to the place it says. Empty when
+  // refused.
+  repeated StatusSaidPart parts = 3;
+  // Why the status was refused; empty when it was said. Each path is inside
+  // the status ("changes[0].cannot[1]"), so a client marks
+  // `statuses.<id>.` plus the path; each message is the rules' words after
+  // that place.
+  repeated FieldError errors = 4;
+}
+
+// StatusSaidPart is one part of a status's sentence. Mirrors the rules'
+// `status.SaidPart`.
+message StatusSaidPart {
+  // The place inside the status this part says ("changes[0]").
+  string path = 1;
+  // The words the rules say for that place.
+  string text = 2;
 }
 
 // MachineBeatWord is one beat a step can be on. Mirrors `encounter.BeatWord`.

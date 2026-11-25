@@ -1,5 +1,7 @@
 # Run — 2026-11-20 — Wall-owned visual sections
 
+processed: 2026-11-25T190427Z
+
 ## Shipped
 
 - Added the optional immutable section list to both session wall contracts; this is a candidate contract, not deployed Play support — [Courtyard S6](https://github.com/KirkDiggler/rpg-project/issues/1022).

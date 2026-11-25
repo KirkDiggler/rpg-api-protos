@@ -1,5 +1,7 @@
 # Run — 2026-11-21 — Status effect powers S5 initiative rolls on the wire
 
+processed: 2026-11-25T190427Z
+
 Slice [rpg-project#1048](https://github.com/KirkDiggler/rpg-project/issues/1048) of story [rpg-project#1036](https://github.com/KirkDiggler/rpg-project/issues/1036). Base: `rpg-api-protos` `main` at [`94b501dc0ad78fc00d982c81597ec6fd070eaf2c`](https://github.com/KirkDiggler/rpg-api-protos/commit/94b501dc0ad78fc00d982c81597ec6fd070eaf2c).
 
 One line per entry. Every line ends with a link: a PR, an issue comment, a commit, or a design section anchor. This file rides on the work PR, under the `knowledge/runs/` of the lowest directory that contains everything the PR changed. The ingest reads it once and adds a `processed:` line at the top; nobody else edits it after merge.

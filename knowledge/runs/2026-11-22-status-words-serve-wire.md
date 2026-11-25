@@ -1,5 +1,7 @@
 # Run — 2026-11-22 — status effect powers S-words serve wire
 
+processed: 2026-11-25T190427Z
+
 Slice [rpg-project#1096](https://github.com/KirkDiggler/rpg-project/issues/1096) of story [rpg-project#1036](https://github.com/KirkDiggler/rpg-project/issues/1036). Base: `rpg-api-protos` `main` at [`01e1a39`](https://github.com/KirkDiggler/rpg-api-protos/commit/01e1a397953f24578202b1a5c212d831f1e34241).
 
 ## Shipped

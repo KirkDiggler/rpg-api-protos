@@ -1,5 +1,7 @@
 # Run — 2026-11-15 — Studio today S1 read-back on the check only
 
+processed: 2026-11-25T190427Z
+
 Slice [rpg-project#967](https://github.com/KirkDiggler/rpg-project/issues/967) of story [rpg-project#966](https://github.com/KirkDiggler/rpg-project/issues/966). Base: `rpg-api-protos` `main` at [`815a96b`](https://github.com/KirkDiggler/rpg-api-protos/commit/815a96bda716848d784d02cca6807427e2f00ae9).
 
 ## Shipped

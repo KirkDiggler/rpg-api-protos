@@ -144,6 +144,12 @@ service AuthoringService {
   // dungeon check's (PutDungeon validate_only). Ungated, for GetDungeon's
   // reason: it stores nothing.
   rpc SayStatus(SayStatusRequest) returns (SayStatusResponse);
+  // GetItemWords reports every word a custom item may be written with, with
+  // where each goes, what it takes and how each is said, as the rules the
+  // server runs publish them (rpg-toolkit rulebooks/dnd5e/magicitems Words(),
+  // rpg-project#850). Takes no file: the words belong to the rules release.
+  // Ungated, for GetDungeon's reason: it reads a table and mutates nothing.
+  rpc GetItemWords(GetItemWordsRequest) returns (GetItemWordsResponse);
 }
 
 // PutDungeonRequest carries one dungeon file, in its authored form.
@@ -863,6 +869,79 @@ message StatusSaidPart {
   string path = 1;
   // The words the rules say for that place.
   string text = 2;
+}
+
+// GetItemWordsRequest takes nothing: the words belong to the rules release the
+// server runs, not to a file.
+message GetItemWordsRequest {}
+
+// GetItemWordsResponse is the item words table, field for field as the rules
+// publish it (rulebooks/dnd5e/magicitems Words()). A client builds its item
+// form and its labels from this and holds no word list or prose of its own.
+message GetItemWordsResponse {
+  // The rulebooks/dnd5e release the api was built with, from its build info
+  // (for example "v0.237.0"), so a client caching the table knows when to
+  // fetch it again. Empty when unknown. Same meaning as
+  // GetStatusWordsResponse.rulebook_version.
+  string rulebook_version = 1;
+  // Every word an item can be written with, in the order the rules list them.
+  repeated ItemWord words = 2;
+}
+
+// ItemWord is one word a custom item may be written with. Mirrors the rules'
+// `magicitems.Word`. `place`, `shape` and `holds` are open strings owned by
+// the engine, never enums, so a rules release that adds one needs no proto
+// release. It is recursive through ItemWordValue.with, which is intended.
+message ItemWord {
+  // The word as authored ("name", "slot", "charges").
+  string word = 1;
+  // Where the word is written ("item", "charges", "refills", "lets entry",
+  // "with", "cost"). An open string owned by the engine.
+  string place = 2;
+  // What the word takes ("one of", "list of", "whole number", "text", "true or
+  // false", "list", "entries"). A shape that means what a status shape means
+  // is spelled the same. An open string owned by the engine.
+  string shape = 3;
+  // For a word that takes a choice, each value it may take, in the engine's
+  // order; empty for any other shape.
+  repeated ItemWordValue values = 4;
+  // A few plain words for a form label, as the rules say them, with {value}
+  // where the value goes.
+  string label = 5;
+  // For a word that takes a list or entries, the place whose words write each
+  // entry ("charges" holds "charges" words, "lets" holds "lets entry" words);
+  // empty for every other word. An open string owned by the engine.
+  string holds = 6;
+  // True when the place must write this word.
+  bool required = 7;
+  // The limits of a number word. Unset when the word is not a number.
+  ItemNumberBounds bounds = 8;
+}
+
+// ItemWordValue is one value a choice word may take. Mirrors the rules'
+// `magicitems.Value`.
+message ItemWordValue {
+  // The value as authored.
+  string word = 1;
+  // A few plain words for a dropdown entry, as the rules say them.
+  string label = 2;
+  // For a value of `use` (an ability), the words its `with` takes, in order,
+  // each of place "with"; empty for every other value.
+  repeated ItemWord with = 3;
+}
+
+// ItemNumberBounds are the limits of a number word. Mirrors the rules'
+// `magicitems.Bounds`. The table cannot carry one limit: a `cost`'s `charges`
+// can be at most the item's own `charges.max`, so the table reports no upper
+// limit for it and the dungeon check refuses a cost the item cannot pay.
+message ItemNumberBounds {
+  // The least the number may be.
+  int32 min = 1;
+  // The most the number may be. It means nothing when `no_max` is true; a zero
+  // here never means "no limit".
+  int32 max = 2;
+  // True when the number has no upper limit.
+  bool no_max = 3;
 }
 
 // MachineBeatWord is one beat a step can be on. Mirrors `encounter.BeatWord`.

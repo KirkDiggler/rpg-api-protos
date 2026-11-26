@@ -676,6 +676,29 @@ Consumer adoption follows the published proto SDK release:
 These consumer changes and pins are follow-on work. The root Cleric acquisition
 slice in toolkit #1713 is not a prerequisite for this additive contract.
 
+## Captured normal and emissive adjustments
+
+`session/presentation/material/v1alpha1/types.proto` supplies the shared
+`MaterialChannelAdjustment` leaf to snapshot and live geometry contracts.
+Each row names a unique nonblank `target_id` and at least one channel. An absent
+channel message means the effective complete look's authored default. A present
+`ChannelAdjustment` selects either an explicit `off` or a finite positive
+`multiplier`; a present message without a oneof value is invalid. Explicit one
+remains explicit, and Off carries no multiplier.
+
+The containing owner supplies custody: `PublicMemberInfo.material_channels = 11`
+is the observer-captured body appearance; `PropPresentation.material_channels = 11`
+follows permitted static or observed mutable props; `AtlasStructuralWall.material_channels = 13`
+follows the permitted wall; `DoorFramePresentation.material_channels = 3` is an
+independent fixed-frame capture. Snapshot/live geometry preserve the same value.
+Remembered copies are not enriched from live members, props or source documents;
+unknown observations carry no facts and concealed parents need not be disclosed.
+
+These values contain no resource paths, replacement maps or illumination rules.
+The provider verifies target eligibility, representation bindings and ranges.
+Multipliers preserve the effective authored normal basis or emissive tint and
+cannot activate source-zero emission. Empty legacy lists retain defaults.
+
 ## Observed body appearance
 
 `PublicMemberInfo.appearance_ref = 9` is an optional opaque appearance identity,

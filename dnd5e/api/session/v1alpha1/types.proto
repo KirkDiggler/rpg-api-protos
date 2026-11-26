@@ -3,6 +3,7 @@ syntax = "proto3";
 package dnd5e.api.session.v1alpha1;
 
 import "dnd5e/api/customization/v1alpha1/types.proto";
+import "dnd5e/api/session/presentation/material/v1alpha1/types.proto";
 
 option go_package = "github.com/KirkDiggler/rpg-api-protos/gen/go/dnd5e/api/session/v1alpha1;sessionpb";
 option java_multiple_files = true;
@@ -784,6 +785,12 @@ message PublicMemberInfo {
   // or source-document value. Never-seen creatures have no roster row.
   // This is not the current animation phase, a clip filename, or a game command.
   string default_activity_ref = 10;
+
+  // Normal/emissive adjustments captured with this observer's body appearance.
+  // Remembered values are not refreshed from live member/source data. Empty
+  // retains authored defaults, including legacy observations; never-seen
+  // creatures still have no row. No texture paths or gameplay facts travel here.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 11;
 }
 
 // Customization is public visual identity, not owner-private sheet or rules
@@ -2225,6 +2232,10 @@ message PropPresentation {
   // Captured appearance selections for this permitted prop, not source lookups.
   // Empty means its original authored materials; target IDs are unique here.
   repeated MaterialOverride material_overrides = 10;
+
+  // Captured normal/emissive intent. Mutable prop observations retain their
+  // observed copy, not newer live values; empty retains authored defaults.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 11;
 }
 
 // MaterialOverride selects a shared material for one provider-declared visual
@@ -2312,6 +2323,11 @@ message AtlasStructuralWall {
   // none. These are not gameplay openings, independent props or door state.
   // Opening-only replacements preserve this component unchanged.
   repeated WallSection sections = 12;
+
+  // Wall-owned normal/emissive intent for declared visual targets. Delivered
+  // only with this permitted wall; opening-only changes preserve these values.
+  // Empty retains authored defaults. No blocker, leaf or door-state authority.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 13;
 }
 
 // WallSection is a once-placed visual feature in its owning wall's frame.
@@ -2423,6 +2439,11 @@ message DoorFrameFaceFinish {
 message DoorFramePresentation {
   WallFrameSpan span = 1;
   repeated DoorFrameFaceFinish face_finishes = 2;
+
+  // Independently captured adjustments for declared fixed-frame targets only.
+  // No parent-wall identity/lookup or moving-leaf enrollment is implied. Empty
+  // retains authored defaults even when the parent wall is not disclosed.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 3;
 }
 
 // FootprintPlacement is one rectangle on the plane: how big it is, where it

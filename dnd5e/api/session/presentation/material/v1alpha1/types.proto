@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package dnd5e.api.session.presentation.material.v1alpha1;
+
+import "google/protobuf/empty.proto";
+
+// ChannelAdjustment changes one existing, provider-verified material channel.
+// Absence of this message means the effective complete look's authored default.
+// A present message must select exactly one value. This carries no replacement
+// image, shader, color, scene light or gameplay illumination instruction.
+message ChannelAdjustment {
+  oneof value {
+    // Explicitly suppress this channel's contribution; not an absent/default.
+    google.protobuf.Empty off = 1;
+    // Finite and strictly positive, within the provider's verified interval.
+    // One remains an explicit multiplier, never normalized to default. Scaling
+    // preserves the effective authored normal basis or emissive tint; it cannot
+    // activate source-default-zero emission or supply a missing map.
+    double multiplier = 2;
+  }
+}
+
+// MaterialChannelAdjustment carries detached appearance intent for one logical
+// provider-declared target. Target ids are nonblank and unique within the owner;
+// at least one channel is present. Representation-specific bindings belong to
+// the provider, not this value. The containing static or observed appearance
+// owner decides lifetime/disclosure; never infer a hidden parent or live value.
+message MaterialChannelAdjustment {
+  string target_id = 1;
+  // Absent means retain the effective look's authored normal contribution.
+  ChannelAdjustment normal = 2;
+  // Absent means retain the effective look's authored emissive contribution.
+  ChannelAdjustment emissive = 3;
+}

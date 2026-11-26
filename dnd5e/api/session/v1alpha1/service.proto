@@ -1865,10 +1865,11 @@ message InteractRequest {
 // placed-NPC record. Encounter itself answers only reach — identity,
 // adjacency, visibility — and holds no NPC content of its own.
 //
-// A thing done to a prop answers in `done`, beside `descriptor`, which is then
-// absent: a sibling field, never a oneof over `descriptor`.
+// A thing done to a prop answers in `done`, beside `npc_descriptor`, which is then
+// absent: a sibling field, never a oneof over `npc_descriptor`.
 message InteractResponse {
-  WorldNPCDescriptor descriptor = 1;
+  reserved "descriptor";
+  WorldNPCDescriptor npc_descriptor = 1;
   uint64 seq = 2;
   SaveReport saved = 3;
   DeliveryReport delivery = 4;
@@ -2044,9 +2045,10 @@ message TradeRequest {
 
 // TradeResponse is the trade's outcome: the vendor's descriptor, refreshed
 // to reflect the stock decrement — the same WorldNPCDescriptor shape
-// InteractResponse.descriptor carries, not a second descriptor type.
+// InteractResponse.npc_descriptor carries, not a second descriptor type.
 message TradeResponse {
-  WorldNPCDescriptor descriptor = 1;
+  reserved "descriptor";
+  WorldNPCDescriptor npc_descriptor = 1;
   uint64 seq = 2;
   SaveReport saved = 3;
   DeliveryReport delivery = 4;

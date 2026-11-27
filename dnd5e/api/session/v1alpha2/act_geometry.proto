@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dnd5e.api.session.v1alpha2;
 
+import "dnd5e/api/session/presentation/material/v1alpha1/types.proto";
+
 // THE GEOMETRY A PERCEPTION ACT CARRIES (rpg-project ideas/event-stream R18,
 // Law 7, Law 11).
 //
@@ -12,7 +14,8 @@ package dnd5e.api.session.v1alpha2;
 //
 // Every message here mirrors the session SDK's own atlas type of the same name,
 // field for field. v1alpha1 has wire types with the same shapes; this package
-// redefines them because v1alpha2 imports nothing from v1alpha1 (R18). The
+// redefines them because v1alpha2 imports nothing from session/v1alpha1 (R18).
+// Shared material-channel leaves live in the neutral presentation package. The
 // duplication lasts until v1alpha1's stream is deleted (R2).
 
 // Position is one cell or point on the map, mirroring the toolkit's
@@ -211,6 +214,10 @@ message AtlasStructuralWall {
   // Immutable visual replacements owned by this permitted wall. Empty means
   // none. Opening-only replacements preserve this component unchanged.
   repeated WallSection sections = 12;
+
+  // Same wall-owned captured adjustment facts as the snapshot contract. Hidden
+  // walls deliver none; opening-only changes preserve them. Empty is default.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 13;
 }
 
 // WallSection is a once-placed visual feature, not a gameplay opening, prop
@@ -283,6 +290,10 @@ message DoorFrameFaceFinish {
 message DoorFramePresentation {
   WallFrameSpan span = 1;
   repeated DoorFrameFaceFinish face_finishes = 2;
+
+  // Fixed-frame targets only, captured independently of any parent wall.
+  // Empty retains authored defaults; no moving-leaf or gameplay authority.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 3;
 }
 
 // MaterialOverride is one captured visual material choice for a declared asset
@@ -330,6 +341,10 @@ message PropPresentation {
   string label = 9;
   // Empty means Original for this captured prop; surface IDs are unique here.
   repeated MaterialOverride material_overrides = 10;
+
+  // Captured with the permitted prop appearance, including its observed copy
+  // for mutable props. No newer live/source enrichment; empty is default.
+  repeated dnd5e.api.session.presentation.material.v1alpha1.MaterialChannelAdjustment material_channels = 11;
 }
 
 // DoorApproach is one accepted route through a lock's authored check.

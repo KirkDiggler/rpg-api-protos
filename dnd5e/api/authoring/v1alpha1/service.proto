@@ -928,6 +928,12 @@ message ItemWordValue {
   // For a value of `use` (an ability), the words its `with` takes, in order,
   // each of place "with"; empty for every other value.
   repeated ItemWord with = 3;
+  // For a value of `use` (an ability): true when an entry that uses it must
+  // also write a count, `uses` or a `cost`. The rules refuse such an entry
+  // without one, because the ability charges no slot and would otherwise give
+  // its user something for nothing. False for every other value. Mirrors the
+  // rules' `kits.Value.NeedsCount`.
+  bool needs_count = 4;
 }
 
 // ItemNumberBounds are the limits of a number word. Mirrors the rules'
